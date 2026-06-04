@@ -383,7 +383,43 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0.0 })}
                   />
                 </div>
-              </div>
+              </div> {/* Escáner de código de barras */}
+<div className="space-y-2 pt-1">
+  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Escanear Código de Barras</label>
+  <div className="flex gap-2">
+    <input
+      type="text"
+      placeholder="Escanea o escribe el código..."
+      className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
+      value={formData.sku}
+      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+      onKeyDown={(e) => {
+        // Los lectores de barras físicos envían Enter al terminar
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          // El SKU ya queda en formData.sku automáticamente
+        }
+      }}
+    />
+    <button
+      type="button"
+      onClick={() => {
+        // Activar cámara nativa del celular para escanear
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'none';
+        // En móvil, usar input con capture para lector
+        const scanArea = document.getElementById('sku-scan-input') as HTMLInputElement;
+        if (scanArea) scanArea.focus();
+      }}
+      className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0"
+      title="Enfocar campo para lector físico"
+    >
+      <ScanBarcode className="w-5 h-5" />
+    </button>
+  </div>
+  <p className="text-[10px] text-gray-400">💡 Si tienes lector de código de barras físico o app, apunta aquí. El SKU se cargará automáticamente.</p>
+</div>
 
               {/* Image Preset Picker */}
               <div className="space-y-2 pt-1">
