@@ -1,10 +1,9 @@
 {
-  "projectId": "influential-camera-9tn3v",
-  "appId": "1:200508355221:web:a9e5bfc539bc8b19df619c",
-  "apiKey": "AIzaSyDHXOawz0YOi9Ghk56zRkuTUqGZ7Xy3EW8",
-  "authDomain": "influential-camera-9tn3v.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-76b13030-bf07-4047-9b0d-c241c536cd46",
-  "storageBucket": "influential-camera-9tn3v.firebasestorage.app",
-  "messagingSenderId": "200508355221",
-  "measurementId": ""
+  "apiKey": "AIzaSyA7D1EHQWWU9_a_g2jtOGSfa9YP8F9jSPk",
+  "authDomain": "abastos-generales.firebaseapp.com",
+  "projectId": "abastos-generales",
+  "storageBucket": "abastos-generales.firebasestorage.app",
+  "messagingSenderId": "276783658211",
+  "appId": "1:276783658211:web:405a223419967e91f0c1d6",
+  "firestoreDatabaseId": "(default)"
 }
