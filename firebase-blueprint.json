@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A food, drink, or generic grocery product in the bodega inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier (UUID or barcode)" },
+        "sku": { "type": "string", "description": "Barcode or custom SKU" },
+        "name": { "type": "string", "description": "Generic name of the product" },
+        "category": { "type": "string", "enum": ["Bebidas", "Abarrotes", "Lácteos", "Snacks"], "description": "Categorization" },
+        "stock": { "type": "number", "description": "Amount of units available" },
+        "price": { "type": "number", "description": "Retail price of the product" },
+        "cost": { "type": "number", "description": "Cost price of the product" },
+        "imageUrl": { "type": "string", "description": "Reference URL or base64 placeholder" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp of last modification" }
+      },
+      "required": ["id", "sku", "name", "category", "stock", "price", "cost", "updatedAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A register transaction representing a sale or inventory purchase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique document ID" },
+        "type": { "type": "string", "enum": ["Venta", "Compra"], "description": "Direction of transaction" },
+        "items": {
+          "type": "array",
+          "description": "List of quantities and prices at checkout time"
+        },
+        "subtotal": { "type": "number", "description": "Sum of prices * quantity" },
+        "tax": { "type": "number", "description": "IVA amount (15%)" },
+        "total": { "type": "number", "description": "Subtotal + tax" },
+        "method": { "type": "string", "enum": ["Efectivo", "Tarjeta"], "description": "Payment method used" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" }
+      },
+      "required": ["id", "type", "items", "subtotal", "tax", "total", "method", "createdAt"]
+    },
+    "FoodItem": {
+      "title": "FoodItem",
+      "description": "A traditional menu item offered in the kitchen segment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique document identifier" },
+        "name": { "type": "string", "description": "Name of the dish" },
+        "description": { "type": "string", "description": "Description of ingredients and preparation" },
+        "price": { "type": "number", "description": "Portion price" },
+        "category": { "type": "string", "enum": ["Almuerzos", "Sopas", "Postres", "Bebidas"], "description": "Dish category list" },
+        "isPopular": { "type": "boolean", "description": "Whether to highlight with popular badge" },
+        "imageUrl": { "type": "string", "description": "Visual reference" }
+      },
+      "required": ["id", "name", "description", "price", "category", "isPopular"]
+    },
+    "Config": {
+      "title": "Config",
+      "description": "Global operational variables such as name, contact details, and custom PINs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Usually 'business_info'" },
+        "name": { "type": "string", "description": "Custom name of local store" },
+        "whatsapp": { "type": "string", "description": "Active WhatsApp number to receive kitchen orders" },
+        "gps": { "type": "string", "description": "GPS coordinates text or street address" },
+        "adminPin": { "type": "string", "description": "4-digit verification code" }
+      },
+      "required": ["id", "name", "whatsapp", "gps", "adminPin"]
+    }
+  },
+  "firestore": {
+    "products/{productId}": {
+      "schema": "Product",
+      "description": "Product inventory collection"
+    },
+    "transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Transaction logs"
+    },
+    "foodItems/{foodItemId}": {
+      "schema": "FoodItem",
+      "description": "Kitchen meals"
+    },
+    "config/{configId}": {
+      "schema": "Config",
+      "description": "Business settings"
+    }
+  }
+}

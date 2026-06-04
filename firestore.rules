@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global safety net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Global Helpers
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-+%]+$'); 
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // ==========================================
+    // 1. PRODUCTS COLLECTION SECURITY & SCHEMA
+    // ==========================================
+    function isValidProduct(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.sku is string && data.sku.size() <= 100
+          && data.name is string && data.name.size() <= 150
+          && data.category is string && (data.category == "Bebidas" || data.category == "Abarrotes" || data.category == "Lácteos" || data.category == "Snacks")
+          && data.stock is number && data.stock >= 0
+          && data.price is number && data.price >= 0
+          && data.cost is number && data.cost >= 0
+          && data.imageUrl is string
+          && data.updatedAt is string;
+    }
+
+    match /products/{productId} {
+      // Allow read so general cashier and lists can see catalog items
+      allow read: if true;
+      allow create: if isValidProduct(incoming()) && isValidId(productId);
+      allow update: if isValidProduct(incoming()) && isValidId(productId);
+      allow delete: if isValidId(productId);
+    }
+
+    // ==========================================
+    // 2. TRANSACTIONS COLLECTION (IMMUTALE LOGS)
+    // ==========================================
+    function isValidTransaction(data) {
+      return data.id is string
+          && data.type is string && (data.type == "Venta" || data.type == "Compra")
+          && data.items is list
+          && data.subtotal is number
+          && data.tax is number
+          && data.total is number
+          && data.method is string && (data.method == "Efectivo" || data.method == "Tarjeta")
+          && data.createdAt is string;
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if true;
+      // Transactions once added are immutable accounting records (no updating/deleting allowed)
+      allow create: if isValidTransaction(incoming()) && isValidId(transactionId);
+      allow update, delete: if false;
+    }
+
+    // ==========================================
+    // 3. FOODITEMS COLLECTION (KITCHEN MENU)
+    // ==========================================
+    function isValidFoodItem(data) {
+      return data.id is string
+          && data.name is string && data.name.size() <= 150
+          && data.description is string && data.description.size() <= 1000
+          && data.price is number && data.price >= 0
+          && data.category is string && (data.category == "Almuerzos" || data.category == "Sopas" || data.category == "Postres" || data.category == "Bebidas")
+          && data.isPopular is bool
+          && data.imageUrl is string;
+    }
+
+    match /foodItems/{foodItemId} {
+      allow read: if true;
+      allow create: if isValidFoodItem(incoming()) && isValidId(foodItemId);
+      allow update: if isValidFoodItem(incoming()) && isValidId(foodItemId);
+      allow delete: if isValidId(foodItemId);
+    }
+
+    // ==========================================
+    // 4. CONFIG COLLECTION (GLOBAL SETTINGS)
+    // ==========================================
+    function isValidConfig(data) {
+      return data.id is string
+          && data.name is string && data.name.size() <= 150
+          && data.whatsapp is string && data.whatsapp.size() <= 50
+          && data.gps is string && data.gps.size() <= 200
+          && data.adminPin is string && data.adminPin.size() <= 20;
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow create: if isValidConfig(incoming()) && isValidId(configId);
+      allow update: if isValidConfig(incoming()) && isValidId(configId);
+      allow delete: if false;
+    }
+  }
+}

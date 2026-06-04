@@ -1,0 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@750;800;900&display=swap');
+@import "tailwindcss";
+
+/* Custom classes to hide scrollbars elegantly in standard CSS */
+.scroller-no-bar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scroller-no-bar::-webkit-scrollbar {
+  display: none;
+}
