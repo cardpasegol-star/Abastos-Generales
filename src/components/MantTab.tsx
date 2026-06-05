@@ -77,15 +77,33 @@ export default function MantTab({
   const handleClear = () => setPin('');
   const handleBackspace = () => setPin(p => p.slice(0, -1));
 
-  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setBannerPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+ const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+
+    // Máximo 800px de ancho, manteniendo proporción
+    const maxWidth = 800;
+    const scale = Math.min(1, maxWidth / img.width);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    const ctx = canvas.getContext('2d');
+    ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // Calidad 0.7 = buen balance tamaño/calidad
+    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+    setBannerPreview(compressed);
+    URL.revokeObjectURL(objectUrl);
   };
+
+  img.src = objectUrl;
+};
 
   const handleSaveConfig = async () => {
     setLoading(true);
