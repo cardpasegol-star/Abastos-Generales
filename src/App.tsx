@@ -188,7 +188,7 @@ export default function App() {
       <Header config={config} />
 
       {/* Main viewport canvas */}
-      <main className="flex-1 px-4 pt-4 pb-28 max-w-md w-full mx-auto">
+      <main className="flex-1 px-3 pt-4 pb-32 w-full">
         {activeTab === 'Inventario' && (
           <InventarioTab
             products={products}
