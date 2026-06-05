@@ -105,18 +105,19 @@ export default function MantTab({
   img.src = objectUrl;
 };
 
-  const handleSaveConfig = async () => {
-    setLoading(true);
-    try {
-      await onUpdateConfig({
-        id: config.id || 'business_info',
-        name: localName.trim(),
-        whatsapp: whatsapp.trim(),
-        gps: gps.trim(),
-        adminPin: adminPinField.trim(),
-        logoUrl: config.logoUrl,
-        bannerUrl: bannerPreview
-      });
+ const handleSaveConfig = async () => {
+  setLoading(true);
+  try {
+    console.log('bannerPreview al guardar:', bannerPreview?.substring(0, 50)); // ← agrega esta línea
+    await onUpdateConfig({
+      id: config.id || 'business_info',
+      name: localName.trim(),
+      whatsapp: whatsapp.trim(),
+      gps: gps.trim(),
+      adminPin: adminPinField.trim(),
+      logoUrl: config.logoUrl,
+      bannerUrl: bannerPreview
+    });
       setNotifySaved(true);
       setTimeout(() => setNotifySaved(false), 3000);
     } catch (err) {
