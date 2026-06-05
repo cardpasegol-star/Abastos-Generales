@@ -225,8 +225,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         ))}
       </section>
 
-     {/* 4. Grilla de productos — 1 col en móvil, 2 en pantallas medianas */}
-<section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   {/* 4. Lista de productos — 1 columna full width */}
+<section className="flex flex-col gap-3">
   {filteredProducts.map((p) => {
     const isOutOfStock = p.stock === 0;
     const isLowStock = p.stock > 0 && p.stock <= 5;
@@ -235,12 +235,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       <div
         key={p.id}
         onClick={() => handleOpenEdit(p)}
-        className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer flex gap-4 shadow-sm select-none items-center ${
-          isOutOfStock ? 'border-gray-100 opacity-60' : isLowStock ? 'border-amber-300' : 'border-gray-100 hover:border-indigo-200 hover:shadow-md'
+        className={`bg-white rounded-2xl p-4 border-2 transition-all cursor-pointer flex gap-4 shadow-md select-none items-center ${
+          isOutOfStock ? 'border-gray-200 opacity-70' : isLowStock ? 'border-amber-400' : 'border-gray-200 active:border-indigo-400'
         }`}
       >
-        {/* Imagen cuadrada más grande */}
-        <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
+        {/* Imagen grande */}
+        <div className="relative w-28 h-28 rounded-xl overflow-hidden bg-gray-100 shrink-0 border-2 border-gray-200">
           <img
             alt={p.name}
             className="w-full h-full object-cover"
@@ -250,10 +250,40 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           />
           {isOutOfStock && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <span className="bg-rose-600 text-white font-bold text-[10px] uppercase px-2 py-0.5 rounded">Agotado</span>
+              <span className="bg-rose-600 text-white font-extrabold text-xs uppercase px-2 py-1 rounded-lg">Agotado</span>
             </div>
           )}
         </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-extrabold text-indigo-700 uppercase tracking-wider">{p.category}</span>
+          <h3 className="font-extrabold text-gray-900 text-xl leading-tight truncate mt-0.5">{p.name}</h3>
+          <p className="text-sm text-gray-600 font-semibold mb-2">SKU: {p.sku}</p>
+          <div className="flex items-center justify-between">
+            <span className={`text-base font-extrabold ${isOutOfStock ? 'text-rose-600' : isLowStock ? 'text-amber-600' : 'text-gray-800'}`}>
+              {isLowStock && '⚠️ '}{p.stock} uds
+            </span>
+            <span className="text-2xl font-extrabold text-indigo-700">${p.price.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-sm font-semibold text-gray-600">Costo: ${p.cost.toFixed(2)}</span>
+            <span className={`text-sm font-extrabold px-2 py-0.5 rounded-lg ${marginPercent >= 30 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700'}`}>
+              +{marginPercent}%
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  })}
+
+  {filteredProducts.length === 0 && (
+    <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
+      <PackageOpen className="w-16 h-16 stroke-1 text-gray-300" />
+      <p className="text-lg font-bold text-gray-500">Ningún producto encontrado</p>
+    </div>
+  )}
+</section>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
