@@ -136,14 +136,17 @@ export default function App() {
     }
   };
 
-  const handleUpdateConfig = async (newCfg: BusinessConfig) => {
-    try {
-      await setDoc(doc(db, 'config', 'business_info'), newCfg);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'config/business_info');
-    }
-  };
-
+ const handleUpdateConfig = async (newCfg: BusinessConfig) => {
+  try {
+    // Eliminar campos undefined antes de guardar en Firestore
+    const cleanCfg = Object.fromEntries(
+      Object.entries(newCfg).filter(([_, v]) => v !== undefined)
+    );
+    await setDoc(doc(db, 'config', 'business_info'), cleanCfg);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'config/business_info');
+  }
+};
   const handleAddFoodItem = async (f: Omit<FoodItem, 'id'>) => {
     const id = 'dish-' + Math.floor(100 + Math.random() * 900);
     const newDish: FoodItem = {
