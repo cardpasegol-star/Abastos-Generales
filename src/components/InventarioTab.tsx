@@ -487,7 +487,7 @@ const [loading, setLoading] = useState(false);
             </div>{/* fin scroll */}
 
             {/* ── BOTONES FIJOS ABAJO ── */}
-            <div className="shrink-0 flex gap-3 px-5 py-4 border-t border-gray-100 bg-white rounded-b-3xl">
+           <div className="shrink-0 flex gap-3 px-5 py-4 border-t border-gray-100 bg-white rounded-b-3xl mb-16 sm:mb-0">
               {editingItem && (
                 <button type="button"
                   onClick={async () => {
