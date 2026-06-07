@@ -210,8 +210,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 isOutOfStock ? 'border-gray-200 opacity-70' : isLowStock ? 'border-amber-400' : 'border-gray-100 active:border-indigo-400'
               }`}
             >
-              {/* Imagen */}
-              <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
+             {/* Imagen */}
+              <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0 border-2 border-gray-200">
                 <img
                   alt={p.name}
                   className="w-full h-full object-cover"
