@@ -513,27 +513,28 @@ const [loading, setLoading] = useState(false);
                 ))}
               </div>
 
-              {/* Botones */}
-              <div className="flex gap-3 pt-2">
-                {editingItem && (
-                  <button type="button"
-                    onClick={async () => {
-                      if (window.confirm('¿Eliminar este producto?')) {
-                        setLoading(true);
-                        try { await onDeleteProduct(editingItem.id); setShowAddModal(false); }
-                        catch (err) { console.error(err); }
-                        finally { setLoading(false); }
-                      }
-                    }}
-                    className="flex-1 bg-rose-50 text-rose-600 border border-rose-200/50 py-3.5 rounded-xl text-sm font-bold hover:bg-rose-100 active:scale-95 transition-all outline-none">
-                    Eliminar
-                  </button>
-                )}
-                <button type="submit" disabled={loading}
-                  className="flex-1 bg-indigo-600 text-white font-bold py-3.5 px-5 rounded-xl text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
-                  {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : editingItem ? 'Guardar Cambios' : 'Agregar Producto'}
+             </div>
+            {/* Botones FIJOS abajo — fuera del scroll */}
+            <div className="flex gap-3 p-5 pt-3 border-t border-gray-100 bg-white shrink-0">
+              {editingItem && (
+                <button type="button"
+                  onClick={async () => {
+                    if (window.confirm('¿Eliminar este producto?')) {
+                      setLoading(true);
+                      try { await onDeleteProduct(editingItem.id); setShowAddModal(false); }
+                      catch (err) { console.error(err); }
+                      finally { setLoading(false); }
+                    }
+                  }}
+                  className="flex-1 bg-rose-50 text-rose-600 border border-rose-200/50 py-3.5 rounded-xl text-sm font-bold hover:bg-rose-100 active:scale-95 transition-all outline-none">
+                  Eliminar
                 </button>
-              </div>
+              )}
+              <button type="submit" onClick={handleSubmit} disabled={loading}
+                className="flex-1 bg-indigo-600 text-white font-bold py-3.5 px-5 rounded-xl text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
+                {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : editingItem ? 'Guardar Cambios' : 'Agregar Producto'}
+              </button>
+            </div>
             </form>
           </div>
         </div>
