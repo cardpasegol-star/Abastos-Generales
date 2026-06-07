@@ -73,61 +73,107 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     stock: 0, price: 0.0, cost: 0.0, imageUrl: PRESET_IMAGES[0].url
   });
 const [loading, setLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
+ const [showScanner, setShowScanner] = useState(false);
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [productFetchMsg, setProductFetchMsg] = useState('');
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animFrameRef = useRef<number>(0);
 
-  const stopScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
-      scannerRef.current = null;
+  const stopScanner = useCallback(() => {
+    cancelAnimationFrame(animFrameRef.current);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
     }
-  };
+  }, []);
+
+  const lookupBarcode = useCallback(async (barcode: string) => {
+    setFormData(prev => ({ ...prev, sku: barcode }));
+    setFetchingProduct(true);
+    setProductFetchMsg('');
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const data = await res.json();
+      if (data.status === 1 && data.product) {
+        const p = data.product;
+        const nombre = p.product_name_es || p.product_name || p.product_name_en || '';
+        const imagen = p.image_front_url || p.image_url || '';
+        const categoria = detectCategory(p.categories_tags || []);
+        setFormData(prev => ({
+          ...prev,
+          sku: barcode,
+          name: nombre || prev.name,
+          imageUrl: imagen || prev.imageUrl,
+          category: categoria
+        }));
+        setProductFetchMsg(nombre ? `✅ Encontrado: ${nombre}` : '⚠️ Código OK, completa el nombre manualmente.');
+      } else {
+        setProductFetchMsg('⚠️ No encontrado en base de datos. Completa manualmente.');
+      }
+    } catch {
+      setProductFetchMsg('⚠️ Sin conexión externa.');
+    } finally {
+      setFetchingProduct(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!showScanner) return;
-    const scanner = new Html5Qrcode('qr-reader');
-    scannerRef.current = scanner;
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 150 } },
-      async (barcode) => {
-        stopScanner();
-        setShowScanner(false);
-        setFormData(prev => ({ ...prev, sku: barcode }));
-        // Consultar Open Food Facts
-        setFetchingProduct(true);
-        setProductFetchMsg('');
-        try {
-          const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-          const data = await res.json();
-          if (data.status === 1 && data.product) {
-            const p = data.product;
-            const nombre = p.product_name_es || p.product_name || p.product_name_en || '';
-            const imagen = p.image_front_url || p.image_url || '';
-            const categoria = detectCategory(p.categories_tags || []);
-            if (nombre) setFormData(prev => ({
-              ...prev,
-              sku: barcode,
-              name: nombre,
-              imageUrl: imagen || prev.imageUrl,
-              category: categoria
-            }));
-            setProductFetchMsg(nombre ? `✅ Producto encontrado: ${nombre}` : '⚠️ Código encontrado pero sin nombre. Completa manualmente.');
-          } else {
-            setProductFetchMsg('⚠️ Producto no encontrado en la base de datos. Completa manualmente.');
-          }
-        } catch {
-          setProductFetchMsg('⚠️ Sin conexión a la base de datos externa.');
-        } finally {
-          setFetchingProduct(false);
+    let active = true;
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        streamRef.current = stream;
+        if (videoRef.current && active) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          scanLoop();
         }
-      },
-      () => {}
-    ).catch(() => setShowScanner(false));
-    return () => { stopScanner(); };
-  }, [showScanner]);
+      } catch {
+        setProductFetchMsg('⚠️ No se pudo acceder a la cámara.');
+        setShowScanner(false);
+      }
+    };
+
+    const scanLoop = async () => {
+      // Usar BarcodeDetector nativo del navegador
+      if (!('BarcodeDetector' in window)) {
+        setProductFetchMsg('⚠️ Tu navegador no soporta escaneo. Escribe el código manualmente.');
+        setShowScanner(false);
+        return;
+      }
+      // @ts-ignore
+      const detector = new window.BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code']
+      });
+
+      const detect = async () => {
+        if (!active || !videoRef.current) return;
+        try {
+          const barcodes = await detector.detect(videoRef.current);
+          if (barcodes.length > 0) {
+            const code = barcodes[0].rawValue;
+            stopScanner();
+            setShowScanner(false);
+            await lookupBarcode(code);
+            return;
+          }
+        } catch {}
+        animFrameRef.current = requestAnimationFrame(detect);
+      };
+      animFrameRef.current = requestAnimationFrame(detect);
+    };
+
+    startCamera();
+    return () => {
+      active = false;
+      stopScanner();
+    };
+  }, [showScanner, stopScanner, lookupBarcode]);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
