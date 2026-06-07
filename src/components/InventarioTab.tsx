@@ -380,7 +380,7 @@ const [loading, setLoading] = useState(false);
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
           
           {/* Contenedor modal */}
-          <div className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col" style={{maxHeight: '90vh'}}>
+        <div className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col" style={{maxHeight: '85vh', paddingBottom: 'env(safe-area-inset-bottom)'}}>
             
             {/* Header fijo */}
             <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0">
