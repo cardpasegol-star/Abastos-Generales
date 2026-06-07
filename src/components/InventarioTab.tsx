@@ -27,7 +27,13 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Lácteos': '🥛',
   'Snacks': '🍿',
 };
-
+function detectCategory(tags: string[]): Product['category'] {
+  const s = tags.join(' ').toLowerCase();
+  if (s.includes('bebida') || s.includes('drink') || s.includes('juice') || s.includes('water')) return 'Bebidas';
+  if (s.includes('dairy') || s.includes('lacteo') || s.includes('milk') || s.includes('cheese')) return 'Lácteos';
+  if (s.includes('snack') || s.includes('chip') || s.includes('cookie') || s.includes('galleta')) return 'Snacks';
+  return 'Abarrotes';
+}
 function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agotado') {
   const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
   const color = tipo === 'bajo' ? '#D97706' : '#DC2626';
