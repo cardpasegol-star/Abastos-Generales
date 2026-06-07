@@ -351,3 +351,195 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   <span className={`text-base font-extrabold ${isOutOfStock ? 'text-rose-600' : isLowStock ? 'text-amber-500' : 'text-gray-800'}`}>
                     {isLowStock && '⚠️ '}{p.stock} uds
                   </span>
+                  <span className="text-2xl font-extrabold text-indigo-600">${p.price.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-xs text-gray-500 font-semibold">Costo: ${p.cost.toFixed(2)}</span>
+                  <span className={`text-xs font-extrabold px-2 py-0.5 rounded-lg ${marginPercent >= 30 ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                    +{marginPercent}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {filteredProducts.length === 0 && (
+          <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
+            <PackageOpen className="w-16 h-16 stroke-1 text-gray-300" />
+            <p className="text-lg font-bold text-gray-500">Ningún producto encontrado</p>
+          </div>
+        )}
+      </section>
+
+      {/* ── FAB ── */}
+      <button
+        onClick={handleOpenAdd}
+        className="fixed bottom-20 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 active:scale-95 hover:shadow-xl transition-all z-40 hover:rotate-90 duration-300"
+      >
+        <Plus className="w-7 h-7 stroke-[2.5]" />
+      </button>
+
+      {/* ── MODAL ESCÁNER ── */}
+      {showScanner && (
+        <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+              <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
+              <button onClick={() => { stopScanner(); setShowScanner(false); }}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="relative bg-black" style={{ height: '260px' }}>
+              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
+              Apunta al código de barras del producto
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── PANTALLA COMPLETA DESDE EL TOPE (ANTI-BARRAS / ANTI-TECLADO) ── */}
+      {showAddModal && (
+        <div className="fixed inset-0 top-0 left-0 w-full h-full z-50 bg-white flex flex-col overflow-hidden">
+          
+          {/* Header Fijo Arriba */}
+          <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 bg-white shrink-0">
+            <h3 className="text-lg font-extrabold text-gray-950">
+              {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
+            </h3>
+            <button type="button" onClick={() => setShowAddModal(false)}
+              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Cuerpo con Scroll Propio que nunca se deforma */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-5 pb-32">
+
+            {/* Imagen */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Imagen del Producto</label>
+              <div className="flex items-center gap-3">
+                <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-indigo-100 shrink-0 bg-gray-50">
+                  <img src={formData.imageUrl} className="w-full h-full object-cover" alt="preview" />
+                </div>
+                <div className="flex flex-col gap-2 flex-1">
+                  <label className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer">
+                    <Image className="w-4 h-4" />
+                    <span>Subir desde Galería</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleGalleryImage} />
+                  </label>
+                  <label className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer">
+                    <Camera className="w-4 h-4" />
+                    <span>Tomar Foto</span>
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleGalleryImage} />
+                  </label>
+                </div>
+              </div>
+              <div className="flex gap-2 overflow-x-auto py-1">
+                {PRESET_IMAGES.map((img, i) => (
+                  <button key={i} type="button" onClick={() => setFormData({ ...formData, imageUrl: img.url })}
+                    className={`w-12 h-12 rounded-lg overflow-hidden border shrink-0 transition-all ${formData.imageUrl === img.url ? 'ring-2 ring-indigo-600 scale-105 border-indigo-600' : 'border-gray-200 opacity-60'}`}>
+                    <img src={img.url} className="w-full h-full object-cover" alt="" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Nombre */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nombre *</label>
+              <input type="text" placeholder="Ej. Coca Cola 3L"
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
+                value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            </div>
+
+            {/* SKU */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU / Código de Barras *</label>
+              <div className="flex gap-2">
+                <input type="text" placeholder="Escanea o escribe..."
+                  className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base outline-none"
+                  value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
+                <button type="button" onClick={() => setShowScanner(true)}
+                  className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0">
+                  <ScanBarcode className="w-5 h-5" />
+                </button>
+              </div>
+              {fetchingProduct && <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto...</p>}
+              {productFetchMsg && (
+                <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {productFetchMsg}
+                </p>
+              )}
+            </div>
+
+            {/* Categoría */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Categoría *</label>
+              <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-3 text-base outline-none"
+                value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as Product['category'] })}>
+                <option value="Bebidas">🥤 Bebidas</option>
+                <option value="Abarrotes">🧴 Abarrotes</option>
+                <option value="Lácteos">🥛 Lácteos</option>
+                <option value="Snacks">🍿 Snacks</option>
+              </select>
+            </div>
+
+            {/* Stock / Costo / Precio */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Stock', key: 'stock', type: 'number', step: '1' },
+                { label: 'Costo ($)', key: 'cost', type: 'number', step: '0.01' },
+                { label: 'Precio ($)', key: 'price', type: 'number', step: '0.01' },
+              ].map(({ label, key, type, step }) => (
+                <div key={key} className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</label>
+                  <input type={type} step={step} min="0"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-2 py-3 text-base text-center outline-none"
+                    value={(formData as any)[key]}
+                    onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Barra de Botones Fija al final de la pantalla, indestructible por encima de mandos */}
+          <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            {editingItem && (
+              <button type="button" onClick={handleDeleteProduct} disabled={loading}
+                className="flex-1 bg-gray-50 text-rose-600 border border-rose-200 py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50">
+                Eliminar
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleSubmit}
+              className="flex-1 bg-indigo-600 text-white font-extrabold py-3.5 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
+              {loading ? (
+                <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
+              ) : editingItem ? (
+                '💾 Guardar Cambios'
+              ) : (
+                '✅ Agregar Producto'
+              )}
+            </button>
+          </div>
+
+        </div>
+      )}
+
+    </div>
+  );
+}
