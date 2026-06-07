@@ -177,20 +177,20 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         )}
       </div>
 
-      {/* ── CATEGORÍAS con íconos estilo Uber Eats ── */}
-      <div className="flex gap-2 overflow-x-auto -mx-3 px-3 pb-1 scrollbar-hide">
+     {/* ── CATEGORÍAS con íconos grandes estilo Uber Eats ── */}
+      <div className="flex gap-3 overflow-x-auto -mx-3 px-3 pb-2 scrollbar-hide">
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-2xl font-semibold text-xs whitespace-nowrap transition-all border shrink-0 ${
+            className={`flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all shrink-0 ${
               selectedCategory === cat
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                : 'bg-white border-gray-100 text-gray-600 hover:bg-gray-50 shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-lg scale-105'
+                : 'bg-white text-gray-800 shadow-md border border-gray-100'
             }`}
           >
-            <span className="text-xl">{CATEGORY_ICONS[cat] || '📦'}</span>
-            <span>{cat}</span>
+            <span className="text-3xl">{CATEGORY_ICONS[cat] || '📦'}</span>
+            <span className="font-extrabold">{cat}</span>
           </button>
         ))}
       </div>
