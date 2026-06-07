@@ -127,11 +127,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   return (
     <div className="space-y-5 pb-24">
 
-      {/* ── STATS ── */}
+     {/* ── STATS ── */}
       <section className="grid grid-cols-3 gap-3 mt-1">
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1">
-          <span className="text-xs font-bold text-gray-400 uppercase">Total Uds</span>
-          <span className="text-2xl font-extrabold text-indigo-600">{totalStock.toLocaleString()}</span>
+        <div className="bg-indigo-600 p-4 rounded-2xl shadow-md flex flex-col gap-1">
+          <span className="text-xs font-bold text-indigo-200 uppercase">Total Uds</span>
+          <span className="text-3xl font-extrabold text-white">{totalStock.toLocaleString()}</span>
         </div>
         <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200/50 shadow-sm flex flex-col gap-1">
           <div className="flex items-center justify-between">
