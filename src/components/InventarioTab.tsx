@@ -408,28 +408,28 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         </div>
       )}
 
-     {/* ── MODAL AGREGAR / EDITAR CORREGIDO PARA CELULARES ── */}
+     {/* ── MODAL AGREGAR / EDITAR: SOLUCIÓN ABSOLUTA ANTITECLADO ── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center">
-          {/* Fondo */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
+          {/* Fondo clickeable detrás del panel */}
+          <div className="absolute inset-0" onClick={() => setShowAddModal(false)} />
 
-          {/* Panel con scroll total y altura completa en móvil */}
-          <div className="relative bg-white w-full h-full sm:h-auto sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col shadow-2xl overflow-y-auto">
+          {/* Panel Flotante con posición absoluta nativa */}
+          <div className="relative my-6 mx-auto w-11/12 max-w-sm bg-white rounded-3xl shadow-2xl border border-gray-100 z-10">
 
             {/* Header */}
-            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0 rounded-t-3xl bg-white">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 bg-white rounded-t-3xl">
               <h3 className="text-lg font-extrabold text-gray-950">
                 {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
               </h3>
-              <button onClick={() => setShowAddModal(false)}
+              <button type="button" onClick={() => setShowAddModal(false)}
                 className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Contenido de los campos */}
-            <div className="p-5 space-y-4 flex-1">
+            {/* Cuerpo del formulario */}
+            <div className="p-5 space-y-4">
 
               {/* Imagen */}
               <div className="space-y-2">
@@ -460,6 +460,91 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   ))}
                 </div>
               </div>
+
+              {/* Nombre */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nombre *</label>
+                <input type="text" placeholder="Ej. Coca Cola 3L"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
+                  value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+              </div>
+
+              {/* SKU */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU / Código de Barras *</label>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Escanea o escribe..."
+                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base outline-none"
+                    value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
+                  <button type="button" onClick={() => setShowScanner(true)}
+                    className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0">
+                    <ScanBarcode className="w-5 h-5" />
+                  </button>
+                </div>
+                {fetchingProduct && <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto...</p>}
+                {productFetchMsg && (
+                  <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {productFetchMsg}
+                  </p>
+                )}
+              </div>
+
+              {/* Categoría */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Categoría *</label>
+                <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-3 text-base outline-none"
+                  value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as Product['category'] })}>
+                  <option value="Bebidas">🥤 Bebidas</option>
+                  <option value="Abarrotes">🧴 Abarrotes</option>
+                  <option value="Lácteos">🥛 Lácteos</option>
+                  <option value="Snacks">🍿 Snacks</option>
+                </select>
+              </div>
+
+              {/* Stock / Costo / Precio */}
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Stock', key: 'stock', type: 'number', step: '1' },
+                  { label: 'Costo ($)', key: 'cost', type: 'number', step: '0.01' },
+                  { label: 'Precio ($)', key: 'price', type: 'number', step: '0.01' },
+                ].map(({ label, key, type, step }) => (
+                  <div key={key} className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</label>
+                    <input type={type} step={step} min="0"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-2 py-3 text-base text-center outline-none"
+                      value={(formData as any)[key]}
+                      onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Botones de acción integrados al final del bloque físico */}
+            <div className="p-5 bg-gray-50 border-t border-gray-100 flex gap-3 rounded-b-3xl">
+              {editingItem && (
+                <button type="button" onClick={handleDeleteProduct} disabled={loading}
+                  className="flex-1 bg-white text-rose-600 border border-rose-200 py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50 shadow-sm">
+                  Eliminar
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleSubmit}
+                className="flex-1 bg-indigo-600 text-white font-extrabold py-3.5 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
+                {loading ? (
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
+                ) : editingItem ? (
+                  '💾 Guardar Cambios'
+                ) : (
+                  '✅ Agregar Producto'
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
               {/* Nombre */}
               <div className="space-y-1">
@@ -586,50 +671,4 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 </select>
               </div>
 
-              {/* Stock / Costo / Precio */}
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'Stock', key: 'stock', type: 'number', step: '1' },
-                  { label: 'Costo ($)', key: 'cost', type: 'number', step: '0.01' },
-                  { label: 'Precio ($)', key: 'price', type: 'number', step: '0.01' },
-                ].map(({ label, key, type, step }) => (
-                  <div key={key} className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</label>
-                    <input type={type} step={step} min="0"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-2 py-3 text-base text-center outline-none"
-                      value={(formData as any)[key]}
-                      onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── BOTONES GUARDAR / ELIMINAR INTEGRADOS EN EL MODAL ── */}
-            <div className="p-4 bg-white border-t border-gray-100 flex gap-3 sticky bottom-0 z-10 rounded-b-3xl shrink-0">
-              {editingItem && (
-                <button type="button" onClick={handleDeleteProduct} disabled={loading}
-                  className="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50">
-                  Eliminar
-                </button>
-              )}
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleSubmit}
-                className="flex-1 bg-indigo-600 text-white font-extrabold py-3.5 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
-                {loading ? (
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
-                ) : editingItem ? (
-                  '💾 Guardar Cambios'
-                ) : (
-                  '✅ Agregar Producto'
-                )}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+             
