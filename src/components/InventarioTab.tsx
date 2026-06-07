@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom'; // 🔥 Solución definitiva para sobreponerse a todo
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
 import { Product } from '../types';
 
@@ -381,7 +382,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
       {/* ── MODAL ESCÁNER ── */}
       {showScanner && (
-        <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/90 z-[110] flex flex-col items-center justify-center p-4">
           <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
             <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
               <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
@@ -408,9 +409,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         </div>
       )}
 
-      {/* ── PANTALLA COMPLETA ANTITECLADO Y ANTI-BARRA INFERIOR ── */}
-      {showAddModal && (
-        <div className="fixed inset-0 top-0 left-0 w-full h-full z-[100] bg-white flex flex-col overflow-hidden md:max-w-md md:left-1/2 md:-translate-x-1/2 md:shadow-2xl md:border-x md:border-gray-100">
+      {/* ── MODAL NUEVO/EDITAR PRODUCTO MEDIANTE PORTAL ── */}
+      {showAddModal && createPortal(
+        <div className="fixed inset-0 bg-white flex flex-col overflow-hidden md:max-w-md md:left-1/2 md:-translate-x-1/2 md:shadow-2xl md:border-x md:border-gray-100" style={{ zIndex: 9999 }}>
           
           {/* Header Fijo Arriba */}
           <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 bg-white shrink-0">
@@ -514,7 +515,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             </div>
           </div>
 
-          {/* Barra de Botones Fija Inferior (Garantizado sobre cualquier barra de comandos) */}
+          {/* Barra de Botones Fija Inferior */}
           <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {editingItem && (
               <button type="button" onClick={handleDeleteProduct} disabled={loading}
@@ -537,5 +538,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             </button>
           </div>
 
-        </div>
+        </div>,
+        document.body // <- Mueve el HTML directamente al cuerpo del documento global
       )}
+    </div>
+  );
+}
