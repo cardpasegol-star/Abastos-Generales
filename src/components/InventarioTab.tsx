@@ -67,7 +67,62 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     sku: '', name: '', category: 'Bebidas' as Product['category'],
     stock: 0, price: 0.0, cost: 0.0, imageUrl: PRESET_IMAGES[0].url
   });
-  const [loading, setLoading] = useState(false);
+const [loading, setLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [fetchingProduct, setFetchingProduct] = useState(false);
+  const [productFetchMsg, setProductFetchMsg] = useState('');
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!showScanner) return;
+    const scanner = new Html5Qrcode('qr-reader');
+    scannerRef.current = scanner;
+    scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      async (barcode) => {
+        stopScanner();
+        setShowScanner(false);
+        setFormData(prev => ({ ...prev, sku: barcode }));
+        // Consultar Open Food Facts
+        setFetchingProduct(true);
+        setProductFetchMsg('');
+        try {
+          const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+          const data = await res.json();
+          if (data.status === 1 && data.product) {
+            const p = data.product;
+            const nombre = p.product_name_es || p.product_name || p.product_name_en || '';
+            const imagen = p.image_front_url || p.image_url || '';
+            const categoria = detectCategory(p.categories_tags || []);
+            if (nombre) setFormData(prev => ({
+              ...prev,
+              sku: barcode,
+              name: nombre,
+              imageUrl: imagen || prev.imageUrl,
+              category: categoria
+            }));
+            setProductFetchMsg(nombre ? `✅ Producto encontrado: ${nombre}` : '⚠️ Código encontrado pero sin nombre. Completa manualmente.');
+          } else {
+            setProductFetchMsg('⚠️ Producto no encontrado en la base de datos. Completa manualmente.');
+          }
+        } catch {
+          setProductFetchMsg('⚠️ Sin conexión a la base de datos externa.');
+        } finally {
+          setFetchingProduct(false);
+        }
+      },
+      () => {}
+    ).catch(() => setShowScanner(false));
+    return () => { stopScanner(); };
+  }, [showScanner]);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
