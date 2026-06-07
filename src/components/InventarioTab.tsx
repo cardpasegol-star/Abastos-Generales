@@ -514,8 +514,8 @@ const [loading, setLoading] = useState(false);
               </div>
 
              </div>
-            {/* Botones FIJOS abajo — fuera del scroll */}
-            <div className="flex gap-3 p-5 pt-3 border-t border-gray-100 bg-white shrink-0">
+            {/* Botón flotante fijo */}
+            <div className="fixed bottom-0 left-0 right-0 flex gap-3 p-4 bg-white border-t border-gray-100 z-[70] shadow-2xl">
               {editingItem && (
                 <button type="button"
                   onClick={async () => {
