@@ -386,7 +386,8 @@ const [loading, setLoading] = useState(false);
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
+           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               {/* Imagen */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Imagen del Producto</label>
