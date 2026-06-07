@@ -408,9 +408,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         </div>
       )}
 
-      {/* ── PANTALLA COMPLETA DESDE EL TOPE (ANTI-BARRAS / ANTI-TECLADO) ── */}
+      {/* ── PANTALLA COMPLETA ANTITECLADO Y ANTI-BARRA INFERIOR ── */}
       {showAddModal && (
-        <div className="fixed inset-0 top-0 left-0 w-full h-full z-50 bg-white flex flex-col overflow-hidden">
+        <div className="fixed inset-0 top-0 left-0 w-full h-full z-[100] bg-white flex flex-col overflow-hidden md:max-w-md md:left-1/2 md:-translate-x-1/2 md:shadow-2xl md:border-x md:border-gray-100">
           
           {/* Header Fijo Arriba */}
           <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 bg-white shrink-0">
@@ -418,12 +418,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
             </h3>
             <button type="button" onClick={() => setShowAddModal(false)}
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Cuerpo con Scroll Propio que nunca se deforma */}
+          {/* Cuerpo con Scroll Propio */}
           <div className="flex-1 overflow-y-auto p-5 space-y-5 pb-32">
 
             {/* Imagen */}
@@ -434,12 +434,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   <img src={formData.imageUrl} className="w-full h-full object-cover" alt="preview" />
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
-                  <label className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer">
+                  <label className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-indigo-100 transition-colors">
                     <Image className="w-4 h-4" />
                     <span>Subir desde Galería</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleGalleryImage} />
                   </label>
-                  <label className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer">
+                  <label className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
                     <Camera className="w-4 h-4" />
                     <span>Tomar Foto</span>
                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleGalleryImage} />
@@ -514,7 +514,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             </div>
           </div>
 
-          {/* Barra de Botones Fija al final de la pantalla, indestructible por encima de mandos */}
+          {/* Barra de Botones Fija Inferior (Garantizado sobre cualquier barra de comandos) */}
           <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {editingItem && (
               <button type="button" onClick={handleDeleteProduct} disabled={loading}
@@ -539,7 +539,3 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
         </div>
       )}
-
-    </div>
-  );
-}
