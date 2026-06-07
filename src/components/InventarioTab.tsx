@@ -26,6 +26,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Lácteos': '🥛',
   'Snacks': '🍿',
 };
+
 function detectCategory(tags: string[]): Product['category'] {
   const s = tags.join(' ').toLowerCase();
   if (s.includes('bebida') || s.includes('drink') || s.includes('juice') || s.includes('water')) return 'Bebidas';
@@ -33,6 +34,7 @@ function detectCategory(tags: string[]): Product['category'] {
   if (s.includes('snack') || s.includes('chip') || s.includes('cookie') || s.includes('galleta')) return 'Snacks';
   return 'Abarrotes';
 }
+
 function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agotado') {
   const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
   const color = tipo === 'bajo' ? '#D97706' : '#DC2626';
@@ -44,7 +46,6 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
       <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600">$${p.cost.toFixed(2)}</td>
       <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:#6366f1">$${p.price.toFixed(2)}</td>
     </tr>`).join('');
-
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
     <style>body{font-family:Arial,sans-serif;padding:32px;color:#1e293b;max-width:800px;margin:0 auto}
     h1{color:${color};font-size:22px;margin-bottom:4px}.sub{color:#64748b;font-size:13px;margin-bottom:24px}
@@ -58,7 +59,6 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
     <table><thead><tr><th>Producto</th><th>SKU</th><th style="text-align:center">Stock</th>
     <th style="text-align:right">Costo</th><th style="text-align:right">Precio</th></tr></thead>
     <tbody>${filas}</tbody></table></body></html>`;
-
   const win = window.open('', '_blank');
   if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
 }
@@ -72,8 +72,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     sku: '', name: '', category: 'Bebidas' as Product['category'],
     stock: 0, price: 0.0, cost: 0.0, imageUrl: PRESET_IMAGES[0].url
   });
-const [loading, setLoading] = useState(false);
- const [showScanner, setShowScanner] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [productFetchMsg, setProductFetchMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -121,12 +121,9 @@ const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (!showScanner) return;
     let active = true;
-
     const startCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         streamRef.current = stream;
         if (videoRef.current && active) {
           videoRef.current.srcObject = stream;
@@ -138,9 +135,7 @@ const [loading, setLoading] = useState(false);
         setShowScanner(false);
       }
     };
-
     const scanLoop = async () => {
-      // Usar BarcodeDetector nativo del navegador
       if (!('BarcodeDetector' in window)) {
         setProductFetchMsg('⚠️ Tu navegador no soporta escaneo. Escribe el código manualmente.');
         setShowScanner(false);
@@ -150,7 +145,6 @@ const [loading, setLoading] = useState(false);
       const detector = new window.BarcodeDetector({
         formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code']
       });
-
       const detect = async () => {
         if (!active || !videoRef.current) return;
         try {
@@ -167,12 +161,8 @@ const [loading, setLoading] = useState(false);
       };
       animFrameRef.current = requestAnimationFrame(detect);
     };
-
     startCamera();
-    return () => {
-      active = false;
-      stopScanner();
-    };
+    return () => { active = false; stopScanner(); };
   }, [showScanner, stopScanner, lookupBarcode]);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
@@ -188,6 +178,7 @@ const [loading, setLoading] = useState(false);
 
   const handleOpenAdd = () => {
     setEditingItem(null);
+    setProductFetchMsg('');
     setFormData({
       sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
       name: '', category: 'Bebidas', stock: 10, price: 1.50, cost: 1.00,
@@ -198,6 +189,7 @@ const [loading, setLoading] = useState(false);
 
   const handleOpenEdit = (product: Product) => {
     setEditingItem(product);
+    setProductFetchMsg('');
     setFormData({
       sku: product.sku, name: product.name, category: product.category,
       stock: product.stock, price: product.price, cost: product.cost,
@@ -206,9 +198,12 @@ const [loading, setLoading] = useState(false);
     setShowAddModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) return;
+  // ✅ CORREGIDO: no recibe evento, se llama directo desde onClick
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      alert('Por favor ingresa el nombre del producto.');
+      return;
+    }
     setLoading(true);
     try {
       if (editingItem) {
@@ -217,8 +212,25 @@ const [loading, setLoading] = useState(false);
         await onAddProduct(formData);
       }
       setShowAddModal(false);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!editingItem) return;
+    if (!window.confirm('¿Eliminar este producto?')) return;
+    setLoading(true);
+    try {
+      await onDeleteProduct(editingItem.id);
+      setShowAddModal(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGalleryImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,7 +246,7 @@ const [loading, setLoading] = useState(false);
   return (
     <div className="space-y-5 pb-24">
 
-     {/* ── STATS ── */}
+      {/* ── STATS ── */}
       <section className="grid grid-cols-3 gap-3 mt-1">
         <div className="bg-indigo-600 p-4 rounded-2xl shadow-md flex flex-col gap-1">
           <span className="text-xs font-bold text-indigo-200 uppercase">Total Uds</span>
@@ -284,8 +296,8 @@ const [loading, setLoading] = useState(false);
         )}
       </div>
 
-     {/* ── CATEGORÍAS con íconos grandes estilo Uber Eats ── */}
-      <div className="flex gap-3 overflow-x-auto -mx-3 px-3 pb-2 scrollbar-hide">
+      {/* ── CATEGORÍAS ── */}
+      <div className="flex gap-3 overflow-x-auto -mx-3 px-3 pb-2">
         {categories.map((cat) => (
           <button
             key={cat}
@@ -308,7 +320,6 @@ const [loading, setLoading] = useState(false);
           const isOutOfStock = p.stock === 0;
           const isLowStock = p.stock > 0 && p.stock <= 5;
           const marginPercent = p.price > 0 ? Math.round(((p.price - p.cost) / p.cost) * 100) : 0;
-
           return (
             <div
               key={p.id}
@@ -317,7 +328,6 @@ const [loading, setLoading] = useState(false);
                 isOutOfStock ? 'border-gray-200 opacity-70' : isLowStock ? 'border-amber-400' : 'border-gray-100 active:border-indigo-400'
               }`}
             >
-             {/* Imagen */}
               <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0 border-2 border-gray-200">
                 <img
                   alt={p.name}
@@ -332,10 +342,8 @@ const [loading, setLoading] = useState(false);
                   </div>
                 )}
               </div>
-
-              {/* Info */}
               <div className="flex-1 min-w-0">
-              <span className="text-xs font-extrabold text-indigo-500 uppercase tracking-wider">
+                <span className="text-xs font-extrabold text-indigo-500 uppercase tracking-wider">
                   {CATEGORY_ICONS[p.category] || '📦'} {p.category}
                 </span>
                 <h3 className="font-extrabold text-gray-950 text-xl leading-tight truncate mt-0.5">{p.name}</h3>
@@ -356,7 +364,6 @@ const [loading, setLoading] = useState(false);
             </div>
           );
         })}
-
         {filteredProducts.length === 0 && (
           <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
             <PackageOpen className="w-16 h-16 stroke-1 text-gray-300" />
@@ -373,27 +380,58 @@ const [loading, setLoading] = useState(false);
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
 
-     {/* ── MODAL AGREGAR / EDITAR ── */}
+      {/* ── MODAL ESCÁNER ── */}
+      {showScanner && (
+        <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+              <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
+              <button onClick={() => { stopScanner(); setShowScanner(false); }}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="relative bg-black" style={{ height: '260px' }}>
+              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
+              Apunta al código de barras del producto
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL AGREGAR / EDITAR ── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          {/* Fondo oscuro */}
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center">
+          {/* Fondo */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          
-          {/* Contenedor modal */}
-        <div className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col" style={{maxHeight: '85vh', paddingBottom: 'env(safe-area-inset-bottom)'}}>
-            
-            {/* Header fijo */}
-            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0">
+
+          {/* Panel */}
+          <div className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col"
+            style={{ maxHeight: '88vh' }}>
+
+            {/* Header */}
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0 rounded-t-3xl">
               <h3 className="text-lg font-extrabold text-gray-950">
                 {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+              <button onClick={() => setShowAddModal(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Contenido scrolleable */}
-            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+            {/* Scroll area */}
+            <div className="overflow-y-auto p-5 space-y-4" style={{ flex: '1 1 auto', minHeight: 0 }}>
 
               {/* Imagen */}
               <div className="space-y-2">
@@ -403,12 +441,12 @@ const [loading, setLoading] = useState(false);
                     <img src={formData.imageUrl} className="w-full h-full object-cover" alt="preview" />
                   </div>
                   <div className="flex flex-col gap-2 flex-1">
-                    <label className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-indigo-100 transition-all">
+                    <label className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer">
                       <Image className="w-4 h-4" />
                       <span>Subir desde Galería</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handleGalleryImage} />
                     </label>
-                    <label className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-gray-100 transition-all">
+                    <label className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer">
                       <Camera className="w-4 h-4" />
                       <span>Tomar Foto</span>
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleGalleryImage} />
@@ -418,7 +456,7 @@ const [loading, setLoading] = useState(false);
                 <div className="flex gap-2 overflow-x-auto py-1">
                   {PRESET_IMAGES.map((img, i) => (
                     <button key={i} type="button" onClick={() => setFormData({ ...formData, imageUrl: img.url })}
-                      className={`w-12 h-12 rounded-lg overflow-hidden border shrink-0 transition-all ${formData.imageUrl === img.url ? 'ring-2 ring-indigo-600 scale-105 border-indigo-600' : 'border-gray-200 opacity-60 hover:opacity-100'}`}>
+                      className={`w-12 h-12 rounded-lg overflow-hidden border shrink-0 transition-all ${formData.imageUrl === img.url ? 'ring-2 ring-indigo-600 scale-105 border-indigo-600' : 'border-gray-200 opacity-60'}`}>
                       <img src={img.url} className="w-full h-full object-cover" alt="" />
                     </button>
                   ))}
@@ -428,7 +466,7 @@ const [loading, setLoading] = useState(false);
               {/* Nombre */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nombre *</label>
-                <input type="text" required placeholder="Ej. Coca Cola 3L"
+                <input type="text" placeholder="Ej. Coca Cola 3L"
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
                   value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </div>
@@ -437,17 +475,15 @@ const [loading, setLoading] = useState(false);
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU / Código de Barras *</label>
                 <div className="flex gap-2">
-                  <input type="text" required placeholder="Escanea o escribe..."
-                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
+                  <input type="text" placeholder="Escanea o escribe..."
+                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base outline-none"
                     value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
                   <button type="button" onClick={() => setShowScanner(true)}
                     className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0">
                     <ScanBarcode className="w-5 h-5" />
                   </button>
                 </div>
-                {fetchingProduct && (
-                  <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto...</p>
-                )}
+                {fetchingProduct && <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto...</p>}
                 {productFetchMsg && (
                   <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-600' : 'text-amber-600'}`}>
                     {productFetchMsg}
@@ -476,7 +512,7 @@ const [loading, setLoading] = useState(false);
                 ].map(({ label, key, type, step }) => (
                   <div key={key} className="space-y-1">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</label>
-                    <input type={type} step={step} required min="0"
+                    <input type={type} step={step} min="0"
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-2 py-3 text-base text-center outline-none"
                       value={(formData as any)[key]}
                       onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
@@ -486,19 +522,11 @@ const [loading, setLoading] = useState(false);
 
             </div>{/* fin scroll */}
 
-            {/* ── BOTONES FIJOS ABAJO ── */}
-           <div className="shrink-0 flex gap-3 px-5 py-4 border-t border-gray-100 bg-white rounded-b-3xl mb-16 sm:mb-0">
+            {/* ── BOTONES — siempre visibles abajo ── */}
+            <div className="shrink-0 flex gap-3 px-5 py-4 border-t border-gray-100 bg-white rounded-b-3xl">
               {editingItem && (
-                <button type="button"
-                  onClick={async () => {
-                    if (window.confirm('¿Eliminar este producto?')) {
-                      setLoading(true);
-                      try { await onDeleteProduct(editingItem.id); setShowAddModal(false); }
-                      catch (err) { console.error(err); }
-                      finally { setLoading(false); }
-                    }
-                  }}
-                  className="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-4 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none">
+                <button type="button" onClick={handleDeleteProduct} disabled={loading}
+                  className="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-4 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50">
                   Eliminar
                 </button>
               )}
@@ -506,11 +534,18 @@ const [loading, setLoading] = useState(false);
                 type="button"
                 disabled={loading}
                 onClick={handleSubmit}
-                className="flex-1 bg-indigo-600 text-white font-bold py-4 px-5 rounded-xl text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
-                {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : editingItem ? 'Guardar Cambios' : 'Agregar Producto'}
+                className="flex-1 bg-indigo-600 text-white font-extrabold py-4 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
+                {loading
+                  ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
+                  : editingItem ? '💾 Guardar Cambios' : '✅ Agregar Producto'
+                }
               </button>
             </div>
 
           </div>
         </div>
       )}
+
+    </div>
+  );
+}
