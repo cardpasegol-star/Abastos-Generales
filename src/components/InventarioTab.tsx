@@ -228,20 +228,20 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <span className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider">
+              <span className="text-xs font-extrabold text-indigo-500 uppercase tracking-wider">
                   {CATEGORY_ICONS[p.category] || '📦'} {p.category}
                 </span>
-                <h3 className="font-extrabold text-gray-900 text-lg leading-tight truncate mt-0.5">{p.name}</h3>
-                <p className="text-xs text-gray-500 font-semibold mb-2">SKU: {p.sku}</p>
+                <h3 className="font-extrabold text-gray-950 text-xl leading-tight truncate mt-0.5">{p.name}</h3>
+                <p className="text-xs text-gray-400 font-bold mb-2">SKU: {p.sku}</p>
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm font-extrabold ${isOutOfStock ? 'text-rose-600' : isLowStock ? 'text-amber-600' : 'text-gray-700'}`}>
+                  <span className={`text-base font-extrabold ${isOutOfStock ? 'text-rose-600' : isLowStock ? 'text-amber-500' : 'text-gray-800'}`}>
                     {isLowStock && '⚠️ '}{p.stock} uds
                   </span>
-                  <span className="text-xl font-extrabold text-indigo-700">${p.price.toFixed(2)}</span>
+                  <span className="text-2xl font-extrabold text-indigo-600">${p.price.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-xs text-gray-500">Costo: ${p.cost.toFixed(2)}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${marginPercent >= 30 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <span className="text-xs text-gray-500 font-semibold">Costo: ${p.cost.toFixed(2)}</span>
+                  <span className={`text-xs font-extrabold px-2 py-0.5 rounded-lg ${marginPercent >= 30 ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
                     +{marginPercent}%
                   </span>
                 </div>
