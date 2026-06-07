@@ -373,21 +373,28 @@ const [loading, setLoading] = useState(false);
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
 
-      {/* ── MODAL AGREGAR / EDITAR ── */}
+     {/* ── MODAL AGREGAR / EDITAR ── */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-         <div className="bg-white w-full h-full sm:rounded-3xl sm:max-w-sm sm:h-auto overflow-hidden shadow-2xl flex flex-col" style={{height: '100dvh'}}>
-            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          {/* Fondo oscuro */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          
+          {/* Contenedor modal */}
+          <div className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col" style={{maxHeight: '90vh'}}>
+            
+            {/* Header fijo */}
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0">
               <h3 className="text-lg font-extrabold text-gray-950">
                 {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700">
+              <button onClick={() => setShowAddModal(false)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+            {/* Contenido scrolleable */}
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+
               {/* Imagen */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Imagen del Producto</label>
@@ -426,11 +433,11 @@ const [loading, setLoading] = useState(false);
                   value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </div>
 
-             {/* SKU con escáner real + Open Food Facts */}
+              {/* SKU */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU / Código de Barras *</label>
                 <div className="flex gap-2">
-                  <input id="sku-scan-input" type="text" required placeholder="Escanea o escribe..."
+                  <input type="text" required placeholder="Escanea o escribe..."
                     className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
                     value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
                   <button type="button" onClick={() => setShowScanner(true)}
@@ -439,7 +446,7 @@ const [loading, setLoading] = useState(false);
                   </button>
                 </div>
                 {fetchingProduct && (
-                  <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto en base de datos...</p>
+                  <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto...</p>
                 )}
                 {productFetchMsg && (
                   <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-600' : 'text-amber-600'}`}>
@@ -448,46 +455,10 @@ const [loading, setLoading] = useState(false);
                 )}
               </div>
 
-             {/* Modal del escáner nativo */}
-              {showScanner && (
-                <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center p-4">
-                  <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
-                    <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-                      <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
-                      <button onClick={() => { stopScanner(); setShowScanner(false); }}
-                        className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="relative bg-black" style={{ height: '260px' }}>
-                      <video
-                        ref={videoRef}
-                        className="w-full h-full object-cover"
-                        playsInline
-                        muted
-                        autoPlay
-                      />
-                      {/* Visor de escaneo */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl opacity-80">
-                          <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
-                          <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
-                          <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
-                          <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
-                      Apunta al código de barras del producto
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {/* Categoría */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Categoría *</label>
-                <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
+                <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-3 text-base outline-none"
                   value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as Product['category'] })}>
                   <option value="Bebidas">🥤 Bebidas</option>
                   <option value="Abarrotes">🧴 Abarrotes</option>
@@ -506,16 +477,17 @@ const [loading, setLoading] = useState(false);
                   <div key={key} className="space-y-1">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</label>
                     <input type={type} step={step} required min="0"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-2 py-3 text-base text-center focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-2 py-3 text-base text-center outline-none"
                       value={(formData as any)[key]}
                       onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
                   </div>
                 ))}
               </div>
 
-             </div>
-            {/* Botón flotante fijo */}
-            <div className="fixed bottom-0 left-0 right-0 flex gap-3 p-4 bg-white border-t border-gray-100 z-[70] shadow-2xl">
+            </div>{/* fin scroll */}
+
+            {/* ── BOTONES FIJOS ABAJO ── */}
+            <div className="shrink-0 flex gap-3 px-5 py-4 border-t border-gray-100 bg-white rounded-b-3xl">
               {editingItem && (
                 <button type="button"
                   onClick={async () => {
@@ -526,19 +498,19 @@ const [loading, setLoading] = useState(false);
                       finally { setLoading(false); }
                     }
                   }}
-                  className="flex-1 bg-rose-50 text-rose-600 border border-rose-200/50 py-3.5 rounded-xl text-sm font-bold hover:bg-rose-100 active:scale-95 transition-all outline-none">
+                  className="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-4 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none">
                   Eliminar
                 </button>
               )}
-              <button type="submit" onClick={handleSubmit} disabled={loading}
-                className="flex-1 bg-indigo-600 text-white font-bold py-3.5 px-5 rounded-xl text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleSubmit}
+                className="flex-1 bg-indigo-600 text-white font-bold py-4 px-5 rounded-xl text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
                 {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : editingItem ? 'Guardar Cambios' : 'Agregar Producto'}
               </button>
             </div>
-            </form>
+
           </div>
         </div>
       )}
-    </div>
-  );
-}
