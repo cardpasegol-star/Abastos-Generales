@@ -447,20 +447,37 @@ const [loading, setLoading] = useState(false);
                 )}
               </div>
 
-              {/* Modal del escáner de cámara */}
+             {/* Modal del escáner nativo */}
               {showScanner && (
-                <div className="fixed inset-0 bg-black/80 z-[60] flex flex-col items-center justify-center p-4">
-                  <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm">
+                <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
                     <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-                      <h4 className="font-extrabold text-gray-900">📷 Escanear Código</h4>
-                      <button onClick={() => { setShowScanner(false); stopScanner(); }}
-                        className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                      <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
+                      <button onClick={() => { stopScanner(); setShowScanner(false); }}
+                        className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <div id="qr-reader" className="w-full" style={{ minHeight: '250px' }} />
+                    <div className="relative bg-black" style={{ height: '260px' }}>
+                      <video
+                        ref={videoRef}
+                        className="w-full h-full object-cover"
+                        playsInline
+                        muted
+                        autoPlay
+                      />
+                      {/* Visor de escaneo */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl opacity-80">
+                          <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
+                          <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
+                          <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
+                          <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+                        </div>
+                      </div>
+                    </div>
                     <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
-                      Apunta la cámara al código de barras del producto
+                      Apunta al código de barras del producto
                     </p>
                   </div>
                 </div>
