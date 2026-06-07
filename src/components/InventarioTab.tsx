@@ -376,7 +376,7 @@ const [loading, setLoading] = useState(false);
       {/* ── MODAL AGREGAR / EDITAR ── */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+         <div className="bg-white w-full h-full sm:rounded-3xl sm:max-w-sm sm:h-auto overflow-hidden shadow-2xl flex flex-col" style={{height: '100dvh'}}>
             <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
               <h3 className="text-lg font-extrabold text-gray-950">
                 {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
