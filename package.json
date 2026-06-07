@@ -21,8 +21,7 @@
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "@zxing/browser": "^0.1.4",
-    "@zxing/library": "^0.20.0",
+    "html5-qrcode": "^2.3.8",
     "vite": "^6.2.3"
   },
   "devDependencies": {
