@@ -198,7 +198,6 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setShowAddModal(true);
   };
 
-  // ✅ CORREGIDO: no recibe evento, se llama directo desde onClick
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
       alert('Por favor ingresa el nombre del producto.');
@@ -416,11 +415,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
 
           {/* Panel */}
-          <div className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col"
-            style={{ maxHeight: '88vh' }}>
+          <div className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl flex flex-col shadow-2xl"
+            style={{ maxHeight: '85vh' }}>
 
             {/* Header */}
-            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0 rounded-t-3xl">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0 rounded-t-3xl bg-white sticky top-0 z-10">
               <h3 className="text-lg font-extrabold text-gray-950">
                 {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
               </h3>
@@ -431,7 +430,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             </div>
 
             {/* Scroll area */}
-            <div className="overflow-y-auto p-5 space-y-4" style={{ flex: '1 1 auto', minHeight: 0 }}>
+            <div className="overflow-y-auto p-5 space-y-4 flex-1">
 
               {/* Imagen */}
               <div className="space-y-2">
@@ -519,33 +518,34 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   </div>
                 ))}
               </div>
+            </div>
 
-            </div>{/* fin scroll */}
+            {/* ── BOTONES GUARDAR / ELIMINAR INTEGRADOS EN EL MODAL ── */}
+            <div className="p-4 bg-white border-t border-gray-100 flex gap-3 sticky bottom-0 z-10 rounded-b-3xl shrink-0">
+              {editingItem && (
+                <button type="button" onClick={handleDeleteProduct} disabled={loading}
+                  className="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50">
+                  Eliminar
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleSubmit}
+                className="flex-1 bg-indigo-600 text-white font-extrabold py-3.5 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
+                {loading ? (
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
+                ) : editingItem ? (
+                  '💾 Guardar Cambios'
+                ) : (
+                  '✅ Agregar Producto'
+                )}
+              </button>
+            </div>
 
-           </div>{/* cierra panel */}
-        </div>{/* cierra modal */}
-      )}
-
-      {/* ── BOTÓN GUARDAR FLOTANTE — encima de todo ── */}
-      {showAddModal && (
-        <div className="fixed left-0 right-0 z-[100] flex gap-3 px-5 py-4 bg-white border-t-2 border-indigo-100 shadow-2xl"
-          style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}>
-          {editingItem && (
-            <button type="button" onClick={handleDeleteProduct} disabled={loading}
-              className="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-4 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50">
-              Eliminar
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={loading}
-            onClick={handleSubmit}
-            className="flex-1 bg-indigo-600 text-white font-extrabold py-4 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-xl">
-            {loading
-              ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
-              : editingItem ? '💾 Guardar Cambios' : '✅ Agregar Producto'
-            }
-          </button>
+          </div>
         </div>
+      )}
+    </div>
   );
 }
