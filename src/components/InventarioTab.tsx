@@ -547,11 +547,5 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             }
           </button>
         </div>
-
-          </div>
-        </div>
-      )}
-
-    </div>
   );
 }
