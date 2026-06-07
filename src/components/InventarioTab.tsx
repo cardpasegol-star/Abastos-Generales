@@ -319,19 +319,46 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </div>
 
-              {/* SKU */}
+             {/* SKU con escáner real + Open Food Facts */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU *</label>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU / Código de Barras *</label>
                 <div className="flex gap-2">
                   <input id="sku-scan-input" type="text" required placeholder="Escanea o escribe..."
                     className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
                     value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
-                  <button type="button" onClick={() => (document.getElementById('sku-scan-input') as HTMLInputElement)?.focus()}
+                  <button type="button" onClick={() => setShowScanner(true)}
                     className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0">
                     <ScanBarcode className="w-5 h-5" />
                   </button>
                 </div>
+                {fetchingProduct && (
+                  <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto en base de datos...</p>
+                )}
+                {productFetchMsg && (
+                  <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {productFetchMsg}
+                  </p>
+                )}
               </div>
+
+              {/* Modal del escáner de cámara */}
+              {showScanner && (
+                <div className="fixed inset-0 bg-black/80 z-[60] flex flex-col items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm">
+                    <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+                      <h4 className="font-extrabold text-gray-900">📷 Escanear Código</h4>
+                      <button onClick={() => { setShowScanner(false); stopScanner(); }}
+                        className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div id="qr-reader" className="w-full" style={{ minHeight: '250px' }} />
+                    <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
+                      Apunta la cámara al código de barras del producto
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Categoría */}
               <div className="space-y-1">
