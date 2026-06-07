@@ -191,6 +191,7 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
+        <p className="text-[9px] text-indigo-400 font-bold">{product.category}</p>
           <p className="text-[10px] text-indigo-600 font-extrabold">${product.price.toFixed(2)}</p>
           <p className="text-[9px] text-gray-400 font-semibold">{product.stock} uds</p>
         </div>
