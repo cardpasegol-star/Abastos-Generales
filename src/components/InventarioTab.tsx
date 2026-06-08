@@ -92,13 +92,28 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
       try {
         const { BrowserMultiFormatReader } = await import('@zxing/browser');
         const codeReader = new BrowserMultiFormatReader();
-        const constraints: MediaStreamConstraints = {
-          video: { facingMode: { ideal: 'environment' } }
-        };
 
+        // Query list of video input devices
+        let videoDevices: any[] = [];
         try {
-          controls = await codeReader.decodeFromConstraints(
-            constraints,
+          videoDevices = await BrowserMultiFormatReader.listVideoInputDevices();
+        } catch (deviceListError) {
+          console.warn('Could not list video devices, proceeding with generic constraints.', deviceListError);
+        }
+
+        if (videoDevices && videoDevices.length > 0) {
+          // Look for rear/environment/back-facing cameras
+          const backCamera = videoDevices.find(device => 
+            device.label?.toLowerCase().includes('back') || 
+            device.label?.toLowerCase().includes('rear') ||
+            device.label?.toLowerCase().includes('trasera') || 
+            device.label?.toLowerCase().includes('environment') ||
+            device.label?.toLowerCase().includes('secundaria')
+          );
+          const deviceId = backCamera ? backCamera.deviceId : videoDevices[0].deviceId;
+          
+          controls = await codeReader.decodeFromVideoDevice(
+            deviceId,
             videoRef.current,
             (result) => {
               if (!active) return;
@@ -111,10 +126,30 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
               }
             }
           );
-        } catch (err) {
-          console.warn('Primary scanner constraints failed. Retrying with default camera...', err);
-          if (!active) return;
+        } else {
+          // Retry using default constraints if no devices listed (browser permission pending or desktop standard)
+          const constraints: MediaStreamConstraints = {
+            video: { facingMode: { ideal: 'environment' } }
+          };
+
           try {
+            controls = await codeReader.decodeFromConstraints(
+              constraints,
+              videoRef.current,
+              (result) => {
+                if (!active) return;
+                if (result) {
+                  const code = result.getText();
+                  if (code && active) {
+                    active = false;
+                    scanRef.current(code);
+                  }
+                }
+              }
+            );
+          } catch (constraintErr) {
+            console.warn('Constraints back-camera failed. Trying generic video...', constraintErr);
+            if (!active) return;
             controls = await codeReader.decodeFromConstraints(
               { video: true },
               videoRef.current,
@@ -129,17 +164,20 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
                 }
               }
             );
-          } catch (retryErr) {
-            console.error('Default camera failed as well:', retryErr);
-            if (active) {
-              setErrorMsg('No se detectó un dispositivo de cámara compatible en este sistema. Por favor ingrese el código manualmente.');
-            }
           }
         }
-      } catch (e) {
-        console.error('Scanner overlay initialization error:', e);
+      } catch (err: any) {
+        console.warn('All camera scanner initialization attempts failed:', err);
         if (active) {
-          setErrorMsg('Error al inicializar el escáner de códigos de barras.');
+          const name = err?.name || '';
+          const message = err?.message || '';
+          if (name === 'NotAllowedError' || message.includes('denied') || message.includes('permission')) {
+            setErrorMsg('Permiso denegado para usar la cámara. Autoriza el acceso a la cámara en tu navegador o escribe el código manualmente.');
+          } else if (name === 'NotFoundError' || message.includes('not found') || message.includes('device')) {
+            setErrorMsg('No se detectó una cámara física compatible. Puedes ingresar el código manualmente o simularlo.');
+          } else {
+            setErrorMsg(`No se pudo iniciar la cámara (${message || 'No encontrada'}). Escribe el código de barras o simula uno.`);
+          }
         }
       }
     };
