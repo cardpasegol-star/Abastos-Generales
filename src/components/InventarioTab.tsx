@@ -73,6 +73,8 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanRef = useRef(onScan);
   scanRef.current = onScan;
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [manualCode, setManualCode] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -94,22 +96,51 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
           video: { facingMode: { ideal: 'environment' } }
         };
 
-        controls = await codeReader.decodeFromConstraints(
-          constraints,
-          videoRef.current,
-          (result) => {
-            if (!active) return;
-            if (result) {
-              const code = result.getText();
-              if (code && active) {
-                active = false;
-                scanRef.current(code);
+        try {
+          controls = await codeReader.decodeFromConstraints(
+            constraints,
+            videoRef.current,
+            (result) => {
+              if (!active) return;
+              if (result) {
+                const code = result.getText();
+                if (code && active) {
+                  active = false;
+                  scanRef.current(code);
+                }
               }
             }
+          );
+        } catch (err) {
+          console.warn('Primary scanner constraints failed. Retrying with default camera...', err);
+          if (!active) return;
+          try {
+            controls = await codeReader.decodeFromConstraints(
+              { video: true },
+              videoRef.current,
+              (result) => {
+                if (!active) return;
+                if (result) {
+                  const code = result.getText();
+                  if (code && active) {
+                    active = false;
+                    scanRef.current(code);
+                  }
+                }
+              }
+            );
+          } catch (retryErr) {
+            console.error('Default camera failed as well:', retryErr);
+            if (active) {
+              setErrorMsg('No se detectó un dispositivo de cámara compatible en este sistema. Por favor ingrese el código manualmente.');
+            }
           }
-        );
+        }
       } catch (e) {
-        console.error('Scanner overlay error:', e);
+        console.error('Scanner overlay initialization error:', e);
+        if (active) {
+          setErrorMsg('Error al inicializar el escáner de códigos de barras.');
+        }
       }
     };
 
@@ -123,11 +154,25 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
     };
   }, []);
 
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualCode.trim()) {
+      scanRef.current(manualCode.trim());
+    }
+  };
+
+  const handleSimulate = () => {
+    // Simulate reading a real barcode (e.g. Cola Cola 3L or other valid product barcode)
+    const barcodes = ['7501055300075', '7891000100103', '7790895000431', '7501000111152'];
+    const randomCode = barcodes[Math.floor(Math.random() * barcodes.length)];
+    scanRef.current(randomCode);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/90 z-[10005] flex flex-col items-center justify-center p-4">
-      <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl relative">
+    <div className="fixed inset-0 bg-black/90 z-[10005] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl relative border border-slate-100">
         <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-          <h4 className="font-extrabold text-gray-950 text-base">📷 Escanear Código</h4>
+          <h4 className="font-extrabold text-gray-950 text-base flex items-center gap-2">📷 Escanear Código</h4>
           <button
             type="button"
             onClick={onClose}
@@ -136,26 +181,65 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="relative bg-black" style={{ height: '260px' }}>
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            playsInline
-            muted
-            autoPlay
-          />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
-              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
-              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
-              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
-              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+        
+        <div className="relative bg-slate-950 flex flex-col items-center justify-center" style={{ height: '260px' }}>
+          {errorMsg ? (
+            <div className="p-6 text-center text-slate-300 space-y-4">
+              <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto stroke-[1.8]" />
+              <p className="text-xs font-semibold leading-relaxed px-2">
+                {errorMsg}
+              </p>
+              <button
+                type="button"
+                onClick={handleSimulate}
+                className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Simular código de prueba (Simulate Barcode)
+              </button>
             </div>
-          </div>
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                playsInline
+                muted
+                autoPlay
+              />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+                </div>
+              </div>
+            </>
+          )}
         </div>
-        <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
-          Apunta al código de barras del producto
-        </p>
+
+        <div className="p-4 bg-slate-50 border-t border-slate-100">
+          <form onSubmit={handleManualSubmit} className="space-y-2">
+            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+              O escribir código manualmente
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Ej. 7501055300075"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600"
+              />
+              <button
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                Listo
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
