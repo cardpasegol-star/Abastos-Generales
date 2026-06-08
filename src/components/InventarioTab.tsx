@@ -120,36 +120,65 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     }
   }, []);
 
-  useEffect(() => {
-    if (!showScanner) return;
-    let active = true;
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        streamRef.current = stream;
-        if (videoRef.current && active) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-          scanLoop();
-        }
-      } catch {
-        setProductFetchMsg('⚠️ No se pudo acceder a la cámara.');
-        setShowScanner(false);
+useEffect(() => {
+  if (!showScanner) return;
+  let active = true;
+  const codeReaderRef = { current: null as any };
+
+  const startScanner = async () => {
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      const codeReader = new BrowserMultiFormatReader();
+      codeReaderRef.current = codeReader;
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+
+      if (!active) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
       }
-    };
-   const scanLoop = async () => {
-      if (!videoRef.current) return;
-      try {
-        const codeReader = new BrowserMultiFormatReader();
-        codeReader.decodeFromVideoElement(videoRef.current, (result, err) => {
-          if (!active) return;
-          if (result) {
-            const code = result.getText();
-            stopScanner();
-            setShowScanner(false);
-            lookupBarcode(code);
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+
+        codeReader.decodeFromVideoElement(
+          videoRef.current,
+          (result, err) => {
+            if (!active) return;
+            if (result) {
+              const code = result.getText();
+              active = false;
+              stopScanner();
+              setShowScanner(false);
+              lookupBarcode(code);
+            }
           }
-        });
+        );
+      }
+    } catch (e) {
+      console.error('Scanner error:', e);
+      setProductFetchMsg('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
+      setShowScanner(false);
+    }
+  };
+
+  // Pequeño delay para asegurar que el <video> esté en el DOM
+  const timer = setTimeout(startScanner, 300);
+
+  return () => {
+    active = false;
+    clearTimeout(timer);
+    stopScanner();
+    if (codeReaderRef.current?.reset) {
+      codeReaderRef.current.reset();
+    }
+  };
+}, [showScanner, stopScanner, lookupBarcode]);
       } catch {
         setProductFetchMsg('⚠️ Error al iniciar el escáner.');
         setShowScanner(false);
