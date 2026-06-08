@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Product } from '../types';
 
 interface InventarioTabProps {
@@ -70,114 +71,61 @@ interface ScannerOverlayProps {
 }
 
 function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const scanRef = useRef(onScan);
   scanRef.current = onScan;
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    // Check if mobile device
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    setIsMobile(isMobileDevice);
+
+    if (!isMobileDevice) {
+      // Laptop / Desktop: "mostrar solo el campo manual sin error, sin intentar abrir cámara trasera"
+      return;
+    }
+
     let active = true;
-    let controls: any = null;
+    let html5QrCode: Html5Qrcode | null = null;
 
     const startScanner = async () => {
-      let attempts = 0;
-      while (!videoRef.current && attempts < 20) {
-        if (!active) return;
-        await new Promise(r => setTimeout(r, 100));
-        attempts++;
-      }
-      if (!videoRef.current || !active) return;
+      // Give DOM element a small moment to mount
+      await new Promise(r => setTimeout(r, 150));
+      if (!active) return;
 
       try {
-        const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        const codeReader = new BrowserMultiFormatReader();
-
-        // Query list of video input devices
-        let videoDevices: any[] = [];
-        try {
-          videoDevices = await BrowserMultiFormatReader.listVideoInputDevices();
-        } catch (deviceListError) {
-          console.warn('Could not list video devices, proceeding with generic constraints.', deviceListError);
-        }
-
-        if (videoDevices && videoDevices.length > 0) {
-          // Look for rear/environment/back-facing cameras
-          const backCamera = videoDevices.find(device => 
-            device.label?.toLowerCase().includes('back') || 
-            device.label?.toLowerCase().includes('rear') ||
-            device.label?.toLowerCase().includes('trasera') || 
-            device.label?.toLowerCase().includes('environment') ||
-            device.label?.toLowerCase().includes('secundaria')
-          );
-          const deviceId = backCamera ? backCamera.deviceId : videoDevices[0].deviceId;
-          
-          controls = await codeReader.decodeFromVideoDevice(
-            deviceId,
-            videoRef.current,
-            (result) => {
-              if (!active) return;
-              if (result) {
-                const code = result.getText();
-                if (code && active) {
-                  active = false;
-                  scanRef.current(code);
-                }
+        html5QrCode = new Html5Qrcode("reader-container");
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 150 }
+          },
+          (decodedText) => {
+            if (active && decodedText) {
+              active = false;
+              // Stop first, then trigger parent onScan (which is scanRef.current)
+              if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                  scanRef.current(decodedText);
+                }).catch(() => {
+                  scanRef.current(decodedText);
+                });
+              } else {
+                scanRef.current(decodedText);
               }
             }
-          );
-        } else {
-          // Retry using default constraints if no devices listed (browser permission pending or desktop standard)
-          const constraints: MediaStreamConstraints = {
-            video: { facingMode: { ideal: 'environment' } }
-          };
-
-          try {
-            controls = await codeReader.decodeFromConstraints(
-              constraints,
-              videoRef.current,
-              (result) => {
-                if (!active) return;
-                if (result) {
-                  const code = result.getText();
-                  if (code && active) {
-                    active = false;
-                    scanRef.current(code);
-                  }
-                }
-              }
-            );
-          } catch (constraintErr) {
-            console.warn('Constraints back-camera failed. Trying generic video...', constraintErr);
-            if (!active) return;
-            controls = await codeReader.decodeFromConstraints(
-              { video: true },
-              videoRef.current,
-              (result) => {
-                if (!active) return;
-                if (result) {
-                  const code = result.getText();
-                  if (code && active) {
-                    active = false;
-                    scanRef.current(code);
-                  }
-                }
-              }
-            );
+          },
+          (errorMessage) => {
+            // Normal parsing noise, ignore
           }
-        }
+        );
       } catch (err: any) {
-        console.warn('All camera scanner initialization attempts failed:', err);
+        console.warn('html5-qrcode start failed:', err);
         if (active) {
-          const name = err?.name || '';
-          const message = err?.message || '';
-          if (name === 'NotAllowedError' || message.includes('denied') || message.includes('permission')) {
-            setErrorMsg('Permiso denegado para usar la cámara. Autoriza el acceso a la cámara en tu navegador o escribe el código manualmente.');
-          } else if (name === 'NotFoundError' || message.includes('not found') || message.includes('device')) {
-            setErrorMsg('No se detectó una cámara física compatible. Puedes ingresar el código manualmente o simularlo.');
-          } else {
-            setErrorMsg(`No se pudo iniciar la cámara (${message || 'No encontrada'}). Escribe el código de barras o simula uno.`);
-          }
+          setErrorMsg('No se pudo iniciar la cámara trasera. Por favor ingresa el código manualmente.');
         }
       }
     };
@@ -186,8 +134,10 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
 
     return () => {
       active = false;
-      if (controls && typeof controls.stop === 'function') {
-        controls.stop();
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(stopErr => {
+          console.warn('Error stopping html5QrCode inside cleanup:', stopErr);
+        });
       }
     };
   }, []);
@@ -200,7 +150,6 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
   };
 
   const handleSimulate = () => {
-    // Simulate reading a real barcode (e.g. Cola Cola 3L or other valid product barcode)
     const barcodes = ['7501055300075', '7891000100103', '7790895000431', '7501000111152'];
     const randomCode = barcodes[Math.floor(Math.random() * barcodes.length)];
     scanRef.current(randomCode);
@@ -220,7 +169,7 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
           </button>
         </div>
         
-        <div className="relative bg-slate-950 flex flex-col items-center justify-center" style={{ height: '260px' }}>
+        <div className="relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden" style={{ height: '260px' }}>
           {errorMsg ? (
             <div className="p-6 text-center text-slate-300 space-y-4">
               <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto stroke-[1.8]" />
@@ -232,19 +181,27 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
                 onClick={handleSimulate}
                 className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
               >
+                Simular código de prueba
+              </button>
+            </div>
+          ) : !isMobile ? (
+            <div className="p-6 text-center text-slate-300 space-y-3 font-sans">
+              <span className="text-4xl block">💻</span>
+              <p className="text-xs font-semibold leading-relaxed px-2">
+                Escáner activo en dispositivo móvil. En laptop, por favor ingresa el código manualmente debajo.
+              </p>
+              <button
+                type="button"
+                onClick={handleSimulate}
+                className="mt-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-[10px] transition-colors cursor-pointer"
+              >
                 Simular código de prueba (Simulate Barcode)
               </button>
             </div>
           ) : (
             <>
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-                autoPlay
-              />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div id="reader-container" className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover relative" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                 <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
                   <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
                   <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
@@ -258,7 +215,7 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
 
         <div className="p-4 bg-slate-50 border-t border-slate-100">
           <form onSubmit={handleManualSubmit} className="space-y-2">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block border-none outline-none">
               O escribir código manualmente
             </label>
             <div className="flex gap-2">
