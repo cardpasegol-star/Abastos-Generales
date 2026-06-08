@@ -170,7 +170,8 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   name: 'Donde el Goyo',
   whatsapp: '+5491112345678',
   gps: 'Calle Principal #123',
-  adminPin: '1234'
+  adminPin: '1234',
+  bannerUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800'
 };
 
 export async function bootstrapDatabaseIfEmpty() {

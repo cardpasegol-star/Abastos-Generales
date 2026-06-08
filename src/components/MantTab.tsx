@@ -38,6 +38,8 @@ export default function MantTab({
   const [whatsapp, setWhatsapp] = useState(config.whatsapp || '+5491112345678');
   const [gps, setGps] = useState(config.gps || 'Calle Principal #123');
   const [adminPinField, setAdminPinField] = useState(config.adminPin || '1234');
+  const [localBannerUrl, setLocalBannerUrl] = useState(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
+  const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
   
   // Kitchen dish builder form state
   const [showDishModal, setShowDishModal] = useState(false);
@@ -55,7 +57,38 @@ export default function MantTab({
     setWhatsapp(config.whatsapp || '+5491112345678');
     setGps(config.gps || 'Calle Principal #123');
     setAdminPinField(config.adminPin || '1234');
+    setLocalBannerUrl(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
   }, [config]);
+
+  // Handle cell phone gallery selection & browser canvas mini-compression to keep data fast and small (under 80kb)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800; // Optimal display width for phone banners
+        const scale = MAX_WIDTH / img.width;
+        const width = img.width > MAX_WIDTH ? MAX_WIDTH : img.width;
+        const height = img.width > MAX_WIDTH ? img.height * scale : img.height;
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress high resolution files to light JPEG representation
+          const compressed = canvas.toDataURL('image/jpeg', 0.65);
+          setLocalBannerUrl(compressed);
+        }
+      };
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Handle dial entries
   const handleDial = (num: string) => {
@@ -96,7 +129,8 @@ export default function MantTab({
         name: localName.trim(),
         whatsapp: whatsapp.trim(),
         gps: gps.trim(),
-        adminPin: adminPinField.trim()
+        adminPin: adminPinField.trim(),
+        bannerUrl: localBannerUrl.trim()
       });
       setNotifySaved(true);
       setTimeout(() => setNotifySaved(false), 3000);
@@ -300,6 +334,93 @@ export default function MantTab({
                 onChange={(e) => setAdminPinField(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* Banner Selector Component */}
+          <div className="space-y-2.5 border-t border-gray-100 pt-3.5">
+            <label className="text-[10.5px] font-bold text-gray-400 uppercase tracking-widest block">Foto de Banner / Portada</label>
+            
+            {/* Real-time Banner Preview */}
+            <div className="relative h-24 w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
+              <img
+                src={localBannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800'}
+                className="w-full h-full object-cover"
+                alt="Vista previa del banner"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800';
+                }}
+              />
+              <div className="absolute inset-0 bg-slate-950/25 flex items-center justify-center">
+                <span className="text-white text-[9px] font-black uppercase tracking-wider bg-slate-950/70 backdrop-blur-xs px-2.5 py-1 rounded-full border border-white/10">
+                  Vista Previa
+                </span>
+              </div>
+            </div>
+
+            {/* Selector of method */}
+            <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
+              <button
+                type="button"
+                onClick={() => setUploadMethod('link')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  uploadMethod === 'link' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-gray-450 hover:text-gray-700'
+                }`}
+              >
+                Ingresar Enlace
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMethod('gallery')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  uploadMethod === 'gallery' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-gray-450 hover:text-gray-700'
+                }`}
+              >
+                Subir de la Galería 📱
+              </button>
+            </div>
+
+            {/* Render selected configuration input fields */}
+            {uploadMethod === 'link' ? (
+              <div className="space-y-1">
+                <input
+                  type="url"
+                  placeholder="Pegue la URL de la imagen aquí..."
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-none focus:bg-white transition-all font-semibold outline-none"
+                  value={localBannerUrl.startsWith('data:image/') ? '' : localBannerUrl}
+                  onChange={(e) => setLocalBannerUrl(e.target.value)}
+                />
+                <span className="text-[9px] text-gray-400 font-bold block">Sugerencia: puedes copiar un enlace de Unsplash o Imgur.</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200 bg-indigo-50/20 hover:bg-indigo-50/50 p-3 rounded-xl cursor-pointer text-xs font-bold text-indigo-750 transition-all select-none">
+                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Seleccionar Foto</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                  {localBannerUrl.startsWith('data:image/') && (
+                    <button
+                      type="button"
+                      onClick={() => setLocalBannerUrl(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800')}
+                      className="px-3 bg-rose-50 hover:bg-rose-100/80 text-rose-600 border border-rose-100 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      Restaurar
+                    </button>
+                  )}
+                </div>
+                <span className="text-[9px] text-indigo-600 font-bold block bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-150/40 leading-normal">
+                  ⚡ La imagen se optimiza y comprime automáticamente para que cargue súper rápido en el celular.
+                </span>
+              </div>
+            )}
           </div>
 
           <button

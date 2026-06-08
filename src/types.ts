@@ -49,6 +49,7 @@ export interface BusinessConfig {
   whatsapp: string;
   gps: string;
   adminPin: string;
+  bannerUrl?: string;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Mant.';
