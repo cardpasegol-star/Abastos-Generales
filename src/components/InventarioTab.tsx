@@ -118,53 +118,61 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   }, []);
 
   useEffect(() => {
-    if (!showScanner) return;
-    let active = true;
-    let codeReader: any = null;
+  if (!showScanner) return;
+  let active = true;
+  let codeReader: any = null;
 
-    const startScanner = async () => {
+  const startScanner = async () => {
+    // Esperar hasta que el video esté realmente en el DOM
+    let attempts = 0;
+    while (!videoRef.current && attempts < 20) {
+      await new Promise(r => setTimeout(r, 100));
+      attempts++;
+    }
+    if (!videoRef.current || !active) return;
+
+    try {
+      let stream: MediaStream;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }
         });
-        if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
-        streamRef.current = stream;
-
-        // Esperar a que el video esté disponible en el DOM
-        await new Promise(resolve => setTimeout(resolve, 400));
-        if (!active || !videoRef.current) return;
-
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-
-        const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        codeReader = new BrowserMultiFormatReader();
-
-        codeReader.decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
-          if (!active) return;
-          if (result) {
-            const code = result.getText();
-            active = false;
-            stopScanner();
-            setShowScanner(false);
-            lookupBarcode(code);
-          }
-        });
-      } catch (e) {
-        console.error('Scanner error:', e);
-        setProductFetchMsg('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
-        setShowScanner(false);
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
-    };
 
-    startScanner();
+      if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
+      streamRef.current = stream;
 
-    return () => {
-      active = false;
-      stopScanner();
-      if (codeReader?.reset) codeReader.reset();
-    };
-  }, [showScanner, stopScanner, lookupBarcode]);
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      codeReader = new BrowserMultiFormatReader();
+
+      codeReader.decodeFromVideoElement(videoRef.current, (result: any) => {
+        if (!active || !result) return;
+        const code = result.getText();
+        active = false;
+        stopScanner();
+        setShowScanner(false);
+        lookupBarcode(code);
+      });
+    } catch (e) {
+      console.error('Scanner error:', e);
+      setProductFetchMsg('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
+      setShowScanner(false);
+    }
+  };
+
+  startScanner();
+
+  return () => {
+    active = false;
+    stopScanner();
+    if (codeReader?.reset) codeReader.reset();
+  };
+}, [showScanner, stopScanner, lookupBarcode]);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
