@@ -137,31 +137,23 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         setShowScanner(false);
       }
     };
-    const scanLoop = async () => {
-      if (!('BarcodeDetector' in window)) {
-        setProductFetchMsg('⚠️ Tu navegador no soporta escaneo. Escribe el código manualmente.');
-        setShowScanner(false);
-        return;
-      }
-      // @ts-ignore
-      const detector = new window.BarcodeDetector({
-        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code']
-      });
-      const detect = async () => {
-        if (!active || !videoRef.current) return;
-        try {
-          const barcodes = await detector.detect(videoRef.current);
-          if (barcodes.length > 0) {
-            const code = barcodes[0].rawValue;
+   const scanLoop = async () => {
+      if (!videoRef.current) return;
+      try {
+        const codeReader = new BrowserMultiFormatReader();
+        codeReader.decodeFromVideoElement(videoRef.current, (result, err) => {
+          if (!active) return;
+          if (result) {
+            const code = result.getText();
             stopScanner();
             setShowScanner(false);
-            await lookupBarcode(code);
-            return;
+            lookupBarcode(code);
           }
-        } catch {}
-        animFrameRef.current = requestAnimationFrame(detect);
-      };
-      animFrameRef.current = requestAnimationFrame(detect);
+        });
+      } catch {
+        setProductFetchMsg('⚠️ Error al iniciar el escáner.');
+        setShowScanner(false);
+      }
     };
     startCamera();
     return () => { active = false; stopScanner(); };
