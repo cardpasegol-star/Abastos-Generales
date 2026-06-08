@@ -172,33 +172,38 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
 
   return (
     <div id="caja-container" className="space-y-6 pb-24">
-     {/* 1. Selector de Productos */}
-<section className="mt-2 space-y-3">
-  <div className="flex items-center justify-between">
-    <h2 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide">Agregar al Carrito</h2>
-    <span className="text-xs text-gray-400 font-semibold">{products.filter(p => p.stock > 0).length} disponibles</span>
-  </div>
-  <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-    {products.filter(p => transactionType === 'Compra' || p.stock > 0).map((product) => (
-      <button
-        key={product.id}
-        type="button"
-        onClick={() => addToCart(product)}
-        className="bg-white border border-gray-100 rounded-2xl p-3 flex items-center gap-2.5 shadow-sm hover:border-indigo-300 hover:shadow-md active:scale-95 transition-all text-left"
-      >
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
-          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+      {/* 1. Barcode Laser Scanner Simulator Container */}
+      <section className="mt-2">
+        <div 
+          onClick={handleSimulateScan}
+          className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-sm border border-gray-100 cursor-pointer group group-hover:shadow hover:brightness-105 active:scale-[0.99] transition-all"
+        >
+          <img
+            alt="Scanner View Area"
+            className="w-full h-full object-cover opacity-50"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIzDjYI3uZvk66GBjZYAup_oY4e1pJf5nQqLTfN3lbl8auaVWhsJsMuiAyAWcEQOVaGGHx9xB9myZ6WvRD0hYbGDbe0YeU1wtbPMMpO8SUO-IXB_JBv_bjDZJU_rEeS57lomZMh2UGY8BabIUkPonv4rb4dvlvGflrpzE-Xai9mxkCpu96UqI6H6rbMgnZ8XzA69hrGBXIfq9Ejz18mVmki2EWvnzyImwqCj7Yrqd6_L8rKF4aeFkTkjJTKkRSdbM36-ipxx-zgfA"
+          />
+          
+          {/* Scanning Box Outline */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-48 h-28 border-2 border-indigo-400 rounded-xl relative overflow-hidden flex items-center justify-center bg-indigo-900/10 backdrop-blur-[1px]">
+              {/* Laser Line */}
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)] animate-[bounce_2.2s_infinite]"></div>
+              <Scan className="w-10 h-10 text-indigo-300 stroke-[1.2]" />
+            </div>
+          </div>
+
+          <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/50 px-3.5 py-1 rounded-full backdrop-blur-md">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <span className="text-[10px] text-white font-extrabold tracking-widest uppercase">Escáner Activo</span>
+          </div>
+
+          {/* Hint Overlay */}
+          <div className="absolute top-3 right-3 bg-indigo-600 px-2 py-0.5 rounded text-[9.5px] uppercase text-white font-bold tracking-tight opacity-80 select-none">
+            Click para Escanear
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
-        <p className="text-[9px] text-indigo-400 font-bold">{product.category}</p>
-          <p className="text-[10px] text-indigo-600 font-extrabold">${product.price.toFixed(2)}</p>
-          <p className="text-[9px] text-gray-400 font-semibold">{product.stock} uds</p>
-        </div>
-      </button>
-    ))}
-  </div>
-</section>
+      </section>
 
       {/* 2. Messages Banner */}
       {errorMessage && (

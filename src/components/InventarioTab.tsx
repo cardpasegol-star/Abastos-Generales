@@ -440,7 +440,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       </div>
 
       {/* ── LISTA DE PRODUCTOS ── */}
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-4">
         {filteredProducts.map((p) => {
           const isOutOfStock = p.stock === 0;
           const isLowStock = p.stock > 0 && p.stock <= 5;
@@ -449,41 +449,57 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             <div
               key={p.id}
               onClick={() => handleOpenEdit(p)}
-              className={`bg-white rounded-2xl p-4 border-2 transition-all cursor-pointer flex gap-4 shadow-sm items-center ${
-                isOutOfStock ? 'border-gray-200 opacity-70' : isLowStock ? 'border-amber-400' : 'border-gray-100 active:border-indigo-400'
+              className={`bg-white rounded-2xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col shadow-sm ${
+                isOutOfStock ? 'border-gray-200 opacity-75' : isLowStock ? 'border-amber-400' : 'border-gray-100 active:border-indigo-400 hover:shadow-md'
               }`}
             >
-              <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0 border-2 border-gray-200">
+              <div className="relative h-44 w-full bg-gray-50 shrink-0">
                 <img
                   alt={p.name}
-                  className="w-full h-full object-cover"
-                  src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200'}
-                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200'; }}
+                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                  src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'; }}
                   referrerPolicy="no-referrer"
                 />
                 {isOutOfStock && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <span className="bg-rose-600 text-white font-extrabold text-[9px] uppercase px-1.5 py-0.5 rounded">Agotado</span>
+                    <span className="bg-rose-600 text-white font-black text-[10px] uppercase px-2.5 py-1 rounded-full tracking-wider shadow-sm">
+                      Agotado
+                    </span>
                   </div>
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-xs font-extrabold text-indigo-500 uppercase tracking-wider">
-                  {CATEGORY_ICONS[p.category] || '📦'} {p.category}
-                </span>
-                <h3 className="font-extrabold text-gray-950 text-xl leading-tight truncate mt-0.5">{p.name}</h3>
-                <p className="text-xs text-gray-400 font-bold mb-2">SKU: {p.sku}</p>
-                <div className="flex items-center justify-between">
-                  <span className={`text-base font-extrabold ${isOutOfStock ? 'text-rose-600' : isLowStock ? 'text-amber-500' : 'text-gray-800'}`}>
-                    {isLowStock && '⚠️ '}{p.stock} uds
+              <div className="p-4 flex flex-col space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-extrabold text-indigo-500 uppercase tracking-wider flex items-center gap-1">
+                    {CATEGORY_ICONS[p.category] || '📦'} {p.category}
                   </span>
-                  <span className="text-2xl font-extrabold text-indigo-600">${p.price.toFixed(2)}</span>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${marginPercent >= 30 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-700'}`}>
+                    +{marginPercent}% margen
+                  </span>
                 </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-gray-500 font-semibold">Costo: ${p.cost.toFixed(2)}</span>
-                  <span className={`text-xs font-extrabold px-2 py-0.5 rounded-lg ${marginPercent >= 30 ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                    +{marginPercent}%
+                <div>
+                  <h3 className="font-extrabold text-gray-950 text-lg leading-tight truncate">
+                    {p.name}
+                  </h3>
+                  <p className="text-[10px] text-gray-400 font-extrabold tracking-wide mt-0.5">SKU: {p.sku}</p>
+                </div>
+                
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100/80">
+                  <span className={`text-xs font-extrabold px-3 py-1.5 rounded-xl border ${
+                    isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-100' : isLowStock ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                  }`}>
+                    {isLowStock && '⚠️ '}{p.stock} unidades
                   </span>
+                  <div className="text-right">
+                    <span className="text-[9px] text-gray-400 font-extrabold uppercase tracking-wider block">Precio</span>
+                    <span className="text-xl font-black text-indigo-600">${p.price.toFixed(2)}</span>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between text-[11px] text-gray-500 font-bold bg-slate-50 p-2 rounded-xl mt-1 border border-slate-100/50">
+                  <span>Costo: ${p.cost.toFixed(2)}</span>
+                  <span className="text-indigo-600">Ganancia: ${(p.price - p.cost).toFixed(2)} / ud</span>
                 </div>
               </div>
             </div>

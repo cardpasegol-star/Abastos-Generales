@@ -17,24 +17,26 @@ export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-slate-200 flex justify-around items-center h-20 px-1 shadow-xl">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 flex justify-around items-center h-16 px-2 pb-safe shadow-lg rounded-t-2xl max-w-md mx-auto">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
+        
         return (
           <button
             key={item.id}
+            id={`nav-tab-${item.id}`}
             onClick={() => setActiveTab(item.id)}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all duration-200 outline-none cursor-pointer ${
-              isActive ? 'text-indigo-600' : 'text-slate-400'
+            className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all duration-200 outline-none cursor-pointer ${
+              isActive 
+                ? 'text-indigo-600 scale-102 font-bold' 
+                : 'text-slate-400 hover:text-slate-650'
             }`}
           >
-            <div className={`p-2 rounded-xl transition-colors ${isActive ? 'bg-indigo-100 shadow-sm' : ''}`}>
-              <Icon className={`stroke-[2.5] ${isActive ? 'w-7 h-7' : 'w-6 h-6'}`} />
+            <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-indigo-50 text-indigo-650 shadow-sm border border-indigo-100/50' : 'hover:bg-slate-50'}`}>
+              <Icon className="w-4 h-4 stroke-[2]" />
             </div>
-            <span className={`text-[11px] font-extrabold tracking-tight uppercase ${isActive ? 'text-indigo-600' : 'text-slate-500'}`}>
-              {item.label}
-            </span>
+            <span className="text-[9px] font-bold tracking-tight uppercase">{item.label}</span>
           </button>
         );
       })}
