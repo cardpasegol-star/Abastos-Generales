@@ -179,10 +179,6 @@ useEffect(() => {
     }
   };
 }, [showScanner, stopScanner, lookupBarcode]);
-      } catch {
-        setProductFetchMsg('⚠️ Error al iniciar el escáner.');
-        setShowScanner(false);
-      }
     };
     startCamera();
     return () => { active = false; stopScanner(); };
