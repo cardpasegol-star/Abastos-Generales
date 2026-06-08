@@ -393,8 +393,8 @@ useEffect(() => {
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
 
-      {/* ── MODAL ESCÁNER ── */}
-      {showScanner && (
+    {/* ── MODAL ESCÁNER ── */}
+      {showScanner && createPortal(
         <div className="fixed inset-0 bg-black/90 z-[110] flex flex-col items-center justify-center p-4">
           <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
             <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
