@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { Product } from '../types';
 
 interface InventarioTabProps {
@@ -71,6 +71,7 @@ interface ScannerOverlayProps {
 }
 
 function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const scanRef = useRef(onScan);
   scanRef.current = onScan;
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -88,42 +89,43 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
     }
 
     let active = true;
-    let html5QrCode: Html5Qrcode | null = null;
+    let controls: any = null;
 
     const startScanner = async () => {
-      // Give DOM element a small moment to mount
-      await new Promise(r => setTimeout(r, 150));
-      if (!active) return;
+      // Wait for videoRef to exist
+      let attempts = 0;
+      while (!videoRef.current && attempts < 20) {
+        if (!active) return;
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+      }
+      if (!videoRef.current || !active) return;
 
       try {
-        html5QrCode = new Html5Qrcode("reader-container");
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 150 }
-          },
-          (decodedText) => {
-            if (active && decodedText) {
-              active = false;
-              // Stop first, then trigger parent onScan (which is scanRef.current)
-              if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                  scanRef.current(decodedText);
-                }).catch(() => {
-                  scanRef.current(decodedText);
-                });
-              } else {
-                scanRef.current(decodedText);
+        const hints = new Map();
+        hints.set(2, [1, 2, 3, 4, 5, 6, 7, 8, 14]);
+        const codeReader = new BrowserMultiFormatReader(hints);
+
+        const constraints: MediaStreamConstraints = {
+          video: { facingMode: { ideal: 'environment' } }
+        };
+
+        controls = await codeReader.decodeFromConstraints(
+          constraints,
+          videoRef.current,
+          (result) => {
+            if (!active) return;
+            if (result) {
+              const code = result.getText();
+              if (code && active) {
+                active = false;
+                scanRef.current(code);
               }
             }
-          },
-          (errorMessage) => {
-            // Normal parsing noise, ignore
           }
         );
       } catch (err: any) {
-        console.warn('html5-qrcode start failed:', err);
+        console.warn('ZXing Browser scanner start failed:', err);
         if (active) {
           setErrorMsg('No se pudo iniciar la cámara trasera. Por favor ingresa el código manualmente.');
         }
@@ -134,10 +136,8 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
 
     return () => {
       active = false;
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(stopErr => {
-          console.warn('Error stopping html5QrCode inside cleanup:', stopErr);
-        });
+      if (controls && typeof controls.stop === 'function') {
+        controls.stop();
       }
     };
   }, []);
@@ -200,7 +200,13 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
             </div>
           ) : (
             <>
-              <div id="reader-container" className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover relative" />
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                playsInline
+                muted
+                autoPlay
+              />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                 <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
                   <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
