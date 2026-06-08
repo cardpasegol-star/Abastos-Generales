@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { createPortal } from 'react-dom'; // 🔥 Solución definitiva para sobreponerse a todo
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
 import { Product } from '../types';
