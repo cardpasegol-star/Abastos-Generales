@@ -179,12 +179,7 @@ useEffect(() => {
     }
   };
 }, [showScanner, stopScanner, lookupBarcode]);
-    };
-    startCamera();
-    return () => { active = false; stopScanner(); };
-  }, [showScanner, stopScanner, lookupBarcode]);
-
-  const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
+ const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
   const outOfStockItems = products.filter(p => p.stock === 0);
 
