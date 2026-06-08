@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
 import { Product } from '../types';
@@ -11,7 +11,7 @@ interface InventarioTabProps {
 }
 
 const PRESET_IMAGES = [
-  { label: 'Bebida Lata', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFlYMgz-vIQcuMIgjuYTAgcl-nd2AxDuI4_1FzyqcDEeVhAdW0OMPH_hMf-2C_eoEWwjLtXF4OE6iINZPMLbLMPO44e1oZxox9whWwTNOL4EEpG_rzZKLM-LTzue0SQzGQv6aW0DnZNBvZt71AsIjOj2IF7awSBI9J_pOpz9wbMiCISokAb8O2qvKoM3MgiKcse0wWbI4-VgkmYMCKIXWaneBXBg2GJxZR3Ky7cG2N7kn_qQSEnxMVl57dbd74Es_rMsFscsjqwjk' },
+  { label: 'Bebida Lata', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFlYMgz-vIQcuMIgjuYTAgcl-nd2AxDuI4_1FzyqcDEeVhAdW0OMPH_hMf-2C_eoEWwjLtXF4OE6iINZPMLbLMPO44e1oZxox9whWwTNOL4EEpG_rzZKL-LTzue0SQzGQv6aW0DnZNBvZt71AsIjOj2IF7awSBI9J_pOpz9wbMiCISokAb8O2qvKoM3MgiKcse0wWbI4-VgkmYMCKIXWaneBXBg2GJxZR3Ky7cG2N7kn_qQSEnxMVl57dbd74Es_rMsFscsjqwjk' },
   { label: 'Pan', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDr8u8wXDvpaNlG_Zq4Ebyy33Hy-gCEr5nVQiTk5CEI0Sva5jVF_J0WcfbJBeFSQsdIC5oP2vvQfC4mldu51JTs-gse8Xo9Zj_NFsaRcSvMoUW7EG_9wpJ4NqTZ-2IX0YinKfCGy_bapUtHhNVVbItz8ULk1KAo_dfFhbeN6srciOXmYuCynlfhrjZKOo9oyUKBd1kL_SYuZBxkvd2zEShZhfvVp4mffGMPr_1zkFzK7u8UC6koC1VsKpC1pOQEAMTzsE-KJkN743o' },
   { label: 'Leche', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCfltLCYu3aB_3sd7mXGNlKGUjdV6mTGvaP8oLfH1ogkMUYzcysGwRqOHRlAIVNQfCncW2GfIvIpU05SFsHLsl7ibHcRbvnvri5c9JQ10kOaWz6PD9Ka3J3TGNh4anl0fKMxhmQ0iU7LziNgPkg4SnyTKmNmNEfFcnoMykBP3p2ZKqXjGgpdqlro8hwr2EaVDjhuSsQmJDerBcEwcSAlT-DAyF2m5UxA4pay_IrcpQdwU7ZgbhuaC4rmLEvnFUG227N0SrfINWzYqg' },
   { label: 'Snacks', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAUF1NcIGYG2T3McNvhGUjed9u7fCunvxJ2UatiMBW1uGyTFK6frS3_ftz2XVCDronGS_zK23LrBTEEgg24yu5t3fj5TZu6L5pzpr6_jbJY5O6cudx5unBBU_yAwOQYwOrUr7Cv5ztUr02HzuHu0wXRjn3Q-qYwiKuHd38sjhTvRDDtwKEorPVyhYQfpJy6fad_aE1Svbe5pN8Xf2agc2pxkAmEfk0Wnla_3u8hQStkl7b1pMzBvIo0cza8sl5VfTO5lx6RXEm6Pws' },
@@ -64,6 +64,103 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
   if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
 }
 
+interface ScannerOverlayProps {
+  onScan: (code: string) => void;
+  onClose: () => void;
+}
+
+function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const scanRef = useRef(onScan);
+  scanRef.current = onScan;
+
+  useEffect(() => {
+    let active = true;
+    let controls: any = null;
+
+    const startScanner = async () => {
+      let attempts = 0;
+      while (!videoRef.current && attempts < 20) {
+        if (!active) return;
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+      }
+      if (!videoRef.current || !active) return;
+
+      try {
+        const { BrowserMultiFormatReader } = await import('@zxing/browser');
+        const codeReader = new BrowserMultiFormatReader();
+        const constraints: MediaStreamConstraints = {
+          video: { facingMode: { ideal: 'environment' } }
+        };
+
+        controls = await codeReader.decodeFromConstraints(
+          constraints,
+          videoRef.current,
+          (result) => {
+            if (!active) return;
+            if (result) {
+              const code = result.getText();
+              if (code && active) {
+                active = false;
+                scanRef.current(code);
+              }
+            }
+          }
+        );
+      } catch (e) {
+        console.error('Scanner overlay error:', e);
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      active = false;
+      if (controls && typeof controls.stop === 'function') {
+        controls.stop();
+      }
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black/90 z-[10005] flex flex-col items-center justify-center p-4">
+      <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl relative">
+        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+          <h4 className="font-extrabold text-gray-950 text-base">📷 Escanear Código</h4>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="relative bg-black" style={{ height: '260px' }}>
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
+              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
+              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
+              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
+              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
+          Apunta al código de barras del producto
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct }: InventarioTabProps) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
@@ -77,15 +174,6 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [showScanner, setShowScanner] = useState(false);
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [productFetchMsg, setProductFetchMsg] = useState('');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  const stopScanner = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-  }, []);
 
   const lookupBarcode = useCallback(async (barcode: string) => {
     setFormData(prev => ({ ...prev, sku: barcode }));
@@ -116,63 +204,6 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       setFetchingProduct(false);
     }
   }, []);
-
-  useEffect(() => {
-  if (!showScanner) return;
-  let active = true;
-  let codeReader: any = null;
-
-  const startScanner = async () => {
-    // Esperar hasta que el video esté realmente en el DOM
-    let attempts = 0;
-    while (!videoRef.current && attempts < 20) {
-      await new Promise(r => setTimeout(r, 100));
-      attempts++;
-    }
-    if (!videoRef.current || !active) return;
-
-    try {
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } }
-        });
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      }
-
-      if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
-      streamRef.current = stream;
-
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-
-      const { BrowserMultiFormatReader } = await import('@zxing/browser');
-      codeReader = new BrowserMultiFormatReader();
-
-      codeReader.decodeFromVideoElement(videoRef.current, (result: any) => {
-        if (!active || !result) return;
-        const code = result.getText();
-        active = false;
-        stopScanner();
-        setShowScanner(false);
-        lookupBarcode(code);
-      });
-    } catch (e) {
-      console.error('Scanner error:', e);
-      setProductFetchMsg('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
-      setShowScanner(false);
-    }
-  };
-
-  startScanner();
-
-  return () => {
-    active = false;
-    stopScanner();
-    if (codeReader?.reset) codeReader.reset();
-  };
-}, [showScanner, stopScanner, lookupBarcode]);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
@@ -251,36 +282,6 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
   const categories = ['Todos', 'Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
 
-  const scannerModal = showScanner ? (
-    <div className="fixed inset-0 bg-black/90 z-[200] flex flex-col items-center justify-center p-4">
-      <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
-        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-          <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
-          <button
-            onClick={() => { stopScanner(); setShowScanner(false); }}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="relative bg-black" style={{ height: '260px' }}>
-          <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
-              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
-              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
-              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
-              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
-            </div>
-          </div>
-        </div>
-        <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
-          Apunta al código de barras del producto
-        </p>
-      </div>
-    </div>
-  ) : null;
-
   return (
     <div className="space-y-5 pb-24">
 
@@ -297,7 +298,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <span className="text-xs font-bold text-amber-800 uppercase">Bajo</span>
             </div>
             {lowStockItems.length > 0 && (
-              <button onClick={() => generateStockPDF('⚠️ Bajo Stock', lowStockItems, 'bajo')} className="text-amber-600 hover:text-amber-800 transition-colors">
+              <button type="button" onClick={() => generateStockPDF('⚠️ Bajo Stock', lowStockItems, 'bajo')} className="text-amber-600 hover:text-amber-800 transition-colors cursor-pointer">
                 <FileDown className="w-4 h-4" />
               </button>
             )}
@@ -311,7 +312,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <span className="text-xs font-bold text-rose-800 uppercase">Agot.</span>
             </div>
             {outOfStockItems.length > 0 && (
-              <button onClick={() => generateStockPDF('🔴 Agotados', outOfStockItems, 'agotado')} className="text-rose-600 hover:text-rose-800 transition-colors">
+              <button type="button" onClick={() => generateStockPDF('🔴 Agotados', outOfStockItems, 'agotado')} className="text-rose-600 hover:text-rose-800 transition-colors cursor-pointer">
                 <FileDown className="w-4 h-4" />
               </button>
             )}
@@ -330,7 +331,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           onChange={(e) => setSearch(e.target.value)}
         />
         {search && (
-          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+          <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg font-bold cursor-pointer">×</button>
         )}
       </div>
 
@@ -339,8 +340,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         {categories.map((cat) => (
           <button
             key={cat}
+            type="button"
             onClick={() => setSelectedCategory(cat)}
-            className={`flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all shrink-0 ${
+            className={`flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               selectedCategory === cat
                 ? 'bg-indigo-600 text-white shadow-lg scale-105'
                 : 'bg-white text-gray-800 shadow-md border border-gray-100'
@@ -412,14 +414,24 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
       {/* ── FAB ── */}
       <button
+        type="button"
         onClick={handleOpenAdd}
-        className="fixed bottom-20 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 active:scale-95 hover:shadow-xl transition-all z-40 hover:rotate-90 duration-300"
+        className="fixed bottom-20 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 active:scale-95 hover:shadow-xl transition-all z-40 hover:rotate-90 duration-300 cursor-pointer"
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
 
-      {/* ── MODAL ESCÁNER (portal directo a body) ── */}
-      {typeof document !== 'undefined' && createPortal(scannerModal, document.body)}
+      {/* ── ScannerOverlay Modal (using custom self-contained ScannerOverlay with Portal) ── */}
+      {showScanner && typeof document !== 'undefined' && createPortal(
+        <ScannerOverlay
+          onScan={(code) => {
+            setShowScanner(false);
+            lookupBarcode(code);
+          }}
+          onClose={() => setShowScanner(false)}
+        />,
+        document.body
+      )}
 
       {/* ── MODAL NUEVO/EDITAR PRODUCTO ── */}
       {showAddModal && typeof document !== 'undefined' && createPortal(
@@ -431,7 +443,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
             </h3>
             <button type="button" onClick={() => setShowAddModal(false)}
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors cursor-pointer">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -462,7 +474,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <div className="flex gap-2 overflow-x-auto py-1">
                 {PRESET_IMAGES.map((img, i) => (
                   <button key={i} type="button" onClick={() => setFormData({ ...formData, imageUrl: img.url })}
-                    className={`w-12 h-12 rounded-lg overflow-hidden border shrink-0 transition-all ${formData.imageUrl === img.url ? 'ring-2 ring-indigo-600 scale-105 border-indigo-600' : 'border-gray-200 opacity-60'}`}>
+                    className={`w-12 h-12 rounded-lg overflow-hidden border shrink-0 transition-all cursor-pointer ${formData.imageUrl === img.url ? 'ring-2 ring-indigo-600 scale-105 border-indigo-600' : 'border-gray-200 opacity-60'}`}>
                     <img src={img.url} className="w-full h-full object-cover" alt="" />
                   </button>
                 ))}
@@ -485,7 +497,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base outline-none"
                   value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
                 <button type="button" onClick={() => setShowScanner(true)}
-                  className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0">
+                  className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0 cursor-pointer">
                   <ScanBarcode className="w-5 h-5" />
                 </button>
               </div>
@@ -531,7 +543,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {editingItem && (
               <button type="button" onClick={handleDeleteProduct} disabled={loading}
-                className="flex-1 bg-gray-50 text-rose-600 border border-rose-200 py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50">
+                className="flex-1 bg-gray-50 text-rose-600 border border-rose-200 py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50 cursor-pointer">
                 Eliminar
               </button>
             )}
@@ -539,7 +551,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               type="button"
               disabled={loading}
               onClick={handleSubmit}
-              className="flex-1 bg-indigo-600 text-white font-extrabold py-3.5 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md">
+              className="flex-1 bg-indigo-600 text-white font-extrabold py-3.5 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md cursor-pointer">
               {loading ? (
                 <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
               ) : editingItem ? (
