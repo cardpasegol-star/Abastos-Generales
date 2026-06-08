@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { createPortal } from 'react-dom'; // 🔥 Solución definitiva para sobreponerse a todo
+import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
 import { Product } from '../types';
 
@@ -80,10 +79,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [productFetchMsg, setProductFetchMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const animFrameRef = useRef<number>(0);
 
   const stopScanner = useCallback(() => {
-    cancelAnimationFrame(animFrameRef.current);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -120,66 +117,56 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     }
   }, []);
 
-useEffect(() => {
-  if (!showScanner) return;
-  let active = true;
-  const codeReaderRef = { current: null as any };
+  useEffect(() => {
+    if (!showScanner) return;
+    let active = true;
+    let codeReader: any = null;
 
-  const startScanner = async () => {
-    try {
-      const { BrowserMultiFormatReader } = await import('@zxing/browser');
-      const codeReader = new BrowserMultiFormatReader();
-      codeReaderRef.current = codeReader;
+    const startScanner = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        if (!active) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
+        // Esperar a que el video esté disponible en el DOM
+        await new Promise(resolve => setTimeout(resolve, 400));
+        if (!active || !videoRef.current) return;
 
-      if (!active) {
-        stream.getTracks().forEach(t => t.stop());
-        return;
-      }
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
 
-        codeReader.decodeFromVideoElement(
-          videoRef.current,
-          (result, err) => {
-            if (!active) return;
-            if (result) {
-              const code = result.getText();
-              active = false;
-              stopScanner();
-              setShowScanner(false);
-              lookupBarcode(code);
-            }
+        const { BrowserMultiFormatReader } = await import('@zxing/browser');
+        codeReader = new BrowserMultiFormatReader();
+
+        codeReader.decodeFromVideoElement(videoRef.current, (result: any, err: any) => {
+          if (!active) return;
+          if (result) {
+            const code = result.getText();
+            active = false;
+            stopScanner();
+            setShowScanner(false);
+            lookupBarcode(code);
           }
-        );
+        });
+      } catch (e) {
+        console.error('Scanner error:', e);
+        setProductFetchMsg('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
+        setShowScanner(false);
       }
-    } catch (e) {
-      console.error('Scanner error:', e);
-      setProductFetchMsg('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
-      setShowScanner(false);
-    }
-  };
+    };
 
-  // Pequeño delay para asegurar que el <video> esté en el DOM
-  const timer = setTimeout(startScanner, 300);
+    startScanner();
 
-  return () => {
-    active = false;
-    clearTimeout(timer);
-    stopScanner();
-    if (codeReaderRef.current?.reset) {
-      codeReaderRef.current.reset();
-    }
-  };
-}, [showScanner, stopScanner, lookupBarcode]);
- const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
+    return () => {
+      active = false;
+      stopScanner();
+      if (codeReader?.reset) codeReader.reset();
+    };
+  }, [showScanner, stopScanner, lookupBarcode]);
+
+  const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
   const outOfStockItems = products.filter(p => p.stock === 0);
 
@@ -255,6 +242,36 @@ useEffect(() => {
   };
 
   const categories = ['Todos', 'Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
+
+  const scannerModal = showScanner ? (
+    <div className="fixed inset-0 bg-black/90 z-[200] flex flex-col items-center justify-center p-4">
+      <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
+        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+          <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
+          <button
+            onClick={() => { stopScanner(); setShowScanner(false); }}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="relative bg-black" style={{ height: '260px' }}>
+          <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
+              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
+              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
+              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
+              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
+          Apunta al código de barras del producto
+        </p>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-5 pb-24">
@@ -393,40 +410,14 @@ useEffect(() => {
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
 
-    {/* ── MODAL ESCÁNER ── */}
-      {showScanner && createPortal(
-        <div className="fixed inset-0 bg-black/90 z-[110] flex flex-col items-center justify-center p-4">
-          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
-            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-              <h4 className="font-extrabold text-gray-900 text-base">📷 Escanear Código</h4>
-              <button onClick={() => { stopScanner(); setShowScanner(false); }}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="relative bg-black" style={{ height: '260px' }}>
-              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-center text-gray-400 font-semibold py-3 px-4">
-              Apunta al código de barras del producto
-            </p>
-          </div>
-        </div>
-      )}
+      {/* ── MODAL ESCÁNER (portal directo a body) ── */}
+      {typeof document !== 'undefined' && createPortal(scannerModal, document.body)}
 
-      {/* ── MODAL NUEVO/EDITAR PRODUCTO MEDIANTE PORTAL ── */}
-      {showAddModal && createPortal(
+      {/* ── MODAL NUEVO/EDITAR PRODUCTO ── */}
+      {showAddModal && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 bg-white flex flex-col overflow-hidden md:max-w-md md:left-1/2 md:-translate-x-1/2 md:shadow-2xl md:border-x md:border-gray-100" style={{ zIndex: 9999 }}>
-          
-          {/* Header Fijo Arriba */}
+
+          {/* Header */}
           <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 bg-white shrink-0">
             <h3 className="text-lg font-extrabold text-gray-950">
               {editingItem ? 'Editar Producto' : 'Nuevo Producto'}
@@ -437,7 +428,7 @@ useEffect(() => {
             </button>
           </div>
 
-          {/* Cuerpo con Scroll Propio */}
+          {/* Cuerpo con Scroll */}
           <div className="flex-1 overflow-y-auto p-5 space-y-5 pb-32">
 
             {/* Imagen */}
@@ -528,7 +519,7 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Barra de Botones Fija Inferior */}
+          {/* Botones */}
           <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {editingItem && (
               <button type="button" onClick={handleDeleteProduct} disabled={loading}
@@ -552,7 +543,7 @@ useEffect(() => {
           </div>
 
         </div>,
-        document.body // <- Mueve el HTML directamente al cuerpo del documento global
+        document.body
       )}
     </div>
   );
