@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Product } from '../types';
 
 interface InventarioTabProps {
@@ -102,12 +103,32 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
       if (!videoRef.current || !active) return;
 
       try {
+        // Configure standard formats and TRY_HARDER option for maximum detection accuracy of fine EAN/UPC barcodes
         const hints = new Map();
-        hints.set(2, [1, 2, 3, 4, 5, 6, 7, 8, 14]);
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.CODE_93,
+          BarcodeFormat.ITF,
+          BarcodeFormat.CODABAR,
+        ]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+
         const codeReader = new BrowserMultiFormatReader(hints);
 
+        // Standard 640x480 resolution usually scrambles thin barcode lines.
+        // We demand 1280x720 ideal resolution (high clarity) so fine details of 1D barcodes are perfectly resolved.
         const constraints: MediaStreamConstraints = {
-          video: { facingMode: { ideal: 'environment' } }
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 }
+          }
         };
 
         controls = await codeReader.decodeFromConstraints(
@@ -169,7 +190,7 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
           </button>
         </div>
         
-        <div className="relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden" style={{ height: '260px' }}>
+        <div className="relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden" style={{ height: '290px' }}>
           {errorMsg ? (
             <div className="p-6 text-center text-slate-300 space-y-4">
               <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto stroke-[1.8]" />
@@ -208,12 +229,17 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
                 autoPlay
               />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative">
+                <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative bg-indigo-500/5">
                   <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
                   <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
                   <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
                   <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
+                  {/* Glowing line animation inside scanner frame */}
+                  <div className="absolute inset-x-0 top-1/2 h-0.5 bg-indigo-500 animate-[pulse_1.5s_infinite]" />
                 </div>
+              </div>
+              <div className="absolute bottom-3 left-3 right-3 bg-slate-900/80 backdrop-blur-md rounded-xl p-2.5 border border-white/5 text-center text-white text-[9.5px] font-medium leading-normal pointer-events-none">
+                💡 Mantén el código enfocado a 15-20 cm de distancia. Evita sombras y brillos para facilitar la lectura inmediata.
               </div>
             </>
           )}
