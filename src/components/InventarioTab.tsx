@@ -77,18 +77,8 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
   scanRef.current = onScan;
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Check if mobile device
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    setIsMobile(isMobileDevice);
-
-    if (!isMobileDevice) {
-      // Laptop / Desktop: "mostrar solo el campo manual sin error, sin intentar abrir cámara trasera"
-      return;
-    }
-
     let active = true;
     let controls: any = null;
 
@@ -121,34 +111,53 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
 
         const codeReader = new BrowserMultiFormatReader(hints);
 
-        // Standard 640x480 resolution usually scrambles thin barcode lines.
-        // We demand 1280x720 ideal resolution (high clarity) so fine details of 1D barcodes are perfectly resolved.
-        const constraints: MediaStreamConstraints = {
+        // Standard 1280x720 ideal resolution (high clarity) so fine details of 1D barcodes are perfectly resolved.
+        let constraints: MediaStreamConstraints = {
           video: {
             facingMode: { ideal: 'environment' },
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         };
 
-        controls = await codeReader.decodeFromConstraints(
-          constraints,
-          videoRef.current,
-          (result) => {
-            if (!active) return;
-            if (result) {
-              const code = result.getText();
-              if (code && active) {
-                active = false;
-                scanRef.current(code);
+        try {
+          controls = await codeReader.decodeFromConstraints(
+            constraints,
+            videoRef.current,
+            (result) => {
+              if (!active) return;
+              if (result) {
+                const code = result.getText();
+                if (code && active) {
+                  active = false;
+                  scanRef.current(code);
+                }
               }
             }
-          }
-        );
+          );
+        } catch (firstErr) {
+          console.warn('Primary environment high-res camera failed, attempting basic camera...', firstErr);
+          // Standard wildcard video constraints (works on laptop webcams & basic front/back cameras)
+          constraints = { video: true };
+          controls = await codeReader.decodeFromConstraints(
+            constraints,
+            videoRef.current,
+            (result) => {
+              if (!active) return;
+              if (result) {
+                const code = result.getText();
+                if (code && active) {
+                  active = false;
+                  scanRef.current(code);
+                }
+              }
+            }
+          );
+        }
       } catch (err: any) {
         console.warn('ZXing Browser scanner start failed:', err);
         if (active) {
-          setErrorMsg('No se pudo iniciar la cámara trasera. Por favor ingresa el código manualmente.');
+          setErrorMsg('No se pudo acceder a la cámara. Por favor ingresa el código de barras de forma manual aquí abajo.');
         }
       }
     };
@@ -205,20 +214,6 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
                 Simular código de prueba
               </button>
             </div>
-          ) : !isMobile ? (
-            <div className="p-6 text-center text-slate-300 space-y-3 font-sans">
-              <span className="text-4xl block">💻</span>
-              <p className="text-xs font-semibold leading-relaxed px-2">
-                Escáner activo en dispositivo móvil. En laptop, por favor ingresa el código manualmente debajo.
-              </p>
-              <button
-                type="button"
-                onClick={handleSimulate}
-                className="mt-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-[10px] transition-colors cursor-pointer"
-              >
-                Simular código de prueba (Simulate Barcode)
-              </button>
-            </div>
           ) : (
             <>
               <video
@@ -260,7 +255,7 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
               />
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer shadow-sm active:scale-95"
               >
                 Listo
               </button>
@@ -290,30 +285,71 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setFormData(prev => ({ ...prev, sku: barcode }));
     setFetchingProduct(true);
     setProductFetchMsg('');
+    
+    let found = false;
+    let pName = '';
+    let pImg = '';
+    let pCat: Product['category'] = 'Abarrotes';
+
+    // Paso 1: Consulta a Open Food Facts API
     try {
       const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-      const data = await res.json();
-      if (data.status === 1 && data.product) {
-        const p = data.product;
-        const nombre = p.product_name_es || p.product_name || p.product_name_en || '';
-        const imagen = p.image_front_url || p.image_url || '';
-        const categoria = detectCategory(p.categories_tags || []);
-        setFormData(prev => ({
-          ...prev,
-          sku: barcode,
-          name: nombre || prev.name,
-          imageUrl: imagen || prev.imageUrl,
-          category: categoria
-        }));
-        setProductFetchMsg(nombre ? `✅ Encontrado: ${nombre}` : '⚠️ Código OK, completa el nombre manualmente.');
-      } else {
-        setProductFetchMsg('⚠️ No encontrado en base de datos. Completa manualmente.');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 1 && data.product) {
+          const p = data.product;
+          pName = p.product_name_es || p.product_name || p.product_name_en || '';
+          pImg = p.image_front_url || p.image_url || '';
+          pCat = detectCategory(p.categories_tags || []);
+          found = true;
+        }
       }
-    } catch {
-      setProductFetchMsg('⚠️ Sin conexión externa.');
-    } finally {
-      setFetchingProduct(false);
+    } catch (err) {
+      console.warn('Open Food Facts lookup failed:', err);
     }
+
+    // Paso 2 (Fallback): Consulta en cascada a UPCitemdb con AllOrigins CORS proxy
+    if (!found) {
+      try {
+        const upcUrl = `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(upcUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.contents) {
+            const upcData = JSON.parse(data.contents);
+            if (upcData && upcData.items && upcData.items.length > 0) {
+              const item = upcData.items[0];
+              pName = item.title || '';
+              pImg = item.images?.[0] || '';
+              if (item.category) {
+                pCat = detectCategory([item.category]);
+              }
+              found = true;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('UPCitemdb fallback lookup failed:', err);
+      }
+    }
+
+    // Paso 3 & 4: Auto-llenado o Alerta amistosa
+    if (found) {
+      setFormData(prev => ({
+        ...prev,
+        sku: barcode,
+        name: pName || prev.name,
+        imageUrl: pImg || prev.imageUrl,
+        category: pCat
+      }));
+      setProductFetchMsg(pName ? `✅ Encontrado: ${pName}` : '⚠️ Código OK, completa el nombre manualmente.');
+    } else {
+      setShowScanner(false);
+      setProductFetchMsg('⚠️ No encontrado. Ingrese los datos de forma manual.');
+      alert('Producto nuevo no encontrado. Por favor, ingrese los datos manualmente.');
+    }
+    setFetchingProduct(false);
   }, []);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
