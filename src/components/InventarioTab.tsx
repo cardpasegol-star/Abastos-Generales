@@ -77,6 +77,7 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
   scanRef.current = onScan;
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -93,36 +94,28 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
       if (!videoRef.current || !active) return;
 
       try {
-        // Configure standard formats and TRY_HARDER option for maximum detection accuracy of fine EAN/UPC barcodes
+        // Optimización del Formato de Lectura: Buscar específicamente formatos EAN_13 y UPC_A para supermercados / consumo masivo
         const hints = new Map();
         hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.QR_CODE,
           BarcodeFormat.EAN_13,
-          BarcodeFormat.EAN_8,
           BarcodeFormat.UPC_A,
-          BarcodeFormat.UPC_E,
-          BarcodeFormat.CODE_128,
-          BarcodeFormat.CODE_39,
-          BarcodeFormat.CODE_93,
-          BarcodeFormat.ITF,
-          BarcodeFormat.CODABAR,
         ]);
         hints.set(DecodeHintType.TRY_HARDER, true);
 
         const codeReader = new BrowserMultiFormatReader(hints);
+        let successfulStream = false;
 
-        // Standard 1280x720 ideal resolution (high clarity) so fine details of 1D barcodes are perfectly resolved.
-        let constraints: MediaStreamConstraints = {
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        };
-
+        // Intento 1: Selección estricta de Cámara Trasera (exact: "environment") con alta resolución
         try {
+          const strictConstraints: MediaStreamConstraints = {
+            video: {
+              facingMode: { exact: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          };
           controls = await codeReader.decodeFromConstraints(
-            constraints,
+            strictConstraints,
             videoRef.current,
             (result) => {
               if (!active) return;
@@ -135,42 +128,112 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
               }
             }
           );
-        } catch (firstErr) {
-          console.warn('Primary environment high-res camera failed, attempting basic camera...', firstErr);
-          // Standard wildcard video constraints (works on laptop webcams & basic front/back cameras)
-          constraints = { video: true };
-          controls = await codeReader.decodeFromConstraints(
-            constraints,
-            videoRef.current,
-            (result) => {
-              if (!active) return;
-              if (result) {
-                const code = result.getText();
-                if (code && active) {
-                  active = false;
-                  scanRef.current(code);
-                }
-              }
-            }
-          );
+          successfulStream = true;
+          console.log('Cámara iniciada exitosamente con facingMode "environment" estricto.');
+        } catch (strictErr) {
+          console.warn('Fallo cámara trasera estricta exact:environment, probando ideal...', strictErr);
         }
+
+        // Intento 2: Fallback ideal: "environment" por si no admite el exact o es emulador
+        if (!successfulStream && active) {
+          try {
+            const idealConstraints: MediaStreamConstraints = {
+              video: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
+            };
+            controls = await codeReader.decodeFromConstraints(
+              idealConstraints,
+              videoRef.current,
+              (result) => {
+                if (!active) return;
+                if (result) {
+                  const code = result.getText();
+                  if (code && active) {
+                    active = false;
+                    scanRef.current(code);
+                  }
+                }
+              }
+            );
+            successfulStream = true;
+            console.log('Cámara iniciada con facingMode "environment" ideal.');
+          } catch (idealErr) {
+            console.warn('Fallo cámara trasera ideal, probando cualquier cámara...', idealErr);
+          }
+        }
+
+        // Intento 3: Fallback general a cualquier cámara disponible (e.g. cámara frontal o webcam básica)
+        if (!successfulStream && active) {
+          try {
+            const basicConstraints: MediaStreamConstraints = {
+              video: true
+            };
+            controls = await codeReader.decodeFromConstraints(
+              basicConstraints,
+              videoRef.current,
+              (result) => {
+                if (!active) return;
+                if (result) {
+                  const code = result.getText();
+                  if (code && active) {
+                    active = false;
+                    scanRef.current(code);
+                  }
+                }
+              }
+            );
+            successfulStream = true;
+            console.log('Cámara iniciada en modo genérico de respaldo.');
+          } catch (basicErr) {
+            console.error('Todos los intentos de inicialización de cámara fallaron:', basicErr);
+            if (active) {
+              setErrorMsg('No se pudo acceder a la cámara. Asegúrate de otorgar los permisos en tu navegador celular.');
+            }
+          }
+        }
+
       } catch (err: any) {
-        console.warn('ZXing Browser scanner start failed:', err);
+        console.warn('Error crítico al instanciar el decodificador:', err);
         if (active) {
-          setErrorMsg('No se pudo acceder a la cámara. Por favor ingresa el código de barras de forma manual aquí abajo.');
+          setErrorMsg('Ocurrió un error al configurar la cámara. Por favor ingresa el código manualmente.');
         }
       }
     };
 
     startScanner();
 
+    // Limpieza estricta y segura de los tracks y de la instancia de cámara trasera
     return () => {
       active = false;
       if (controls && typeof controls.stop === 'function') {
-        controls.stop();
+        try {
+          controls.stop();
+        } catch (stopErr) {
+          console.warn('Error deteniendo controles de ZXing:', stopErr);
+        }
+      }
+
+      // Detención manual y explícita del flujo de la cámara para liberar el hardware del teléfono celular
+      if (videoRef.current && videoRef.current.srcObject) {
+        try {
+          const stream = videoRef.current.srcObject as MediaStream;
+          if (stream && typeof stream.getTracks === 'function') {
+            stream.getTracks().forEach(track => {
+              if (typeof track.stop === 'function') {
+                track.stop();
+              }
+            });
+          }
+          videoRef.current.srcObject = null;
+        } catch (streamErr) {
+          console.warn('Error al liberar pistas de video manualmente:', streamErr);
+        }
       }
     };
-  }, []);
+  }, [retryCount]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,13 +269,25 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
               <p className="text-xs font-semibold leading-relaxed px-2">
                 {errorMsg}
               </p>
-              <button
-                type="button"
-                onClick={handleSimulate}
-                className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
-              >
-                Simular código de prueba
-              </button>
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setRetryCount(prev => prev + 1);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  🔄 Reintentar Activar Cámara
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSimulate}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-4 py-2 rounded-xl text-[11px] transition-colors cursor-pointer"
+                >
+                  Simular código de prueba
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -251,11 +326,11 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
                 placeholder="Ej. 7501055300075"
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
-                className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600"
+                className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 font-bold"
               />
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer shadow-sm active:scale-95"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer shadow-sm active:scale-95 text-center"
               >
                 Listo
               </button>
