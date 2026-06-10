@@ -103,19 +103,58 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
         hints.set(DecodeHintType.TRY_HARDER, true);
 
         const codeReader = new BrowserMultiFormatReader(hints);
+        let stream: MediaStream | null = null;
         let successfulStream = false;
 
-        // Intento 1: Selección estricta de Cámara Trasera (exact: "environment") con alta resolución
-        try {
-          const strictConstraints: MediaStreamConstraints = {
+        // Intentos progresivos de constraints para adquirir la cámara de forma robusta
+        const constraintsList: MediaStreamConstraints[] = [
+          // 1. Cámara trasera preferida (ideal: 'environment') con resolución HD ideal para códigos de barra finos
+          {
             video: {
-              facingMode: { exact: 'environment' },
+              facingMode: 'environment',
               width: { ideal: 1280 },
               height: { ideal: 720 }
             }
-          };
-          controls = await codeReader.decodeFromConstraints(
-            strictConstraints,
+          },
+          // 2. Fallback: Cámara trasera simple (por si el celular no soporta las resoluciones ideales especificadas)
+          {
+            video: {
+              facingMode: 'environment'
+            }
+          },
+          // 3. Fallback genérico: Cualquier cámara disponible (webcam o cámara frontal)
+          {
+            video: true
+          }
+        ];
+
+        for (const constraints of constraintsList) {
+          if (!active) break;
+          try {
+            console.log('Intentando obtener MediaStream con constraints:', JSON.stringify(constraints));
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (stream) {
+              console.log('MediaStream obtenido con éxito!');
+              successfulStream = true;
+              break;
+            }
+          } catch (err: any) {
+            console.warn('Fallo al obtener stream con constraints:', JSON.stringify(constraints), err);
+            // Asegurar cierre de cualquier track si quedó a medias
+            if (stream) {
+              try {
+                stream.getTracks().forEach(track => track.stop());
+              } catch (e) {}
+              stream = null;
+            }
+          }
+        }
+
+        if (successfulStream && stream && active) {
+          videoRef.current.srcObject = stream;
+          // Usar decodeFromStream para iniciar la descodificación continua utilizando el stream ya abierto
+          controls = await codeReader.decodeFromStream(
+            stream,
             videoRef.current,
             (result) => {
               if (!active) return;
@@ -123,75 +162,20 @@ function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
                 const code = result.getText();
                 if (code && active) {
                   active = false;
+                  // Detener tracks inmediatamente tras lectura para apagar el hardware de la cámara
+                  if (stream) {
+                    try {
+                      stream.getTracks().forEach(t => t.stop());
+                    } catch (e) {}
+                  }
                   scanRef.current(code);
                 }
               }
             }
           );
-          successfulStream = true;
-          console.log('Cámara iniciada exitosamente con facingMode "environment" estricto.');
-        } catch (strictErr) {
-          console.warn('Fallo cámara trasera estricta exact:environment, probando ideal...', strictErr);
-        }
-
-        // Intento 2: Fallback ideal: "environment" por si no admite el exact o es emulador
-        if (!successfulStream && active) {
-          try {
-            const idealConstraints: MediaStreamConstraints = {
-              video: {
-                facingMode: 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-              }
-            };
-            controls = await codeReader.decodeFromConstraints(
-              idealConstraints,
-              videoRef.current,
-              (result) => {
-                if (!active) return;
-                if (result) {
-                  const code = result.getText();
-                  if (code && active) {
-                    active = false;
-                    scanRef.current(code);
-                  }
-                }
-              }
-            );
-            successfulStream = true;
-            console.log('Cámara iniciada con facingMode "environment" ideal.');
-          } catch (idealErr) {
-            console.warn('Fallo cámara trasera ideal, probando cualquier cámara...', idealErr);
-          }
-        }
-
-        // Intento 3: Fallback general a cualquier cámara disponible (e.g. cámara frontal o webcam básica)
-        if (!successfulStream && active) {
-          try {
-            const basicConstraints: MediaStreamConstraints = {
-              video: true
-            };
-            controls = await codeReader.decodeFromConstraints(
-              basicConstraints,
-              videoRef.current,
-              (result) => {
-                if (!active) return;
-                if (result) {
-                  const code = result.getText();
-                  if (code && active) {
-                    active = false;
-                    scanRef.current(code);
-                  }
-                }
-              }
-            );
-            successfulStream = true;
-            console.log('Cámara iniciada en modo genérico de respaldo.');
-          } catch (basicErr) {
-            console.error('Todos los intentos de inicialización de cámara fallaron:', basicErr);
-            if (active) {
-              setErrorMsg('No se pudo acceder a la cámara. Asegúrate de otorgar los permisos en tu navegador celular.');
-            }
+        } else {
+          if (active) {
+            setErrorMsg('No se pudo acceder a ninguna cámara en este dispositivo. Por favor, asegúrate de otorgar los permisos de la cámara en los ajustes de tu navegador o ingresa el código de barras manualmente.');
           }
         }
 
