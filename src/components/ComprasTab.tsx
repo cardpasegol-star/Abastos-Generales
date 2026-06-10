@@ -307,7 +307,7 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
             No se encontraron comidas que coincidan con la búsqueda.
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-4">
             {filteredFoodItems.map((dish) => {
               const cartItem = cart.find(item => item.id === dish.id && item.type === 'meal');
               const inCart = !!cartItem;
@@ -315,61 +315,75 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
               return (
                 <div 
                   key={dish.id} 
-                  className={`flex gap-3 bg-slate-50/60 p-3 rounded-2xl border transition-all duration-200 ${
-                    inCart ? 'border-indigo-400 ring-2 ring-indigo-500/5 bg-indigo-50/10' : 'border-slate-100'
+                  className={`bg-white rounded-2xl overflow-hidden border-2 transition-all duration-300 flex flex-col shadow-sm hover:shadow-md ${
+                    inCart ? 'border-indigo-400 ring-2 ring-indigo-500/5 bg-indigo-50/5' : 'border-slate-100 bg-white'
                   }`}
                 >
-                  <img
-                    src={dish.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'}
-                    alt={dish.name}
-                    referrerPolicy="no-referrer"
-                    className="w-16 h-16 object-cover rounded-xl border border-slate-200/50 bg-white"
-                  />
-                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                    <div>
-                      <div className="flex justify-between items-start gap-1">
-                        <h4 className="font-extrabold text-slate-800 text-[11px] leading-snug truncate">
-                          {dish.name}
-                        </h4>
-                        <span className="font-extrabold text-indigo-750 text-[11px] shrink-0">
+                  <div className="relative h-44 w-full bg-slate-50 shrink-0">
+                    <img
+                      src={dish.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600'}
+                      alt={dish.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover transition-transform duration-300"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600';
+                      }}
+                    />
+                    <span className="absolute top-3 left-3 bg-indigo-600 text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-2xs uppercase tracking-wider">
+                      {dish.category}
+                    </span>
+                    {inCart && (
+                      <span className="absolute top-3 right-3 bg-emerald-500 text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-2xs uppercase tracking-wider flex items-center gap-1">
+                        <Check className="w-3 h-3 stroke-[3]" /> En carrito ({cartItem.quantity})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-4 flex flex-col space-y-3 font-sans">
+                    <div className="flex justify-between items-start gap-2">
+                      <h4 className="font-extrabold text-slate-900 text-sm leading-snug">
+                        {dish.name}
+                      </h4>
+                      <div className="text-right shrink-0">
+                        <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wide block">Precio</span>
+                        <span className="font-black text-indigo-700 text-base leading-none">
                           ${dish.price.toFixed(2)}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-[9px] line-clamp-2 mt-0.5 leading-normal">
-                        {dish.description}
-                      </p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 mt-1 border-t border-slate-100/50">
-                      <span className="text-[8px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase">
-                        {dish.category}
-                      </span>
+                    <p className="text-slate-500 text-[11px] leading-relaxed">
+                      {dish.description}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-150/60 font-sans">
+                      <span className="text-[10px] text-slate-400 font-bold">La Cocina 🍲</span>
 
                       {inCart ? (
-                        <div className="flex items-center bg-white border border-indigo-200 rounded-lg p-0.5 shadow-3xs scale-90">
+                        <div className="flex items-center bg-slate-100 border border-indigo-250 rounded-xl p-1 shadow-3xs">
                           <button
                             onClick={() => handleAdjustQty(dish.id, 'meal', -1)}
-                            className="p-1 text-indigo-700 hover:bg-slate-50 rounded-md transition-colors cursor-pointer"
+                            className="p-1.5 text-indigo-700 hover:bg-white rounded-lg transition-colors cursor-pointer"
                           >
-                            <Minus className="w-2.5 h-2.5 stroke-[3]" />
+                            <Minus className="w-3 h-3 stroke-[3]" />
                           </button>
-                          <span className="px-1.5 text-[10px] font-black text-indigo-950">
+                          <span className="px-3 text-xs font-black text-slate-900">
                             {cartItem.quantity} raciones
                           </span>
                           <button
                             onClick={() => handleAdjustQty(dish.id, 'meal', 1)}
-                            className="p-1 text-indigo-700 hover:bg-slate-50 rounded-md transition-colors cursor-pointer"
+                            className="p-1.5 text-indigo-700 hover:bg-white rounded-lg transition-colors cursor-pointer"
                           >
-                            <Plus className="w-2.5 h-2.5 stroke-[3]" />
+                            <Plus className="w-3 h-3 stroke-[3]" />
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleAddMeal(dish)}
-                          className="bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-[9px] px-2.5 py-1.5 rounded-lg transition-transform duration-100 active:scale-95 flex items-center gap-1 shadow-2xs border border-indigo-500 cursor-pointer"
+                          className="bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1.5 shadow-2xs border border-indigo-500 cursor-pointer"
                         >
-                          <Plus className="w-2.5 h-2.5 stroke-[3]" />
-                          Agregar
+                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          Agregar al carrito
                         </button>
                       )}
                     </div>
@@ -425,7 +439,7 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
             No se encontraron productos que coincidan con la búsqueda.
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4">
             {filteredProducts.map((p) => {
               const cartItem = cart.find(item => item.id === p.id && item.type === 'product');
               const inCart = !!cartItem;
@@ -434,81 +448,94 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
               return (
                 <div 
                   key={p.id}
-                  className={`bg-slate-50/50 rounded-2xl border transition-all duration-250 flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-xs ${
+                  className={`bg-white rounded-2xl border-2 transition-all duration-305 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md ${
                     isOutofStock 
-                      ? 'opacity-60 border-slate-150' 
+                      ? 'opacity-65 border-slate-150' 
                       : inCart 
-                        ? 'border-indigo-400/90 ring-2 ring-indigo-500/5 bg-indigo-50/5' 
-                        : 'border-slate-150 bg-white'
+                        ? 'border-indigo-400 ring-2 ring-indigo-500/5 bg-indigo-50/5' 
+                        : 'border-slate-100 bg-white'
                   }`}
                 >
-                  <div className="relative aspect-square w-full bg-slate-50 overflow-hidden">
+                  <div className="relative h-44 w-full bg-slate-50 overflow-hidden shrink-0">
                     <img
-                      src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200'}
+                      src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
                       alt={p.name}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-102"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
+                      }}
                     />
                     
-                    <span className="absolute top-1.5 left-1.5 bg-white/95 backdrop-blur-3xs text-slate-800 text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-3xs uppercase tracking-wide border border-slate-100">
+                    <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-2xs uppercase tracking-wider">
                       {p.category}
                     </span>
 
                     {isOutofStock ? (
-                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] flex items-center justify-center">
-                        <span className="bg-red-500 text-white font-extrabold text-[8px] px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                          Agotado
+                      <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[1.5px] flex items-center justify-center">
+                        <span className="bg-red-500 text-white font-extrabold text-[10px] px-3.5 py-1.5 rounded-full uppercase tracking-widest shadow-md">
+                          Agotado / Sin Stock
                         </span>
                       </div>
                     ) : p.stock <= 5 ? (
-                      <span className="absolute bottom-1.5 right-1.5 bg-amber-500 text-white text-[7px] font-extrabold px-1.5 py-0.5 rounded shadow-3xs">
-                        Solo {p.stock} r.
+                      <span className="absolute bottom-3 right-3 bg-amber-600 text-white text-[9px] font-black px-2.5 py-1 rounded-md shadow-2xs">
+                        ¡Solo quedan {p.stock} u.!
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-3xs text-white text-[8px] font-bold px-2 py-0.5 rounded">
+                        S. Disp: {p.stock}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="p-2 flex-1 flex flex-col justify-between space-y-1.5 font-sans">
-                    <div className="space-y-0.5">
-                      <p className="text-slate-900 font-extrabold text-[10px] leading-tight line-clamp-2">
-                        {p.name}
-                      </p>
-                      <p className="text-[8px] text-slate-400 font-bold font-mono">
-                        SKU: {p.sku || p.id}
-                      </p>
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3 font-sans">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="space-y-1">
+                        <p className="text-slate-900 font-extrabold text-sm leading-tight">
+                          {p.name}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-bold font-mono">
+                          Código SKU: {p.sku || p.id}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wide block">Precio</span>
+                        <span className="text-base font-black text-slate-900">
+                          ${p.price.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 gap-1">
-                      <span className="text-xs font-black text-slate-900">
-                        ${p.price.toFixed(2)}
-                      </span>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-150/60 font-sans">
+                      <span className="text-[10px] text-slate-400 font-bold">Tienda 📦</span>
 
                       {isOutofStock ? (
-                        <span className="text-[10px] text-slate-400 font-bold">N/A</span>
+                        <span className="text-[10px] text-rose-500 font-extrabold bg-rose-50 px-2 py-1 rounded-md">No disponible</span>
                       ) : inCart ? (
-                        <div className="flex items-center bg-white border border-indigo-200 rounded-lg p-0.5 shadow-3xs">
+                        <div className="flex items-center bg-slate-100 border border-indigo-250 rounded-xl p-1 shadow-3xs">
                           <button
                             onClick={() => handleAdjustQty(p.id, 'product', -1)}
-                            className="p-1 text-indigo-750 hover:bg-slate-50 rounded transition-colors"
+                            className="p-1.5 text-indigo-700 hover:bg-white rounded-lg transition-colors cursor-pointer"
                           >
-                            <Minus className="w-2 h-2 stroke-[3]" />
+                            <Minus className="w-3 h-3 stroke-[3]" />
                           </button>
-                          <span className="px-1 text-[10px] font-extrabold text-indigo-900">
-                            {cartItem.quantity}
+                          <span className="px-3 text-xs font-black text-slate-900">
+                            {cartItem.quantity} unid.
                           </span>
                           <button
                             onClick={() => handleAdjustQty(p.id, 'product', 1)}
-                            className="p-1 text-indigo-750 hover:bg-slate-50 rounded transition-colors"
+                            className="p-1.5 text-indigo-700 hover:bg-white rounded-lg transition-colors cursor-pointer"
                           >
-                            <Plus className="w-2 h-2 stroke-[3]" />
+                            <Plus className="w-3 h-3 stroke-[3]" />
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => handleAddProduct(p)}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[9px] px-2 py-1 rounded-lg transition-transform duration-100 active:scale-95 flex items-center gap-0.5 shadow-2xs border border-indigo-500 cursor-pointer"
+                          className="bg-indigo-650 hover:bg-indigo-750 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1.5 shadow-2xs border border-indigo-500 cursor-pointer"
                         >
-                          <Plus className="w-2.5 h-2.5 stroke-[3]" />
-                          Agregar
+                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          Agregar al carrito
                         </button>
                       )}
                     </div>
