@@ -1,24 +1,32 @@
 import React from 'react';
-import { Package2, Receipt, BarChart3, Utensils, Settings } from 'lucide-react';
+import { Package2, Receipt, BarChart3, Utensils, Settings, ShoppingCart } from 'lucide-react';
 import { ActiveTab } from '../types';
 
 interface BottomNavProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
+  isAdminUnlocked: boolean;
 }
 
-export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
+export default function BottomNav({ activeTab, setActiveTab, isAdminUnlocked }: BottomNavProps) {
   const navItems = [
     { id: 'Inventario' as ActiveTab, label: 'Inventario', icon: Package2 },
     { id: 'Caja' as ActiveTab, label: 'Caja', icon: Receipt },
     { id: 'Reportes' as ActiveTab, label: 'Reportes', icon: BarChart3 },
-    { id: 'Comidas' as ActiveTab, label: 'Comidas', icon: Utensils },
+    { id: 'Compras' as ActiveTab, label: 'Compras', icon: ShoppingCart },
     { id: 'Mant.' as ActiveTab, label: 'Mant.', icon: Settings },
   ];
 
+  const visibleNavItems = navItems.filter((item) => {
+    if (!isAdminUnlocked && item.id !== 'Compras' && item.id !== 'Mant.') {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 flex justify-around items-center h-16 px-2 pb-safe shadow-lg rounded-t-2xl max-w-md mx-auto">
-      {navItems.map((item) => {
+      {visibleNavItems.map((item) => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
         

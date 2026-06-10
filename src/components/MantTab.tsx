@@ -12,6 +12,8 @@ interface MantTabProps {
   onDeleteProduct: (id: string) => Promise<void>;
   onAddFoodItem: (f: Omit<FoodItem, 'id'>) => Promise<void>;
   onDeleteFoodItem: (id: string) => Promise<void>;
+  isUnlocked: boolean;
+  onUnlock: (unlocked: boolean) => void;
 }
 
 export default function MantTab({
@@ -22,9 +24,10 @@ export default function MantTab({
   onEditProduct,
   onDeleteProduct,
   onAddFoodItem,
-  onDeleteFoodItem
+  onDeleteFoodItem,
+  isUnlocked,
+  onUnlock
 }: MantTabProps) {
-  const [isUnlocked, setIsUnlocked] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
   
@@ -101,7 +104,7 @@ export default function MantTab({
       if (nextPin.length === 4) {
         const correctPin = config.adminPin || '1234';
         if (nextPin === correctPin) {
-          setIsUnlocked(true);
+          onUnlock(true);
         } else {
           setPinError(true);
           setTimeout(() => {
@@ -149,7 +152,7 @@ export default function MantTab({
       setNotifyResetSuccess(true);
       setTimeout(() => setNotifyResetSuccess(false), 4000);
       // Unlocked session restarts
-      setIsUnlocked(false);
+      onUnlock(false);
       setPin('');
     } catch (err) {
       console.error(err);
@@ -276,6 +279,23 @@ export default function MantTab({
   return (
     <div id="admin-dashboard-container" className="space-y-6 pb-28 animate-in slide-in-from-bottom-8 duration-400">
       
+      {/* Admin Quick Status and Logout bar */}
+      <div className="flex justify-between items-center bg-indigo-50 border border-indigo-100 p-3 rounded-2xl">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 bg-indigo-650 rounded-full animate-pulse shrink-0"></div>
+          <span className="text-xs font-extrabold text-indigo-950 font-sans">Sesión de Dueño Activa</span>
+        </div>
+        <button
+          onClick={() => {
+            onUnlock(false);
+            setPin('');
+          }}
+          className="bg-white border border-indigo-200 hover:bg-slate-50 text-indigo-700 font-extrabold text-[10px] px-3 py-1.5 rounded-xl shadow-3xs cursor-pointer select-none"
+        >
+          🔒 Cerrar Sesión
+        </button>
+      </div>
+
       {/* Messages banner */}
       {notifySaved && (
         <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 p-3.5 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold animate-in fade-in duration-300">
@@ -302,13 +322,17 @@ export default function MantTab({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10.5px] font-bold text-gray-400 uppercase tracking-widest">WhatsApp de Despacho (Cocina)</label>
+            <label className="text-[10.5px] font-bold text-gray-400 uppercase tracking-widest">WhatsApp del Dueño (Recibe Pedidos de Clientes)</label>
             <input
               type="tel"
               className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600/10 focus:outline-none focus:bg-white transition-all font-semibold outline-none"
+              placeholder="Ej: 5491112345678"
               value={whatsapp}
               onChange={(e) => setWhatsapp(e.target.value)}
             />
+            <span className="text-[9px] text-indigo-600 font-bold block leading-tight pt-1">
+              ⚠️ Ingrese el código de país y número celular (ejemplo: argentino sin prefijos raros, solo números, sin "+" ni guiones). Ej: 5491112345678. Los clientes le enviarán aquí sus carritos de compra.
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

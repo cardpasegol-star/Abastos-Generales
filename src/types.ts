@@ -52,4 +52,4 @@ export interface BusinessConfig {
   bannerUrl?: string;
 }
 
-export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Mant.';
+export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.';

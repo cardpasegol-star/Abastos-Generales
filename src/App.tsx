@@ -9,11 +9,12 @@ import BottomNav from './components/BottomNav';
 import InventarioTab from './components/InventarioTab';
 import CajaTab from './components/CajaTab';
 import ReportesTab from './components/ReportesTab';
-import ComidasTab from './components/ComidasTab';
+import ComprasTab from './components/ComprasTab';
 import MantTab from './components/MantTab';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('Inventario');
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('Compras');
   const [products, setProducts] = useState<Product[]>([]);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -178,6 +179,11 @@ export default function App() {
     );
   }
 
+  // Shield tabs in case activeTab is set to restricted and user is not unlocked
+  const currentTab = (!isAdminUnlocked && (activeTab === 'Inventario' || activeTab === 'Caja' || activeTab === 'Reportes'))
+    ? 'Compras'
+    : activeTab;
+
   // 4. Primary client layout canvas with persistent bottom nav
   return (
     <div className="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased text-body-md select-none">
@@ -186,7 +192,7 @@ export default function App() {
 
       {/* Main viewport canvas */}
       <main className="flex-1 px-4 pt-4 pb-28 max-w-md w-full mx-auto">
-        {activeTab === 'Inventario' && (
+        {currentTab === 'Inventario' && (
           <InventarioTab
             products={products}
             onAddProduct={handleAddProduct}
@@ -195,7 +201,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'Caja' && (
+        {currentTab === 'Caja' && (
           <CajaTab
             products={products}
             onAddTransaction={handleAddTransaction}
@@ -203,15 +209,15 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'Reportes' && (
+        {currentTab === 'Reportes' && (
           <ReportesTab transactions={transactions} />
         )}
 
-        {activeTab === 'Comidas' && (
-          <ComidasTab foodItems={foodItems} config={config} />
+        {currentTab === 'Compras' && (
+          <ComprasTab products={products} foodItems={foodItems} config={config} />
         )}
 
-        {activeTab === 'Mant.' && (
+        {currentTab === 'Mant.' && (
           <MantTab
             products={products}
             foodItems={foodItems}
@@ -221,12 +227,14 @@ export default function App() {
             onDeleteProduct={handleDeleteProduct}
             onAddFoodItem={handleAddFoodItem}
             onDeleteFoodItem={handleDeleteFoodItem}
+            isUnlocked={isAdminUnlocked}
+            onUnlock={setIsAdminUnlocked}
           />
         )}
       </main>
 
       {/* Persistent Bottom Nav tab-selector */}
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={currentTab} setActiveTab={setActiveTab} isAdminUnlocked={isAdminUnlocked} />
     </div>
   );
 }
