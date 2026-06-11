@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
 import { Product } from '../types';
-import ScannerOverlay from './ScannerOverlay';
+import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
   products: Product[];
@@ -383,14 +383,15 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
 
-      {/* ── ScannerOverlay Modal (using custom self-contained ScannerOverlay with Portal) ── */}
-      {showScanner && typeof document !== 'undefined' && createPortal(
-        <ScannerOverlay
-          onScan={(code) => {
+      {/* ── BarcodeScanner Modal (using custom self-contained BarcodeScanner with Portal) ── */}
+      {typeof document !== 'undefined' && createPortal(
+        <BarcodeScanner
+          isOpen={showScanner}
+          onClose={() => setShowScanner(false)}
+          onBarcodeDetected={(code) => {
             setShowScanner(false);
             lookupBarcode(code);
           }}
-          onClose={() => setShowScanner(false)}
         />,
         document.body
       )}

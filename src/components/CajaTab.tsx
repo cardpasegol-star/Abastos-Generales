@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, ShoppingBag, Zap, RefreshCw } from 'lucide-react';
 import { Product, CartItem, Transaction } from '../types';
-import ScannerOverlay from './ScannerOverlay';
+import BarcodeScanner from './BarcodeScanner';
 
 interface CajaTabProps {
   products: Product[];
@@ -498,15 +498,14 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
       )}
 
       {/* 7. Real-time Barcode Camera Scanner Modal */}
-      {showScanner && (
-        <ScannerOverlay
-          onScan={(code) => {
-            setShowScanner(false);
-            handleScan(code);
-          }}
-          onClose={() => setShowScanner(false)}
-        />
-      )}
+      <BarcodeScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onBarcodeDetected={(code) => {
+          setShowScanner(false);
+          handleScan(code);
+        }}
+      />
     </div>
   );
 }
