@@ -37,14 +37,14 @@ export default function BottomNav({ activeTab, setActiveTab, isAdminUnlocked }: 
             onClick={() => setActiveTab(item.id)}
             className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all duration-200 outline-none cursor-pointer ${
               isActive 
-                ? 'text-indigo-600 scale-102 font-bold' 
-                : 'text-slate-400 hover:text-slate-650'
+                ? 'text-emerald-700 scale-102 font-black' 
+                : 'text-slate-500 hover:text-slate-850'
             }`}
           >
-            <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-indigo-50 text-indigo-650 shadow-sm border border-indigo-100/50' : 'hover:bg-slate-50'}`}>
-              <Icon className="w-4 h-4 stroke-[2]" />
+            <div className={`p-2 rounded-xl transition-colors ${isActive ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-150' : 'hover:bg-slate-100'}`}>
+              <Icon className="w-4.5 h-4.5 stroke-[2.5]" />
             </div>
-            <span className="text-[9px] font-bold tracking-tight uppercase">{item.label}</span>
+            <span className={`text-[10px] tracking-tight uppercase ${isActive ? 'font-black text-emerald-800' : 'font-extrabold text-slate-500'}`}>{item.label}</span>
           </button>
         );
       })}

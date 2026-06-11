@@ -30,13 +30,13 @@ export default function Header({ config }: HeaderProps) {
       <div className="relative max-w-md mx-auto w-full px-5 pt-8 pb-5 flex flex-col justify-end min-h-[160px] z-10 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-indigo-650/90 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-indigo-400/30 shrink-0">
-              <Store className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-emerald-600/90 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-emerald-400/40 shrink-0">
+              <Store className="w-5 h-5 text-white stroke-[2.5]" />
             </div>
             
-            <div className="flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 backdrop-blur-sm text-emerald-300 rounded-full border border-emerald-400/20 text-[9px] font-black uppercase tracking-widest select-none">
-              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span>Online</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-550/30 backdrop-blur-sm text-emerald-300 rounded-full border border-emerald-400/30 text-[10px] font-black uppercase tracking-widest select-none shadow-xs">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping shrink-0" style={{ animationDuration: '2s' }}></div>
+              <span>Abierto</span>
             </div>
           </div>
 
@@ -60,8 +60,8 @@ export default function Header({ config }: HeaderProps) {
             {config.name || 'Donde el Goyo'}
           </h1>
           
-          <div className="flex items-center gap-1 text-slate-200 mt-1 hover:text-indigo-200 transition-colors cursor-pointer select-none">
-            <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+          <div className="flex items-center gap-1 text-slate-200 mt-1 hover:text-emerald-200 transition-colors cursor-pointer select-none">
+            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="text-xs font-semibold truncate max-w-[280px]">{config.gps || 'Calle Principal #123'}</span>
           </div>
         </div>

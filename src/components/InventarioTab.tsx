@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Product } from '../types';
+import ScannerOverlay from './ScannerOverlay';
 
 interface InventarioTabProps {
   products: Product[];
@@ -66,265 +65,6 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
   if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
 }
 
-interface ScannerOverlayProps {
-  onScan: (code: string) => void;
-  onClose: () => void;
-}
-
-function ScannerOverlay({ onScan, onClose }: ScannerOverlayProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const scanRef = useRef(onScan);
-  scanRef.current = onScan;
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [manualCode, setManualCode] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    let controls: any = null;
-
-    const startScanner = async () => {
-      // Wait for videoRef to exist
-      let attempts = 0;
-      while (!videoRef.current && attempts < 20) {
-        if (!active) return;
-        await new Promise(r => setTimeout(r, 100));
-        attempts++;
-      }
-      if (!videoRef.current || !active) return;
-
-      try {
-        // Optimización del Formato de Lectura: Buscar específicamente formatos EAN_13 y UPC_A para supermercados / consumo masivo
-        const hints = new Map();
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.EAN_13,
-          BarcodeFormat.UPC_A,
-        ]);
-        hints.set(DecodeHintType.TRY_HARDER, true);
-
-        const codeReader = new BrowserMultiFormatReader(hints);
-        let stream: MediaStream | null = null;
-        let successfulStream = false;
-
-        // Intentos progresivos de constraints para adquirir la cámara de forma robusta
-        const constraintsList: MediaStreamConstraints[] = [
-          // 1. Cámara trasera preferida (ideal: 'environment') con resolución HD ideal para códigos de barra finos
-          {
-            video: {
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          },
-          // 2. Fallback: Cámara trasera simple (por si el celular no soporta las resoluciones ideales especificadas)
-          {
-            video: {
-              facingMode: 'environment'
-            }
-          },
-          // 3. Fallback genérico: Cualquier cámara disponible (webcam o cámara frontal)
-          {
-            video: true
-          }
-        ];
-
-        for (const constraints of constraintsList) {
-          if (!active) break;
-          try {
-            console.log('Intentando obtener MediaStream con constraints:', JSON.stringify(constraints));
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            if (stream) {
-              console.log('MediaStream obtenido con éxito!');
-              successfulStream = true;
-              break;
-            }
-          } catch (err: any) {
-            console.warn('Fallo al obtener stream con constraints:', JSON.stringify(constraints), err);
-            // Asegurar cierre de cualquier track si quedó a medias
-            if (stream) {
-              try {
-                stream.getTracks().forEach(track => track.stop());
-              } catch (e) {}
-              stream = null;
-            }
-          }
-        }
-
-        if (successfulStream && stream && active) {
-          videoRef.current.srcObject = stream;
-          // Usar decodeFromStream para iniciar la descodificación continua utilizando el stream ya abierto
-          controls = await codeReader.decodeFromStream(
-            stream,
-            videoRef.current,
-            (result) => {
-              if (!active) return;
-              if (result) {
-                const code = result.getText();
-                if (code && active) {
-                  active = false;
-                  // Detener tracks inmediatamente tras lectura para apagar el hardware de la cámara
-                  if (stream) {
-                    try {
-                      stream.getTracks().forEach(t => t.stop());
-                    } catch (e) {}
-                  }
-                  scanRef.current(code);
-                }
-              }
-            }
-          );
-        } else {
-          if (active) {
-            setErrorMsg('No se pudo acceder a ninguna cámara en este dispositivo. Por favor, asegúrate de otorgar los permisos de la cámara en los ajustes de tu navegador o ingresa el código de barras manualmente.');
-          }
-        }
-
-      } catch (err: any) {
-        console.warn('Error crítico al instanciar el decodificador:', err);
-        if (active) {
-          setErrorMsg('Ocurrió un error al configurar la cámara. Por favor ingresa el código manualmente.');
-        }
-      }
-    };
-
-    startScanner();
-
-    // Limpieza estricta y segura de los tracks y de la instancia de cámara trasera
-    return () => {
-      active = false;
-      if (controls && typeof controls.stop === 'function') {
-        try {
-          controls.stop();
-        } catch (stopErr) {
-          console.warn('Error deteniendo controles de ZXing:', stopErr);
-        }
-      }
-
-      // Detención manual y explícita del flujo de la cámara para liberar el hardware del teléfono celular
-      if (videoRef.current && videoRef.current.srcObject) {
-        try {
-          const stream = videoRef.current.srcObject as MediaStream;
-          if (stream && typeof stream.getTracks === 'function') {
-            stream.getTracks().forEach(track => {
-              if (typeof track.stop === 'function') {
-                track.stop();
-              }
-            });
-          }
-          videoRef.current.srcObject = null;
-        } catch (streamErr) {
-          console.warn('Error al liberar pistas de video manualmente:', streamErr);
-        }
-      }
-    };
-  }, [retryCount]);
-
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (manualCode.trim()) {
-      scanRef.current(manualCode.trim());
-    }
-  };
-
-  const handleSimulate = () => {
-    const barcodes = ['7501055300075', '7891000100103', '7790895000431', '7501000111152'];
-    const randomCode = barcodes[Math.floor(Math.random() * barcodes.length)];
-    scanRef.current(randomCode);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/90 z-[10005] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl relative border border-slate-100">
-        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-          <h4 className="font-extrabold text-gray-950 text-base flex items-center gap-2">📷 Escanear Código</h4>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        
-        <div className="relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden" style={{ height: '290px' }}>
-          {errorMsg ? (
-            <div className="p-6 text-center text-slate-300 space-y-4">
-              <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto stroke-[1.8]" />
-              <p className="text-xs font-semibold leading-relaxed px-2">
-                {errorMsg}
-              </p>
-              <div className="flex flex-col gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setErrorMsg(null);
-                    setRetryCount(prev => prev + 1);
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  🔄 Reintentar Activar Cámara
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSimulate}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-4 py-2 rounded-xl text-[11px] transition-colors cursor-pointer"
-                >
-                  Simular código de prueba
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-                autoPlay
-              />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <div className="w-64 h-32 border-2 border-indigo-400 rounded-xl relative bg-indigo-500/5">
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg" />
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg" />
-                  {/* Glowing line animation inside scanner frame */}
-                  <div className="absolute inset-x-0 top-1/2 h-0.5 bg-indigo-500 animate-[pulse_1.5s_infinite]" />
-                </div>
-              </div>
-              <div className="absolute bottom-3 left-3 right-3 bg-slate-900/80 backdrop-blur-md rounded-xl p-2.5 border border-white/5 text-center text-white text-[9.5px] font-medium leading-normal pointer-events-none">
-                💡 Mantén el código enfocado a 15-20 cm de distancia. Evita sombras y brillos para facilitar la lectura inmediata.
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="p-4 bg-slate-50 border-t border-slate-100">
-          <form onSubmit={handleManualSubmit} className="space-y-2">
-            <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block border-none outline-none">
-              O escribir código manualmente
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Ej. 7501055300075"
-                value={manualCode}
-                onChange={(e) => setManualCode(e.target.value)}
-                className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 font-bold"
-              />
-              <button
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer shadow-sm active:scale-95 text-center"
-              >
-                Listo
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct }: InventarioTabProps) {
   const [search, setSearch] = useState('');
@@ -493,51 +233,51 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
       {/* ── STATS ── */}
       <section className="grid grid-cols-3 gap-3 mt-1">
-        <div className="bg-indigo-600 p-4 rounded-2xl shadow-md flex flex-col gap-1">
-          <span className="text-xs font-bold text-indigo-200 uppercase">Total Uds</span>
-          <span className="text-3xl font-extrabold text-white">{totalStock.toLocaleString()}</span>
+        <div className="bg-slate-950 p-4 rounded-2xl shadow-md flex flex-col gap-1 border-2 border-slate-900">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Uds</span>
+          <span className="text-3xl font-black text-white">{totalStock.toLocaleString()}</span>
         </div>
-        <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200/50 shadow-sm flex flex-col gap-1">
+        <div className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-300 shadow-sm flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-              <span className="text-xs font-bold text-amber-800 uppercase">Bajo</span>
+              <AlertTriangle className="w-4 h-4 text-amber-700 stroke-[2.5]" />
+              <span className="text-xs font-black text-amber-805 uppercase tracking-wide">Bajo</span>
             </div>
             {lowStockItems.length > 0 && (
-              <button type="button" onClick={() => generateStockPDF('⚠️ Bajo Stock', lowStockItems, 'bajo')} className="text-amber-600 hover:text-amber-800 transition-colors cursor-pointer">
-                <FileDown className="w-4 h-4" />
+              <button type="button" onClick={() => generateStockPDF('⚠️ Bajo Stock', lowStockItems, 'bajo')} className="text-amber-600 hover:text-amber-900 transition-colors cursor-pointer bg-white p-1 rounded-lg border border-amber-200 shadow-2xs">
+                <FileDown className="w-4.5 h-4.5 stroke-[2.5]" />
               </button>
             )}
           </div>
-          <span className="text-2xl font-extrabold text-amber-700">{lowStockItems.length}</span>
+          <span className="text-2xl font-black text-amber-700">{lowStockItems.length}</span>
         </div>
-        <div className="bg-rose-50 p-4 rounded-2xl border border-rose-200/50 shadow-sm flex flex-col gap-1">
+        <div className="bg-rose-50 p-4 rounded-2xl border-2 border-rose-300 shadow-sm flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-              <span className="text-xs font-bold text-rose-800 uppercase">Agot.</span>
+              <AlertCircle className="w-4 h-4 text-rose-700 stroke-[2.5]" />
+              <span className="text-xs font-black text-rose-805 uppercase tracking-wide">Agot.</span>
             </div>
             {outOfStockItems.length > 0 && (
-              <button type="button" onClick={() => generateStockPDF('🔴 Agotados', outOfStockItems, 'agotado')} className="text-rose-600 hover:text-rose-800 transition-colors cursor-pointer">
-                <FileDown className="w-4 h-4" />
+              <button type="button" onClick={() => generateStockPDF('🔴 Agotados', outOfStockItems, 'agotado')} className="text-rose-600 hover:text-rose-900 transition-colors cursor-pointer bg-white p-1 rounded-lg border border-rose-200 shadow-2xs">
+                <FileDown className="w-4.5 h-4.5 stroke-[2.5]" />
               </button>
             )}
           </div>
-          <span className="text-2xl font-extrabold text-rose-700">{outOfStockItems.length}</span>
+          <span className="text-2xl font-black text-rose-700">{outOfStockItems.length}</span>
         </div>
       </section>
 
       {/* ── BÚSQUEDA ── */}
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 stroke-[2.5]" />
         <input
-          className="w-full pl-10 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 transition-all text-base placeholder:text-gray-400 shadow-sm"
+          className="w-full pl-11 pr-10 py-4 bg-white border-2 border-slate-305 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 transition-all text-base placeholder:text-slate-500 font-extrabold shadow-xs text-slate-950"
           placeholder="Buscar productos..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         {search && (
-          <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg font-bold cursor-pointer">×</button>
+          <button type="button" onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 text-xl font-black cursor-pointer bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center">×</button>
         )}
       </div>
 
@@ -548,14 +288,14 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             key={cat}
             type="button"
             onClick={() => setSelectedCategory(cat)}
-            className={`flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            className={`flex flex-col items-center gap-1.5 px-6 py-3.5 rounded-2xl font-black text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
               selectedCategory === cat
-                ? 'bg-indigo-600 text-white shadow-lg scale-105'
-                : 'bg-white text-gray-800 shadow-md border border-gray-100'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20 scale-105 border-2 border-emerald-555'
+                : 'bg-white text-slate-800 shadow-sm border-2 border-slate-200 hover:bg-slate-50'
             }`}
           >
             <span className="text-3xl">{CATEGORY_ICONS[cat] || '📦'}</span>
-            <span className="font-extrabold">{cat}</span>
+            <span className="font-black">{cat}</span>
           </button>
         ))}
       </div>
@@ -571,10 +311,10 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               key={p.id}
               onClick={() => handleOpenEdit(p)}
               className={`bg-white rounded-2xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col shadow-sm ${
-                isOutOfStock ? 'border-gray-200 opacity-75' : isLowStock ? 'border-amber-400' : 'border-gray-100 active:border-indigo-400 hover:shadow-md'
+                isOutOfStock ? 'border-slate-200 opacity-75 bg-slate-50' : isLowStock ? 'border-amber-400 ring-2 ring-amber-400/10' : 'border-slate-200 active:border-emerald-500 hover:shadow-md'
               }`}
             >
-              <div className="relative h-44 w-full bg-gray-50 shrink-0">
+              <div className="relative h-44 w-full bg-slate-100 shrink-0">
                 <img
                   alt={p.name}
                   className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
@@ -584,7 +324,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 />
                 {isOutOfStock && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <span className="bg-rose-600 text-white font-black text-[10px] uppercase px-2.5 py-1 rounded-full tracking-wider shadow-sm">
+                    <span className="bg-rose-600 text-white font-black text-xs uppercase px-4 py-1.5 rounded-full tracking-wider shadow-sm">
                       Agotado
                     </span>
                   </div>
@@ -592,35 +332,35 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               </div>
               <div className="p-4 flex flex-col space-y-2.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-extrabold text-indigo-500 uppercase tracking-wider flex items-center gap-1">
+                  <span className="text-xs font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-50 border border-emerald-150 px-2.5 py-1 rounded-lg">
                     {CATEGORY_ICONS[p.category] || '📦'} {p.category}
                   </span>
-                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${marginPercent >= 30 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-lg border ${marginPercent >= 30 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
                     +{marginPercent}% margen
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-gray-950 text-lg leading-tight truncate">
+                  <h3 className="font-extrabold text-slate-950 text-xl leading-tight truncate">
                     {p.name}
                   </h3>
-                  <p className="text-[10px] text-gray-400 font-extrabold tracking-wide mt-0.5">SKU: {p.sku}</p>
+                  <p className="text-xs text-slate-500 font-extrabold tracking-wide mt-1 font-mono">SKU: {p.sku}</p>
                 </div>
                 
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100/80">
-                  <span className={`text-xs font-extrabold px-3 py-1.5 rounded-xl border ${
-                    isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-100' : isLowStock ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                <div className="flex items-center justify-between pt-3 border-t border-slate-205">
+                  <span className={`text-xs font-black px-3.5 py-2 rounded-xl border ${
+                    isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-200' : isLowStock ? 'bg-amber-50 text-amber-700 border-amber-350' : 'bg-slate-50 text-slate-800 border-slate-250'
                   }`}>
                     {isLowStock && '⚠️ '}{p.stock} unidades
                   </span>
                   <div className="text-right">
-                    <span className="text-[9px] text-gray-400 font-extrabold uppercase tracking-wider block">Precio</span>
-                    <span className="text-xl font-black text-indigo-600">${p.price.toFixed(2)}</span>
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">Precio</span>
+                    <span className="text-2xl font-black text-emerald-600">${p.price.toFixed(2)}</span>
                   </div>
                 </div>
-                
-                <div className="flex justify-between text-[11px] text-gray-500 font-bold bg-slate-50 p-2 rounded-xl mt-1 border border-slate-100/50">
+
+                <div className="flex justify-between text-xs text-slate-800 font-extrabold bg-slate-100 p-3.5 rounded-2xl mt-1 border-2 border-slate-200">
                   <span>Costo: ${p.cost.toFixed(2)}</span>
-                  <span className="text-indigo-600">Ganancia: ${(p.price - p.cost).toFixed(2)} / ud</span>
+                  <span className="text-emerald-750 font-black">Ganancia: ${(p.price - p.cost).toFixed(2)} / ud</span>
                 </div>
               </div>
             </div>
@@ -638,7 +378,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       <button
         type="button"
         onClick={handleOpenAdd}
-        className="fixed bottom-20 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 active:scale-95 hover:shadow-xl transition-all z-40 hover:rotate-90 duration-300 cursor-pointer"
+        className="fixed bottom-20 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-700 active:scale-95 hover:shadow-xl transition-all z-40 hover:rotate-90 duration-300 cursor-pointer"
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
@@ -675,28 +415,28 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
             {/* Imagen */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Imagen del Producto</label>
+              <label className="text-xs font-black text-slate-700 uppercase tracking-wider block">Imagen del Producto</label>
               <div className="flex items-center gap-3">
-                <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-indigo-100 shrink-0 bg-gray-50">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-slate-300 shrink-0 bg-slate-50">
                   <img src={formData.imageUrl} className="w-full h-full object-cover" alt="preview" />
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
-                  <label className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-indigo-100 transition-colors">
-                    <Image className="w-4 h-4" />
+                  <label className="flex items-center justify-center gap-2 bg-emerald-50 border-2 border-emerald-200 text-emerald-800 font-black text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-emerald-100/60 transition-colors">
+                    <Image className="w-4 h-4 text-emerald-700 stroke-[2.5]" />
                     <span>Subir desde Galería</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleGalleryImage} />
                   </label>
-                  <label className="flex items-center gap-2 bg-gray-50 border border-gray-200 text-gray-700 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
-                    <Camera className="w-4 h-4" />
+                  <label className="flex items-center justify-center gap-2 bg-slate-100 border-2 border-slate-300 text-slate-700 font-black text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-slate-200 transition-colors">
+                    <Camera className="w-4 h-4 text-slate-650 stroke-[2.5]" />
                     <span>Tomar Foto</span>
                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleGalleryImage} />
                   </label>
                 </div>
               </div>
-              <div className="flex gap-2 overflow-x-auto py-1">
+              <div className="flex gap-2 overflow-x-auto py-1.5">
                 {PRESET_IMAGES.map((img, i) => (
                   <button key={i} type="button" onClick={() => setFormData({ ...formData, imageUrl: img.url })}
-                    className={`w-12 h-12 rounded-lg overflow-hidden border shrink-0 transition-all cursor-pointer ${formData.imageUrl === img.url ? 'ring-2 ring-indigo-600 scale-105 border-indigo-600' : 'border-gray-200 opacity-60'}`}>
+                    className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${formData.imageUrl === img.url ? 'ring-2 ring-emerald-500 scale-105 border-emerald-600' : 'border-slate-200 opacity-60'}`}>
                     <img src={img.url} className="w-full h-full object-cover" alt="" />
                   </button>
                 ))}
@@ -704,37 +444,37 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             </div>
 
             {/* Nombre */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nombre *</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Nombre *</label>
               <input type="text" placeholder="Ej. Coca Cola 3L"
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none"
+                className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-3.5 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white outline-none font-bold text-slate-950"
                 value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             </div>
 
             {/* SKU */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">SKU / Código de Barras *</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">SKU / Código de Barras *</label>
               <div className="flex gap-2">
                 <input type="text" placeholder="Escanea o escribe..."
-                  className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-base outline-none"
+                  className="flex-1 bg-slate-55 border-2 border-slate-300 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-601 focus:bg-white outline-none font-bold outline-hidden"
                   value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
                 <button type="button" onClick={() => setShowScanner(true)}
-                  className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0 cursor-pointer">
-                  <ScanBarcode className="w-5 h-5" />
+                  className="bg-emerald-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-emerald-700 active:scale-95 transition-all shrink-0 cursor-pointer border border-emerald-500 shadow-md">
+                  <ScanBarcode className="w-5 h-5 stroke-[2.5]" />
                 </button>
               </div>
-              {fetchingProduct && <p className="text-xs text-indigo-600 font-bold animate-pulse">🔍 Buscando producto...</p>}
+              {fetchingProduct && <p className="text-xs text-emerald-600 font-bold animate-pulse">🔍 Buscando producto...</p>}
               {productFetchMsg && (
-                <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-600' : 'text-amber-600'}`}>
+                <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-700' : 'text-amber-700'}`}>
                   {productFetchMsg}
                 </p>
               )}
             </div>
 
             {/* Categoría */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Categoría *</label>
-              <select className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-3 text-base outline-none"
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Categoría *</label>
+              <select className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
                 value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as Product['category'] })}>
                 <option value="Bebidas">🥤 Bebidas</option>
                 <option value="Abarrotes">🧴 Abarrotes</option>
@@ -750,10 +490,10 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 { label: 'Costo ($)', key: 'cost', type: 'number', step: '0.01' },
                 { label: 'Precio ($)', key: 'price', type: 'number', step: '0.01' },
               ].map(({ label, key, type, step }) => (
-                <div key={key} className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</label>
-                  <input type={type} step={step} min="0"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-2 py-3 text-base text-center outline-none"
+                <div key={key} className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">{label}</label>
+                   <input type={type} step={step} min="0"
+                    className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-2 py-3.5 text-sm text-center outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
                     value={(formData as any)[key]}
                     onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
                 </div>
@@ -762,10 +502,10 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           </div>
 
           {/* Botones */}
-          <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          <div className="p-4 bg-slate-100 border-t-2 border-slate-205 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {editingItem && (
               <button type="button" onClick={handleDeleteProduct} disabled={loading}
-                className="flex-1 bg-gray-50 text-rose-600 border border-rose-200 py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all outline-none disabled:opacity-50 cursor-pointer">
+                className="flex-1 bg-white text-rose-600 border-2 border-rose-200 hover:bg-rose-50 py-3.5 rounded-2xl text-sm font-black active:scale-95 transition-all outline-none disabled:opacity-50 cursor-pointer">
                 Eliminar
               </button>
             )}
@@ -773,7 +513,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               type="button"
               disabled={loading}
               onClick={handleSubmit}
-              className="flex-1 bg-indigo-600 text-white font-extrabold py-3.5 px-5 rounded-xl text-base hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md cursor-pointer">
+              className="flex-1 bg-emerald-600 text-white font-black py-4 px-5 rounded-2xl text-sm hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-50 outline-none shadow-md cursor-pointer border border-emerald-500 flex items-center justify-center">
               {loading ? (
                 <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
               ) : editingItem ? (
