@@ -142,7 +142,12 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
       // Detener y resetear el reader
       if (codeReaderRef.current) {
         try {
-          codeReaderRef.current.reset();
+          const reader = codeReaderRef.current as any;
+          if (typeof reader.reset === 'function') {
+            reader.reset();
+          } else if (typeof reader.stop === 'function') {
+            reader.stop();
+          }
         } catch (e) {
           console.warn('Error reseteando codeReader:', e);
         }
