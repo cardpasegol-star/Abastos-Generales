@@ -204,6 +204,7 @@ export default function App() {
         {currentTab === 'Caja' && (
           <CajaTab
             products={products}
+            onAddProduct={handleAddProduct}
             onAddTransaction={handleAddTransaction}
             onUpdateProductStock={handleUpdateProductStock}
           />

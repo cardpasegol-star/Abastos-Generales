@@ -79,6 +79,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [showScanner, setShowScanner] = useState(false);
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [productFetchMsg, setProductFetchMsg] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const lookupBarcode = useCallback(async (barcode: string) => {
     setFormData(prev => ({ ...prev, sku: barcode }));
@@ -252,6 +253,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadingImage(true);
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new window.Image();
@@ -276,7 +278,14 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         } else {
           setFormData(prev => ({ ...prev, imageUrl: event.target?.result as string }));
         }
+        setUploadingImage(false);
       };
+      img.onerror = () => {
+        setUploadingImage(false);
+      };
+    };
+    reader.onerror = () => {
+      setUploadingImage(false);
     };
     reader.readAsDataURL(file);
   };
@@ -481,7 +490,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-700 uppercase tracking-wider block">Imagen del Producto</label>
               <div className="flex items-center gap-3">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-slate-300 shrink-0 bg-slate-50">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-slate-300 shrink-0 bg-slate-50 relative flex items-center justify-center">
+                  {uploadingImage && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                      <RefreshCw className="w-4 h-4 text-white animate-spin" />
+                    </div>
+                  )}
                   <img src={formData.imageUrl} className="w-full h-full object-cover" alt="preview" />
                 </div>
                 <div className="flex flex-col gap-2 flex-1">

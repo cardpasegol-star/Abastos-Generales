@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, ShoppingBag, Zap, RefreshCw } from 'lucide-react';
+import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, ShoppingBag, Zap, RefreshCw, X } from 'lucide-react';
 import { Product, CartItem, Transaction } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
 interface CajaTabProps {
   products: Product[];
+  onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'>) => Promise<void>;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
 }
 
-export default function CajaTab({ products, onAddTransaction, onUpdateProductStock }: CajaTabProps) {
+export default function CajaTab({ products, onAddProduct, onAddTransaction, onUpdateProductStock }: CajaTabProps) {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [transactionType, setTransactionType] = useState<'Venta' | 'Compra'>('Venta');
@@ -20,10 +21,22 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
   const [showScanner, setShowScanner] = useState(false);
   const [scanSuccessMsg, setScanSuccessMsg] = useState('');
 
+  // API query lookup states
+  const [isQueryingAPI, setIsQueryingAPI] = useState(false);
+  const [apiScannedProduct, setApiScannedProduct] = useState<{
+    sku: string;
+    name: string;
+    category: Product['category'];
+    imageUrl: string;
+    stock: number;
+    cost: number;
+    price: number;
+  } | null>(null);
+
   // Auto clear error message
   useEffect(() => {
     if (errorMessage) {
-      const t = setTimeout(() => setErrorMessage(''), 4000);
+      const t = setTimeout(() => setErrorMessage(''), 4050);
       return () => clearTimeout(t);
     }
   }, [errorMessage]);
@@ -31,22 +44,34 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
   // Auto clear success message
   useEffect(() => {
     if (scanSuccessMsg) {
-      const t = setTimeout(() => setScanSuccessMsg(''), 3000);
+      const t = setTimeout(() => setScanSuccessMsg(''), 3050);
       return () => clearTimeout(t);
     }
   }, [scanSuccessMsg]);
 
-  // Real-time scan result handler
-  const handleScan = (barcode: string) => {
+  // Alphanumeric sanitization assistant
+  const sanitize = (val: string) => val.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+
+  const detectCategory = (tags: string[]): Product['category'] => {
+    const s = tags.join(' ').toLowerCase();
+    if (s.includes('bebida') || s.includes('drink') || s.includes('juice') || s.includes('water')) return 'Bebidas';
+    if (s.includes('dairy') || s.includes('lacteo') || s.includes('milk') || s.includes('cheese')) return 'Lácteos';
+    if (s.includes('snack') || s.includes('chip') || s.includes('cookie') || s.includes('galleta')) return 'Snacks';
+    return 'Abarrotes';
+  };
+
+  // Synchronized scan and API lookup system
+  const handleLocalOrAPILookup = async (barcode: string) => {
     if (!barcode.trim()) return;
 
-    // Search by SKU exact match primarily (case insensitive trimmed)
+    const cleanBarcode = sanitize(barcode);
+    
+    // 1. Search locally in custom Firestore inventory list
     const found = products.find(
-      p => p.sku.toLowerCase().trim() === barcode.toLowerCase().trim()
+      p => sanitize(p.sku) === cleanBarcode
     );
 
     if (found) {
-      // Validate active transaction constraints (stock availability warning for Sale)
       const existing = cart.find(item => item.product.id === found.id);
       const currentQtyInCart = existing ? existing.quantity : 0;
 
@@ -58,8 +83,78 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
       addToCart(found);
       setScanSuccessMsg(`¡"${found.name}" agregado con éxito al carrito!`);
     } else {
-      setErrorMessage(`El código de barras "${barcode}" no está asociado a ningún producto registrado.`);
+      // 2. Search dynamically across integrated public catalogs (APIs)
+      setIsQueryingAPI(true);
+      setErrorMessage('');
+      
+      let apiFound = false;
+      let pName = '';
+      let pImg = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
+      let pCat: Product['category'] = 'Abarrotes';
+
+      // Consulta a Open Food Facts
+      try {
+        const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 1 && data.product) {
+            const p = data.product;
+            pName = p.product_name_es || p.product_name || p.product_name_en || '';
+            pImg = p.image_front_url || p.image_url || pImg;
+            pCat = detectCategory(p.categories_tags || []);
+            apiFound = true;
+          }
+        }
+      } catch (err) {
+        console.warn('Open Food Facts failed in Caja:', err);
+      }
+
+      // Fallback a UPCitemdb
+      if (!apiFound) {
+        try {
+          const upcUrl = `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`;
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(upcUrl)}`;
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.contents) {
+              const upcData = JSON.parse(data.contents);
+              if (upcData && upcData.items && upcData.items.length > 0) {
+                const item = upcData.items[0];
+                pName = item.title || '';
+                pImg = item.images?.[0] || pImg;
+                if (item.category) {
+                  pCat = detectCategory([item.category]);
+                }
+                apiFound = true;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('UPCitemdb failed in Caja:', err);
+        }
+      }
+
+      setIsQueryingAPI(false);
+
+      if (apiFound) {
+        setApiScannedProduct({
+          sku: barcode,
+          name: pName,
+          category: pCat,
+          imageUrl: pImg,
+          stock: 10,
+          cost: 1.00,
+          price: 1.50
+        });
+      } else {
+        setErrorMessage(`El código "${barcode}" no está registrado localmente ni en catálogos globales.`);
+      }
     }
+  };
+
+  const handleScan = (barcode: string) => {
+    handleLocalOrAPILookup(barcode);
   };
 
   // Scan random element manually as simulator
@@ -78,17 +173,63 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
     if (e) e.preventDefault();
     if (!barcodeInput.trim()) return;
 
-    // Search by SKU or Name exact match
+    // Search locally by exact SKU or Name search
+    const cleanInput = sanitize(barcodeInput);
     const found = products.find(
-      p => p.sku.toLowerCase() === barcodeInput.trim().toLowerCase() ||
+      p => sanitize(p.sku) === cleanInput ||
            p.name.toLowerCase().includes(barcodeInput.trim().toLowerCase())
     );
 
     if (found) {
+      const existing = cart.find(item => item.product.id === found.id);
+      const currentQtyInCart = existing ? existing.quantity : 0;
+
+      if (transactionType === 'Venta' && found.stock <= currentQtyInCart) {
+        setErrorMessage(`Cantidad solicitada excede el inventario de "${found.name}" (${found.stock} en total)`);
+        return;
+      }
       addToCart(found);
       setBarcodeInput('');
     } else {
-      setErrorMessage(`No se encontró el producto SKU: "${barcodeInput}"`);
+      // If it looks like a barcode lookup triggers remote query
+      if (/^\d{5,15}$/.test(barcodeInput.trim())) {
+        handleLocalOrAPILookup(barcodeInput.trim());
+      } else {
+        setErrorMessage(`No se encontró "${barcodeInput}" en inventario.`);
+      }
+      setBarcodeInput('');
+    }
+  };
+
+  const handleRegisterAndAdd = async () => {
+    if (!apiScannedProduct || !apiScannedProduct.name.trim()) {
+      setErrorMessage('Ingresa un nombre para registrar el producto.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const id = 'prod-' + Math.floor(1000 + Math.random() * 9000);
+      const newProduct: Product = {
+        id,
+        sku: apiScannedProduct.sku,
+        name: apiScannedProduct.name,
+        category: apiScannedProduct.category,
+        imageUrl: apiScannedProduct.imageUrl,
+        stock: apiScannedProduct.stock,
+        cost: apiScannedProduct.cost,
+        price: apiScannedProduct.price,
+        updatedAt: new Date().toISOString()
+      };
+
+      await onAddProduct(newProduct);
+      addToCart(newProduct);
+      setApiScannedProduct(null);
+      setScanSuccessMsg(`¡"${newProduct.name}" registrado con stock ${newProduct.stock} y agregado al carrito!`);
+    } catch (err) {
+      console.error(err);
+      setErrorMessage('Error al registrar el producto nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -506,6 +647,139 @@ export default function CajaTab({ products, onAddTransaction, onUpdateProductSto
           handleScan(code);
         }}
       />
+
+      {/* 8. Web API Search Spinner Overlay */}
+      {isQueryingAPI && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center z-[99999] px-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border-2 border-slate-700 text-white p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-3 max-w-xs text-center font-sans">
+            <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
+            <p className="text-xs text-slate-200 font-extrabold uppercase tracking-widest animate-pulse">Buscando en bases de datos...</p>
+            <p className="text-[10px] text-slate-400">Consultando Open Food Facts y UPCitemdb para auto-rellenar los datos en tu caja.</p>
+          </div>
+        </div>
+      )}
+
+      {/* 9. API Scanned Product Register popup dialog */}
+      {apiScannedProduct && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-[100000] px-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 text-slate-100 rounded-3xl p-5 w-full max-w-sm border-2 border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-150">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="font-black text-sm text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">✨ Registrar Nuevo SKU</h3>
+                <p className="text-[10px] text-slate-400">Encontrado en bases de datos globales</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApiScannedProduct(null)}
+                className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-slate-700 transition-colors"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+
+            {/* Content body */}
+            <div className="space-y-4 py-4 min-h-0">
+              
+              {/* Image Preview and Info */}
+              <div className="flex gap-3 items-center">
+                <div className="w-16 h-16 rounded-xl border-2 border-slate-700 bg-slate-950 overflow-hidden flex-shrink-0">
+                  <img src={apiScannedProduct.imageUrl} className="w-full h-full object-cover" alt="" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded-md font-black tracking-widest border border-emerald-500/25 uppercase font-mono">
+                    SKU: {apiScannedProduct.sku}
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Nombre del Producto"
+                    className="w-full bg-slate-950 border-2 border-slate-750 text-white rounded-xl px-2.5 py-1.5 mt-1.5 text-xs font-black outline-none focus:border-emerald-500"
+                    value={apiScannedProduct.name}
+                    onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, name: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Form fields */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="text-[10px] font-black text-slate-405 uppercase tracking-wider block mb-1">Categoría</label>
+                  <select
+                    className="w-full bg-slate-950 border-2 border-slate-755 rounded-xl px-2.5 py-2.5 font-black outline-none text-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                    value={apiScannedProduct.category}
+                    onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, category: e.target.value as Product['category'] })}
+                  >
+                    <option value="Bebidas">🥤 Bebidas</option>
+                    <option value="Abarrotes">🧴 Abarrotes</option>
+                    <option value="Lácteos">🥛 Lácteos</option>
+                    <option value="Snacks">🍿 Snacks</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-405 uppercase tracking-wider block mb-1">Stock Inicial</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full bg-slate-950 border-2 border-slate-755 rounded-xl px-2.5 py-2 font-black outline-none text-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 text-center"
+                    value={apiScannedProduct.stock}
+                    onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, stock: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-405 uppercase tracking-wider block mb-1">Costo ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full bg-slate-950 border-2 border-slate-755 rounded-xl px-2.5 py-2 font-black outline-none text-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 text-center"
+                    value={apiScannedProduct.cost}
+                    onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, cost: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-405 uppercase tracking-wider block mb-1">Precio Venta ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full bg-slate-950 border-2 border-slate-755 rounded-xl px-2.5 py-2 font-black outline-none text-emerald-400 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 text-center"
+                    value={apiScannedProduct.price}
+                    onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, price: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-[10px] text-slate-400 leading-normal flex items-start gap-1.5 font-sans">
+                <AlertCircle className="w-4.5 h-4.5 text-emerald-405 shrink-0 mt-0.5" />
+                <span>Al registrar, este producto se guardará permanentemente en tu sistema y se agregará al carrito para continuar tu transacción sin trabas.</span>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setApiScannedProduct(null)}
+                className="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold py-3.5 rounded-xl text-xs transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleRegisterAndAdd}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-xl text-xs transition-colors shadow-md border border-emerald-500"
+              >
+                Registrar y Vender
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      )}
     </div>
   );
 }
