@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image } from 'lucide-react';
+import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check } from 'lucide-react';
 import { Product } from '../types';
-import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
   products: Product[];
@@ -63,6 +62,329 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
     <tbody>${filas}</tbody></table></body></html>`;
   const win = window.open('', '_blank');
   if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
+}
+
+
+/* ── COMPONENTE ESCÁNER DE BARRAS NATIVO (SIN LIBRERÍAS EXTERNAS) ── */
+interface BarcodeScannerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onBarcodeDetected: (barcode: string) => void;
+}
+
+function NativeBarcodeScanner({ isOpen, onClose, onBarcodeDetected }: BarcodeScannerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [manualCode, setManualCode] = useState('');
+  const [scannedCode, setScannedCode] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Verificar soporte nativo del BarcodeDetector
+  const hasDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let active = true;
+    let stream: MediaStream | null = null;
+    let intervalId: any = null;
+
+    // Resetear estados
+    setErrorMsg(null);
+    setScannedCode(null);
+    setIsLoading(true);
+
+    if (!hasDetector) {
+      setErrorMsg('Tu navegador actual o dispositivo no es compatible con la API de escaneo de códigos nativa (BarcodeDetector). Introduce el código manualmente.');
+      setIsLoading(false);
+      return;
+    }
+
+    const startCameraAndDetection = async () => {
+      try {
+        // Enforce progressive getUserMedia
+        try {
+          console.log('Intentando conectar con cámara trasera...');
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+          });
+        } catch (e1) {
+          console.warn('Fallo facingMode environment, intentando cámara por defecto...', e1);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true
+            });
+          } catch (e2) {
+            console.error('Fallo absoluto al arrancar cámara:', e2);
+            if (active) {
+              setErrorMsg('No se pudo acceder a la cámara. Revisa las configuraciones de seguridad e instrucciones de permisos o ingresa el código manual abajo.');
+              setIsLoading(false);
+            }
+            return;
+          }
+        }
+
+        if (!active || !stream) {
+          if (stream) stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute('playsinline', 'true');
+          
+          // Esperar reproducción segura del elemento
+          await videoRef.current.play();
+
+          if (!active) return;
+          setIsLoading(false);
+
+          // Inicializar clase BarcodeDetector nativa
+          const BarcodeDetectorClass = (window as any).BarcodeDetector;
+          const detector = new BarcodeDetectorClass({
+            formats: ['ean_13', 'ean_8', 'code_128', 'qr_code']
+          });
+
+          // Escanear iterativamente cada 300 ms sin retrasar hilo principal
+          intervalId = setInterval(async () => {
+            if (!active || !videoRef.current) return;
+            try {
+              const barcodes = await detector.detect(videoRef.current);
+              if (active && barcodes && barcodes.length > 0) {
+                const rawVal = barcodes[0].rawValue;
+                if (rawVal && active) {
+                  // Detener lector
+                  clearInterval(intervalId);
+                  active = false;
+
+                  // Desenergizar todos los tracks de cámara al instante
+                  if (stream) {
+                    stream.getTracks().forEach(t => t.stop());
+                  }
+
+                  // Haptic feedback
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    try { navigator.vibrate(120); } catch (e) {}
+                  }
+
+                  // Mostrar pre-confirmación en pantalla con el código detectado
+                  setScannedCode(rawVal);
+                }
+              }
+            } catch (err) {
+              console.warn('Lector detect fallo iteración:', err);
+            }
+          }, 300);
+        }
+
+      } catch (err: any) {
+        console.error('Error montando cámara en modal:', err);
+        if (active) {
+          setErrorMsg('Error al arrancar el stream de video en pantalla.');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    startCameraAndDetection();
+
+    return () => {
+      active = false;
+      if (intervalId) clearInterval(intervalId);
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isOpen, hasDetector]);
+
+  if (!isOpen) return null;
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualCode.trim()) {
+      onBarcodeDetected(manualCode.trim());
+    }
+  };
+
+  const handleConfirmCode = () => {
+    if (scannedCode) {
+      onBarcodeDetected(scannedCode.trim());
+    }
+  };
+
+  const handleSimulate = () => {
+    const barcodes = ['7501055300075', '7891000100103', '7790895000431', '7501000111152'];
+    const randomCode = barcodes[Math.floor(Math.random() * barcodes.length)];
+    setScannedCode(randomCode);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/95 z-[10005] flex flex-col items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-150">
+      
+      {/* Estilo local inyectado para animación de escaneo fluida compatible con cualquier versión de Tailwind */}
+      <style>{`
+        @keyframes verticalSweep {
+          0% { transform: translateY(0); }
+          50% { transform: translateY(220px); }
+          100% { transform: translateY(0); }
+        }
+        .laser-sweep-line {
+          animation: verticalSweep 2.2s infinite ease-in-out;
+        }
+      `}</style>
+
+      <div className="bg-slate-900 rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl relative border border-slate-800 animate-in zoom-in-95 duration-200 text-white flex flex-col">
+        
+        {/* Header bar */}
+        <div className="flex justify-between items-center px-5 py-4 border-b border-slate-800 bg-slate-950">
+          <div>
+            <h4 className="font-extrabold text-white text-base flex items-center gap-2">📷 Escáner de Barra</h4>
+            <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-widest">
+              {scannedCode ? 'Código Detectado' : isLoading ? 'Cargando Cámara...' : 'Cámara Activa (Nativa)'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-305 hover:bg-slate-700 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Dynamic Inner video / results container */}
+        <div className="relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden" style={{ height: '310px' }}>
+          
+          {scannedCode !== null ? (
+            /* DETECTED CODE FEEDBACK PANEL */
+            <div className="w-full h-full p-6 flex flex-col items-center justify-center text-center bg-slate-900 space-y-4 animate-in fade-in duration-200">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/10 border-2 border-emerald-500 flex items-center justify-center text-emerald-400">
+                <Check className="w-8 h-8 animate-bounce" />
+              </div>
+              <div className="space-y-1">
+                <h5 className="font-black text-emerald-405 text-sm tracking-wide uppercase">¡Código Detectado!</h5>
+                <p className="text-[10px] text-slate-400 font-medium">Revisa o edita los números escaneados abajo</p>
+              </div>
+
+              <div className="w-full px-2">
+                <input
+                  type="text"
+                  className="w-full bg-slate-950 text-emerald-405 font-mono font-black text-center py-2.5 rounded-xl border-2 border-emerald-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20 text-lg tracking-widest outline-none shadow-inner"
+                  value={scannedCode}
+                  onChange={(e) => setScannedCode(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2 w-full px-2">
+                <button
+                  type="button"
+                  onClick={() => setScannedCode(null)}
+                  className="flex-1 bg-slate-805 hover:bg-slate-800 text-slate-350 font-extrabold py-2.5 rounded-xl text-xs transition-colors cursor-pointer active:scale-95 border border-slate-700"
+                >
+                  🔄 Reintentar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCode}
+                  className="flex-1 bg-emerald-650 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl text-xs transition-colors cursor-pointer active:scale-95 border border-emerald-500 shadow-md"
+                >
+                  Confirmar ✓
+                </button>
+              </div>
+            </div>
+          ) : isLoading ? (
+            /* INITIALIZING / SPINNER */
+            <div className="text-center p-6 space-y-3">
+              <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin mx-auto" />
+              <p className="text-xs text-slate-300 font-extrabold uppercase tracking-wide">Iniciando hardware de cámara...</p>
+            </div>
+          ) : errorMsg ? (
+            /* COMPATIBILITY FALLBACK OR ERROR */
+            <div className="p-6 text-center text-slate-300 space-y-4 w-full">
+              <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+              <p className="text-xs font-semibold leading-relaxed px-2 text-slate-300">
+                {errorMsg}
+              </p>
+              
+              <div className="bg-slate-905 border border-slate-800 rounded-2xl p-3 text-left space-y-1">
+                <p className="text-[10px] font-black text-slate-200">💡 CONSEJO PARA ACTIVAR:</p>
+                <p className="text-[9px] text-slate-400 leading-normal">
+                  Usa Google Chrome/Microsoft Edge en tu celular Android. Si el navegador solicita permisos al arrancar, otórgalos sin problemas.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSimulate}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-350 font-bold px-4 py-2 rounded-xl text-[10px] transition-colors cursor-pointer"
+                >
+                  Simular Escaneo (Código de Prueba)
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ACTIVE CAMERA STREAM VIEWPORT */
+            <>
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover animate-in fade-in-60 duration-300"
+                playsInline
+                muted
+              />
+
+              {/* Glowing visual scan frames / overlay */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 bg-black/10">
+                <div className="w-64 h-36 border-2 border-emerald-500/20 rounded-xl relative bg-emerald-500/5">
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-500 rounded-tl-lg" />
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-500 rounded-tr-lg" />
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-500 rounded-bl-lg" />
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-500 rounded-br-lg" />
+                  
+                  {/* Animación de la línea roja de escaneo horizontal */}
+                  <div className="absolute inset-x-0 w-full h-0.5 bg-rose-600 shadow-[0_0_10px_rgba(244,63,94,0.9)] laser-sweep-line pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="absolute bottom-3 left-3 right-3 bg-slate-950/85 backdrop-blur-md rounded-xl p-2.5 border border-white/5 text-center text-white text-[9px] font-medium leading-normal pointer-events-none z-10 shadow-lg">
+                💡 Apunta al código de barras en forma horizontal dentro del recuadro verde. Aléjalo a unos 15-20cm si se ve borroso.
+              </div>
+            </>
+          )}
+
+        </div>
+
+        {/* Native fallback manual selection inputs */}
+        <div className="p-4 bg-slate-950 border-t border-slate-800">
+          <form onSubmit={handleManualSubmit} className="space-y-1.5">
+            <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              O ingresar código numérico manualmente
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Ej. 7501055300075"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-white shadow-inner placeholder:text-slate-500"
+              />
+              <button
+                type="submit"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 text-center border border-emerald-500"
+              >
+                Listo
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+
+    </div>
+  );
 }
 
 
@@ -144,9 +466,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       }));
       setProductFetchMsg(pName ? `✅ Encontrado: ${pName}` : '⚠️ Código OK, completa el nombre manualmente.');
     } else {
-      setShowScanner(false);
       setProductFetchMsg('⚠️ No encontrado. Ingrese los datos de forma manual.');
-      alert('Producto nuevo no encontrado. Por favor, ingrese los datos manualmente.');
+      alert('Producto nuevo no encontrado en bases de datos públicas. Por favor, ingrese los detalles manualmente.');
     }
     setFetchingProduct(false);
   }, []);
@@ -162,7 +483,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     return matchesSearch && matchesCat;
   });
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = useCallback(() => {
     setEditingItem(null);
     setProductFetchMsg('');
     setFormData({
@@ -171,9 +492,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       imageUrl: PRESET_IMAGES[0].url
     });
     setShowAddModal(true);
-  };
+  }, []);
 
-  const handleOpenEdit = (product: Product) => {
+  const handleOpenEdit = useCallback((product: Product) => {
     setEditingItem(product);
     setProductFetchMsg('');
     setFormData({
@@ -182,7 +503,38 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       imageUrl: product.imageUrl || PRESET_IMAGES[0].url
     });
     setShowAddModal(true);
-  };
+  }, []);
+
+  /* ── SISTEMA DE ENRUTAMIENTO DE ESCANEO DE CODIGO DE BARRAS (REGLA 6) ── */
+  const handleBarcodeScanResult = useCallback((barcode: string) => {
+    setShowScanner(false);
+    
+    // Buscar en el Firestore existente si el código ya existe
+    const foundProduct = products.find(
+      p => p.sku === barcode || p.sku.trim() === barcode.trim()
+    );
+
+    if (foundProduct) {
+      // Si existe: mostrar los datos del producto encontrado (abrir modal de edición)
+      handleOpenEdit(foundProduct);
+    } else {
+      // Si no existe: abrir formulario para agregar nuevo producto con el código pre-llenado
+      setEditingItem(null);
+      setProductFetchMsg('Buscando detalles del producto...');
+      setFormData({
+        sku: barcode,
+        name: '',
+        category: 'Abarrotes',
+        stock: 10,
+        price: 1.50,
+        cost: 1.00,
+        imageUrl: PRESET_IMAGES[0].url
+      });
+      setShowAddModal(true);
+      // Auto-buscar detalles desde bases de datos externas Open Food Facts / UPCitemdb
+      lookupBarcode(barcode);
+    }
+  }, [products, handleOpenEdit, lookupBarcode]);
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
@@ -267,18 +619,29 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         </div>
       </section>
 
-      {/* ── BÚSQUEDA ── */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 stroke-[2.5]" />
-        <input
-          className="w-full pl-11 pr-10 py-4 bg-white border-2 border-slate-305 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 transition-all text-base placeholder:text-slate-500 font-extrabold shadow-xs text-slate-950"
-          placeholder="Buscar productos..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <button type="button" onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 text-xl font-black cursor-pointer bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center">×</button>
-        )}
+      {/* ── BÚSQUEDA CON BOTÓN DE ESCÁNER DE BARRAS DIRECTO (REGLA 6) ── */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 stroke-[2.5]" />
+          <input
+            className="w-full pl-11 pr-10 py-4 bg-white border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 transition-all text-base placeholder:text-slate-500 font-extrabold shadow-sm text-slate-950"
+            placeholder="Buscar por nombre o SKU..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 text-xl font-black cursor-pointer bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center">×</button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowScanner(true)}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-md border-2 border-emerald-500 active:scale-95 text-xs font-black gap-1.5"
+          title="Scanner de Código de Barras"
+        >
+          <ScanBarcode className="w-5 h-5 stroke-[2.5]" />
+          <span className="hidden sm:inline">Escanear</span>
+        </button>
       </div>
 
       {/* ── CATEGORÍAS ── */}
@@ -348,7 +711,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 
                 <div className="flex items-center justify-between pt-3 border-t border-slate-205">
                   <span className={`text-xs font-black px-3.5 py-2 rounded-xl border ${
-                    isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-200' : isLowStock ? 'bg-amber-50 text-amber-700 border-amber-350' : 'bg-slate-50 text-slate-800 border-slate-250'
+                    isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-200' : isLowStock ? 'bg-amber-50 text-amber-700 border-amber-305' : 'bg-slate-50 text-slate-800 border-slate-250'
                   }`}>
                     {isLowStock && '⚠️ '}{p.stock} unidades
                   </span>
@@ -383,15 +746,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         <Plus className="w-7 h-7 stroke-[2.5]" />
       </button>
 
-      {/* ── BarcodeScanner Modal (using custom self-contained BarcodeScanner with Portal) ── */}
+      {/* ── MÁSCARA ESCÁNER CON PORTAL NATIVO ── */}
       {typeof document !== 'undefined' && createPortal(
-        <BarcodeScanner
+        <NativeBarcodeScanner
           isOpen={showScanner}
           onClose={() => setShowScanner(false)}
-          onBarcodeDetected={(code) => {
-            setShowScanner(false);
-            lookupBarcode(code);
-          }}
+          onBarcodeDetected={handleBarcodeScanResult}
         />,
         document.body
       )}
@@ -457,7 +817,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">SKU / Código de Barras *</label>
               <div className="flex gap-2">
                 <input type="text" placeholder="Escanea o escribe..."
-                  className="flex-1 bg-slate-55 border-2 border-slate-300 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-601 focus:bg-white outline-none font-bold outline-hidden"
+                  className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none font-bold outline-hidden"
                   value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
                 <button type="button" onClick={() => setShowScanner(true)}
                   className="bg-emerald-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-emerald-700 active:scale-95 transition-all shrink-0 cursor-pointer border border-emerald-500 shadow-md">
@@ -475,7 +835,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             {/* Categoría */}
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Categoría *</label>
-              <select className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+              <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
                 value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as Product['category'] })}>
                 <option value="Bebidas">🥤 Bebidas</option>
                 <option value="Abarrotes">🧴 Abarrotes</option>
@@ -494,19 +854,19 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 <div key={key} className="space-y-1.5">
                   <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">{label}</label>
                    <input type={type} step={step} min="0"
-                    className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-2 py-3.5 text-sm text-center outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
-                    value={(formData as any)[key]}
-                    onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-2 py-3.5 text-sm text-center outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+                     value={(formData as any)[key]}
+                     onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
                 </div>
               ))}
             </div>
           </div>
 
           {/* Botones */}
-          <div className="p-4 bg-slate-100 border-t-2 border-slate-205 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          <div className="p-4 bg-slate-100 border-t-2 border-slate-200 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {editingItem && (
               <button type="button" onClick={handleDeleteProduct} disabled={loading}
-                className="flex-1 bg-white text-rose-600 border-2 border-rose-200 hover:bg-rose-50 py-3.5 rounded-2xl text-sm font-black active:scale-95 transition-all outline-none disabled:opacity-50 cursor-pointer">
+                className="flex-1 bg-white text-rose-600 border-2 border-rose-205 hover:bg-rose-50 py-3.5 rounded-2xl text-sm font-black active:scale-95 transition-all outline-none disabled:opacity-50 cursor-pointer">
                 Eliminar
               </button>
             )}
