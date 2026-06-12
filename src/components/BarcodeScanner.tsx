@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, AlertTriangle, RefreshCw, Check } from 'lucide-react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
 
 interface BarcodeScannerProps {
   isOpen: boolean;
@@ -9,198 +8,165 @@ interface BarcodeScannerProps {
 }
 
 export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: BarcodeScannerProps) {
+  // Estados
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);         // requestAnimationFrame ID
+  const detectorRef = useRef<any>(null);
+  const [status, setStatus] = useState<'loading'|'active'|'detected'|'error'|'unsupported'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [scannedCode, setScannedCode] = useState('');
   const [manualCode, setManualCode] = useState('');
-  const [scannedCode, setScannedCode] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
-  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
-  const controlsRef = useRef<any>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const nativeStreamRef = useRef<MediaStream | null>(null);
+  // Función stopCamera
+  const stopCamera = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
 
     let active = true;
-    setErrorMsg(null);
-    setScannedCode(null);
-    setIsLoading(true);
+    
+    // Resetear estados
+    setStatus('loading');
+    setErrorMsg('');
+    setScannedCode('');
 
-    const codeReader = new BrowserMultiFormatReader();
-    codeReaderRef.current = codeReader;
-
-    let fallbackStream: MediaStream | null = null;
-
-    const startZxingScanning = async () => {
-      try {
-        if (!videoRef.current) return;
-
-        // Configurar autoplay handling
-        videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
-            videoRef.current.play().catch((err) => {
-              console.warn('Error autoplaying video:', err);
-            });
-          }
-        };
-
-        const controls = await codeReader.decodeFromConstraints(
-          { video: { facingMode: 'environment' } },
-          videoRef.current,
-          (result, error) => {
-            if (!active) return;
-            if (result) {
-              const code = result.getText();
-              handleDetectionSuccess(code);
-            }
-            if (error) {
-              const errName = error.name || (error.constructor && error.constructor.name);
-              // NotFoundException y No MultiFormatReader son esperados en frames vacíos
-              if (
-                errName !== 'NotFoundException' &&
-                !error.message?.includes('No MultiFormatReader') &&
-                !error.message?.includes('No barcode')
-              ) {
-                console.warn('ZXing partial status:', error);
-              }
-            }
-          }
-        );
-
-        controlsRef.current = controls;
+    const startCameraAndDetection = async () => {
+      // Verificar si BarcodeDetector nativo está soportado
+      const hasDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+      if (!hasDetector) {
         if (active) {
-          setIsLoading(false);
-        }
-      } catch (err: any) {
-        console.warn('ZXing decodeFromConstraints failed, attempting native fallback:', err);
-        if (active) {
-          startNativeFallback();
-        }
-      }
-    };
-
-    const startNativeFallback = async () => {
-      const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-      if (!hasBarcodeDetector) {
-        if (active) {
-          setErrorMsg('Escáner de cámara no compatible en este navegador. Por favor ingresa el código manualmente.');
-          setIsLoading(false);
+          setStatus('unsupported');
+          setErrorMsg('Tu navegador no soporta escaneo automático. Usa Google Chrome en Android para escanear, o ingresa el código manualmente.');
         }
         return;
       }
 
       try {
+        // PASO 1: Pedir la cámara trasera
+        let stream: MediaStream;
         try {
-          fallbackStream = await navigator.mediaDevices.getUserMedia({
+          stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
           });
         } catch (e1) {
-          fallbackStream = await navigator.mediaDevices.getUserMedia({
+          console.warn('Fallo facingMode environment, intentando cualquier cámara disponible:', e1);
+          stream = await navigator.mediaDevices.getUserMedia({
             video: true
           });
         }
 
         if (!active) {
-          if (fallbackStream) {
-            fallbackStream.getTracks().forEach(t => t.stop());
-          }
+          stream.getTracks().forEach(track => track.stop());
           return;
         }
 
-        nativeStreamRef.current = fallbackStream;
+        streamRef.current = stream;
 
+        // PASO 2: Asignar stream al video element
         if (videoRef.current) {
-          videoRef.current.srcObject = fallbackStream;
+          videoRef.current.srcObject = stream;
           videoRef.current.setAttribute('playsinline', 'true');
-          
-          await videoRef.current.play();
-          
-          if (!active) return;
-          setIsLoading(false);
 
-          const BarcodeDetectorClass = (window as any).BarcodeDetector;
-          const detector = new BarcodeDetectorClass({
-            formats: ['ean_13', 'ean_8', 'code_128', 'qr_code']
-          });
-
-          const detectFrame = async () => {
-            if (!active || !videoRef.current) return;
+          const playVideo = async () => {
             try {
-              const barcodes = await detector.detect(videoRef.current);
-              if (active && barcodes && barcodes.length > 0) {
-                const rawVal = barcodes[0].rawValue;
-                if (rawVal) {
-                  handleDetectionSuccess(rawVal);
-                  return;
-                }
+              await videoRef.current?.play();
+              if (active) {
+                setStatus('active');
+                
+                // PASO 4: Inicializar BarcodeDetector
+                const BarcodeDetectorClass = (window as any).BarcodeDetector;
+                const detector = new BarcodeDetectorClass({
+                  formats: ['ean_13', 'ean_8', 'code_128', 'qr_code']
+                });
+                detectorRef.current = detector;
+
+                // PASO 5: Loop de detección con requestAnimationFrame
+                const detectFrame = async () => {
+                  if (!active || !videoRef.current || status === 'detected') return;
+                  try {
+                    const barcodes = await detector.detect(videoRef.current);
+                    if (active && barcodes && barcodes.length > 0) {
+                      const rawVal = barcodes[0].rawValue;
+                      if (rawVal && active) {
+                        // Detener loop y stream
+                        active = false;
+                        stopCamera();
+
+                        // Vibración háptica
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                          try { navigator.vibrate(120); } catch (e) {}
+                        }
+
+                        setScannedCode(rawVal);
+                        setStatus('detected');
+                        return;
+                      }
+                    }
+                  } catch (err) {
+                    // Ignorar fallos continuos de lectura en frames vacíos
+                  }
+                  if (active) {
+                    rafRef.current = requestAnimationFrame(detectFrame);
+                  }
+                };
+
+                rafRef.current = requestAnimationFrame(detectFrame);
               }
-            } catch (frameErr) {
-              // Ignorar fallos continuos de lectura en frames vacíos
-            }
-            if (active) {
-              animationFrameRef.current = requestAnimationFrame(detectFrame);
+            } catch (err) {
+              console.error('video.play() falló o fue cancelado:', err);
+              if (active) {
+                setStatus('error');
+                setErrorMsg('Error al reproducir la cámara. Por favor intenta de nuevo.');
+              }
             }
           };
 
-          animationFrameRef.current = requestAnimationFrame(detectFrame);
+          // PASO 3: Esperar loadedmetadata antes de play()
+          videoRef.current.onloadedmetadata = () => {
+            playVideo();
+          };
         }
-      } catch (err2) {
-        console.error('Native fallback camera initialize failed:', err2);
+
+      } catch (err: any) {
+        console.error('Error al iniciar stream de cámara:', err);
         if (active) {
-          setErrorMsg('No se pudo acceder a la cámara. Por favor escribe el código manual o revisa tus permisos.');
-          setIsLoading(false);
+          setStatus('error');
+          const name = err.name;
+          if (name === 'NotAllowedError') {
+            setErrorMsg('Permiso de cámara denegado. Actívalo en configuración del navegador.');
+          } else if (name === 'NotFoundError') {
+            setErrorMsg('No se encontró cámara en este dispositivo.');
+          } else if (name === 'NotReadableError') {
+            setErrorMsg('La cámara está siendo usada por otra app. Ciérrala e intenta de nuevo.');
+          } else {
+            setErrorMsg('Error al acceder a la cámara. Usa el código manual.');
+          }
         }
       }
     };
 
-    const handleDetectionSuccess = (code: string) => {
-      active = false;
-      stopAllMedia();
-
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try { navigator.vibrate(120); } catch (e) {}
-      }
-
-      setScannedCode(code);
-    };
-
-    const stopAllMedia = () => {
-      if (controlsRef.current) {
-        try {
-          controlsRef.current.stop();
-        } catch (e) {}
-        controlsRef.current = null;
-      }
-      if (codeReaderRef.current) {
-        try {
-          codeReaderRef.current.reset();
-        } catch (e) {}
-      }
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      if (fallbackStream) {
-        fallbackStream.getTracks().forEach(t => t.stop());
-        fallbackStream = null;
-      }
-      if (nativeStreamRef.current) {
-        nativeStreamRef.current.getTracks().forEach(t => t.stop());
-        nativeStreamRef.current = null;
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-    };
+    startCameraAndDetection();
 
     return () => {
       active = false;
-      stopAllMedia();
+      stopCamera();
+      setStatus('loading');
     };
-  }, [isOpen]);
+  }, [isOpen, retryTrigger, stopCamera]);
 
   if (!isOpen) return null;
 
@@ -212,15 +178,9 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
   };
 
   const handleConfirmCode = () => {
-    if (scannedCode) {
+    if (scannedCode.trim()) {
       onBarcodeDetected(scannedCode.trim());
     }
-  };
-
-  const handleSimulate = () => {
-    const barcodes = ['7501055300075', '7891000100103', '7790895000431', '7501000111152'];
-    const randomCode = barcodes[Math.floor(Math.random() * barcodes.length)];
-    setScannedCode(randomCode);
   };
 
   return (
@@ -245,7 +205,7 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
           <div>
             <h4 className="font-extrabold text-white text-base flex items-center gap-2">📷 Escáner de Barra</h4>
             <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-widest">
-              {scannedCode ? 'Código Detectado' : isLoading ? 'Iniciando Cámara...' : 'Cámara Activa'}
+              {status === 'detected' ? 'Código Detectado' : status === 'loading' ? 'Iniciando Cámara...' : 'Cámara Activa'}
             </span>
           </div>
           <button
@@ -260,9 +220,26 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
         {/* Dynamic Inner video / results container */}
         <div className="relative bg-slate-955 flex flex-col items-center justify-center overflow-hidden" style={{ height: '310px' }}>
           
-          {scannedCode !== null ? (
+          {/* El video element debe estar en el DOM aunque status sea 'loading' */}
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover animate-in fade-in duration-300"
+            style={{ display: status === 'active' ? 'block' : 'none' }}
+            playsInline
+            muted
+          />
+
+          {status === 'loading' && (
+            /* INITIALIZING / SPINNER */
+            <div className="text-center p-6 space-y-3">
+              <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin mx-auto" />
+              <p className="text-xs text-slate-300 font-extrabold uppercase tracking-wide">Iniciando cámara...</p>
+            </div>
+          )}
+
+          {status === 'detected' && (
             /* DETECTED CODE FEEDBACK PANEL */
-            <div className="w-full h-full p-6 flex flex-col items-center justify-center text-center bg-slate-900 space-y-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-slate-900 space-y-4 animate-in fade-in duration-200">
               <div className="w-14 h-14 rounded-full bg-emerald-500/10 border-2 border-emerald-500 flex items-center justify-center text-emerald-400">
                 <Check className="w-8 h-8 animate-bounce" />
               </div>
@@ -283,7 +260,10 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
               <div className="flex gap-2 w-full px-2">
                 <button
                   type="button"
-                  onClick={() => setScannedCode(null)}
+                  onClick={() => {
+                    setScannedCode('');
+                    setRetryTrigger(prev => prev + 1);
+                  }}
                   className="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-350 font-extrabold py-2.5 rounded-xl text-xs transition-colors cursor-pointer active:scale-95 border border-slate-700"
                 >
                   🔄 Reintentar
@@ -297,47 +277,28 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
                 </button>
               </div>
             </div>
-          ) : isLoading ? (
-            /* INITIALIZING / SPINNER */
-            <div className="text-center p-6 space-y-3">
-              <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin mx-auto" />
-              <p className="text-xs text-slate-300 font-extrabold uppercase tracking-wide">Iniciando hardware de cámara...</p>
-            </div>
-          ) : errorMsg ? (
+          )}
+
+          {(status === 'error' || status === 'unsupported') && (
             /* COMPATIBILITY FALLBACK OR ERROR */
-            <div className="p-6 text-center text-slate-300 space-y-4 w-full">
+            <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center text-slate-300 space-y-4 w-full bg-slate-900">
               <AlertTriangle className="w-11 h-11 text-amber-500 mx-auto" />
-              <p className="text-xs font-semibold leading-relaxed px-2 text-slate-300">
+              <p className="text-xs font-semibold leading-relaxed px-4 text-slate-300">
                 {errorMsg}
               </p>
               
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 text-left space-y-1">
-                <p className="text-[10px] font-black text-slate-205">💡 CONSEJO PARA ACTIVAR:</p>
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 text-left space-y-1 w-full max-w-[320px]">
+                <p className="text-[10px] font-black text-slate-200">💡 CONSEJO PARA ACTIVAR:</p>
                 <p className="text-[9px] text-slate-400 leading-normal">
                   Asegúrate de otorgar permisos de cámara si el navegador lo solicita. También puedes escribir el número de barra directamente en el campo de texto abajo.
                 </p>
               </div>
-
-              <div className="pt-2 flex justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSimulate}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-350 font-bold px-4 py-2 rounded-xl text-[10px] transition-colors cursor-pointer"
-                >
-                  Simular Escaneo (Código de Prueba)
-                </button>
-              </div>
             </div>
-          ) : (
-            /* ACTIVE CAMERA STREAM VIEWPORT */
-            <>
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover animate-in fade-in duration-300"
-                playsInline
-                muted
-              />
+          )}
 
+          {status === 'active' && (
+            /* ACTIVE OVERLAY FRAMES */
+            <>
               {/* Glowing visual scan frames / overlay */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 bg-black/10">
                 <div className="w-64 h-36 border-2 border-emerald-500/20 rounded-xl relative bg-emerald-500/5">
