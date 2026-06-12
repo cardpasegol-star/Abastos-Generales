@@ -251,8 +251,33 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const handleGalleryImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = () => setFormData(prev => ({ ...prev, imageUrl: reader.result as string }));
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400; // Optimal width for product grid thumbnails
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH) {
+          const scale = MAX_WIDTH / width;
+          width = MAX_WIDTH;
+          height = height * scale;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.7);
+          setFormData(prev => ({ ...prev, imageUrl: compressed }));
+        } else {
+          setFormData(prev => ({ ...prev, imageUrl: event.target?.result as string }));
+        }
+      };
+    };
     reader.readAsDataURL(file);
   };
 
