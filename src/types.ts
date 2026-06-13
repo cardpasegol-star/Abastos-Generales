@@ -50,6 +50,7 @@ export interface BusinessConfig {
   gps: string;
   adminPin: string;
   bannerUrl?: string;
+  ivaPercentage?: number;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.';

@@ -207,11 +207,12 @@ export default function App() {
             onAddProduct={handleAddProduct}
             onAddTransaction={handleAddTransaction}
             onUpdateProductStock={handleUpdateProductStock}
+            config={config}
           />
         )}
 
         {currentTab === 'Reportes' && (
-          <ReportesTab transactions={transactions} />
+          <ReportesTab transactions={transactions} config={config} />
         )}
 
         {currentTab === 'Compras' && (

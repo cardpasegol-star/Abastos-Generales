@@ -42,6 +42,7 @@ export default function MantTab({
   const [gps, setGps] = useState(config.gps || 'Calle Principal #123');
   const [adminPinField, setAdminPinField] = useState(config.adminPin || '1234');
   const [localBannerUrl, setLocalBannerUrl] = useState(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
+  const [ivaPercentInput, setIvaPercentInput] = useState(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
   const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
   
   // Kitchen dish builder form state
@@ -61,6 +62,7 @@ export default function MantTab({
     setGps(config.gps || 'Calle Principal #123');
     setAdminPinField(config.adminPin || '1234');
     setLocalBannerUrl(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
+    setIvaPercentInput(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
   }, [config]);
 
   // Handle cell phone gallery selection & browser canvas mini-compression to keep data fast and small (under 80kb)
@@ -133,7 +135,8 @@ export default function MantTab({
         whatsapp: whatsapp.trim(),
         gps: gps.trim(),
         adminPin: adminPinField.trim(),
-        bannerUrl: localBannerUrl.trim()
+        bannerUrl: localBannerUrl.trim(),
+        ivaPercentage: Number(ivaPercentInput)
       });
       setNotifySaved(true);
       setTimeout(() => setNotifySaved(false), 3000);
@@ -358,6 +361,24 @@ export default function MantTab({
                 onChange={(e) => setAdminPinField(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <label id="iva-factor-label" className="text-[10.5px] font-bold text-gray-400 uppercase tracking-widest">Porcentaje de IVA (%)</label>
+            <input
+              id="iva-factor-input"
+              type="number"
+              step="any"
+              min="0"
+              max="100"
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600/10 focus:outline-none focus:bg-white transition-all font-semibold outline-none"
+              placeholder="Ej. 15 o según regulación fiscal"
+              value={ivaPercentInput}
+              onChange={(e) => setIvaPercentInput(parseFloat(e.target.value) || 0)}
+            />
+            <span className="text-[9px] text-gray-400 font-bold block">
+              Se utilizará este porcentaje para calcular los impuestos (IVA) automática y dinámicamente al momento de confirmar ventas y generar tickets de respaldo.
+            </span>
           </div>
 
           {/* Banner Selector Component */}

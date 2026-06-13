@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, ShoppingBag, Zap, RefreshCw, X } from 'lucide-react';
-import { Product, CartItem, Transaction } from '../types';
+import { Product, CartItem, Transaction, BusinessConfig } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
 interface CajaTabProps {
@@ -8,9 +8,10 @@ interface CajaTabProps {
   onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'>) => Promise<void>;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
+  config: BusinessConfig;
 }
 
-export default function CajaTab({ products, onAddProduct, onAddTransaction, onUpdateProductStock }: CajaTabProps) {
+export default function CajaTab({ products, onAddProduct, onAddTransaction, onUpdateProductStock, config }: CajaTabProps) {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [transactionType, setTransactionType] = useState<'Venta' | 'Compra'>('Venta');
@@ -278,8 +279,9 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
   };
 
   // Calculations
+  const ivaPercentage = config?.ivaPercentage !== undefined ? config.ivaPercentage : 15;
   const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const tax = subtotal * 0.15; // IVA 15%
+  const tax = subtotal * (ivaPercentage / 100);
   const total = subtotal + tax;
 
   const handleCobroRapido = () => {
@@ -568,7 +570,7 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
               <span className="font-extrabold text-slate-900">${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>IVA (15%)</span>
+              <span>IVA ({ivaPercentage}%)</span>
               <span className="font-extrabold text-slate-900">${tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-end pt-3 border-t-2 border-slate-200">
