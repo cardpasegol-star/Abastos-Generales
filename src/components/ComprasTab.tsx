@@ -1,11 +1,31 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles } from 'lucide-react';
-import { Product, FoodItem, BusinessConfig } from '../types';
+import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2 } from 'lucide-react';
+import { Product, FoodItem, BusinessConfig, Transaction } from '../types';
+import { jsPDF } from 'jspdf';
+
+const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
+  'Todos': '🛒',
+  'Todo': '🛒',
+  'Bebidas': '🥤',
+  'Abarrotes': '🧴',
+  'Lácteos': '🥛',
+  'Snacks': '🍿',
+  'Almuerzos': '🍳',
+  'Sopas': '🍲',
+  'Postres': '🍰',
+};
+
+function getCategoryIcon(cat: string, config?: BusinessConfig): string {
+  if (cat === 'Todos' || cat === 'Todo') return '🛒';
+  return config?.categoryIcons?.[cat] || DEFAULT_CATEGORY_ICONS[cat] || '📦';
+}
 
 interface ComprasTabProps {
   products: Product[];
   foodItems?: FoodItem[];
   config: BusinessConfig;
+  onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
+  onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
 }
 
 interface CartItem {
@@ -16,7 +36,7 @@ interface CartItem {
   quantity: number;
 }
 
-export default function ComprasTab({ products, foodItems = [], config }: ComprasTabProps) {
+export default function ComprasTab({ products, foodItems = [], config, onAddTransaction, onUpdateProductStock }: ComprasTabProps) {
   // Search state (unified across both lists)
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -38,9 +58,13 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
   const [waUrl, setWaUrl] = useState('');
   const [waMsgText, setWaMsgText] = useState('');
 
+  // Transaction state after database save
+  const [successTx, setSuccessTx] = useState<Transaction | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
   // Lists of categories
-  const productCategories = ['Todo', 'Abarrotes', 'Bebidas', 'Lácteos', 'Snacks'];
-  const foodItemCategories = ['Todo', 'Almuerzos', 'Sopas', 'Postres', 'Bebidas'];
+  const productCategories = ['Todo', ...(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'])];
+  const foodItemCategories = ['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas'])];
 
   // Match items based on filters and search
   const filteredProducts = products.filter(product => {
@@ -125,10 +149,125 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
   // Aggregated mathematics
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
-  const totalCartCost = cart.reduce((sum, item) => {
+  const ivaPercentage = config?.ivaPercentage !== undefined ? config.ivaPercentage : 15;
+  const subtotalVal = cart.reduce((sum, item) => {
     const price = item.type === 'product' ? (item.product?.price || 0) : (item.foodItem?.price || 0);
     return sum + price * item.quantity;
   }, 0);
+  const taxVal = subtotalVal * (ivaPercentage / 100);
+  const totalCartCost = subtotalVal + taxVal;
+
+  // PDF Ticket Downloader for Clients
+  const downloadReceiptPDF = (tx: Transaction) => {
+    const paddingBottom = 25;
+    const headerHeight = 55;
+    const itemsHeight = tx.items.length * 7;
+    const totalsHeight = 30;
+    const pdfHeight = headerHeight + itemsHeight + totalsHeight + paddingBottom;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [80, pdfHeight]
+    });
+
+    let currentY = 10;
+    
+    // Store branding header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.text((config?.name || 'Mi Negocio').toUpperCase(), 40, currentY, { align: 'center' });
+    currentY += 4.5;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text('TICKET DE OPERACION PEDIDO', 40, currentY, { align: 'center' });
+    currentY += 4.5;
+
+    if (config?.gps) {
+      doc.text(config.gps, 40, currentY, { align: 'center' });
+      currentY += 4;
+    }
+    if (config?.whatsapp) {
+      doc.text(`Wsp: +${config.whatsapp}`, 40, currentY, { align: 'center' });
+      currentY += 4;
+    }
+    
+    doc.line(5, currentY, 75, currentY);
+    currentY += 4.5;
+
+    // Billing / Registry context
+    doc.setFontSize(7);
+    doc.text(`NRO COMPROBANTE: #${tx.id.toUpperCase()}`, 5, currentY);
+    currentY += 3.5;
+    doc.text(`FECHA EMISION: ${new Date(tx.createdAt).toLocaleString()}`, 5, currentY);
+    currentY += 3.5;
+    doc.text(`TIPO OPERACION: VENTA (PEDIDO ON)', 5, currentY);`, 5, currentY);
+    currentY += 4.5;
+
+    doc.line(5, currentY, 75, currentY);
+    currentY += 5;
+
+    // Column Headers
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text('DESCRIPCIÓN', 5, currentY);
+    doc.text('CANT', 42, currentY, { align: 'center' });
+    doc.text('P.UNIT', 56, currentY, { align: 'center' });
+    doc.text('TOTAL', 75, currentY, { align: 'right' });
+    currentY += 4;
+    
+    doc.line(5, currentY, 75, currentY);
+    currentY += 4;
+
+    // Itemized list
+    doc.setFont('helvetica', 'normal');
+    tx.items.forEach((item) => {
+      let displayName = item.name.toUpperCase();
+      if (displayName.length > 20) displayName = displayName.slice(0, 19) + '.';
+      
+      doc.text(displayName, 5, currentY);
+      doc.text(`${item.qty}`, 42, currentY, { align: 'center' });
+      doc.text(`$${item.price.toFixed(2)}`, 56, currentY, { align: 'center' });
+      
+      const itemTotal = item.qty * item.price;
+      doc.text(`$${itemTotal.toFixed(2)}`, 75, currentY, { align: 'right' });
+      currentY += 5.5;
+    });
+
+    currentY -= 1.5;
+    doc.line(5, currentY, 75, currentY);
+    currentY += 4.5;
+
+    // Totals Block
+    doc.setFontSize(7);
+    doc.text('SUBTOTAL:', 45, currentY);
+    doc.text(`$${tx.subtotal.toFixed(2)}`, 75, currentY, { align: 'right' });
+    currentY += 3.5;
+
+    const calculatedIvaRate = tx.subtotal > 0 ? Math.round((tx.tax / tx.subtotal) * 100) : (config?.ivaPercentage !== undefined ? config.ivaPercentage : 15);
+    doc.text(`IVA (${calculatedIvaRate}%):`, 45, currentY);
+    doc.text(`$${tx.tax.toFixed(2)}`, 75, currentY, { align: 'right' });
+    currentY += 4.5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('TOTAL PEDIDO:', 5, currentY);
+    doc.text(`$${tx.total.toFixed(2)}`, 75, currentY, { align: 'right' });
+    currentY += 7;
+
+    // Footer lines
+    doc.line(5, currentY, 75, currentY);
+    currentY += 4.5;
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.text('¡Pedido por catálogo online!', 40, currentY, { align: 'center' });
+    currentY += 3;
+    doc.text('Gracias por su preferencia.', 40, currentY, { align: 'center' });
+
+    doc.save(`Ticket_Pedido_${tx.id}.pdf`);
+  };
 
   // Validate form and compile nice dual-section WhatsApp message details
   const handlePrepareOrder = () => {
@@ -194,7 +333,10 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
       msg += `------------------------------------\n`;
     }
 
-    msg += `\n💵 *TOTAL COMPLETO A PAGAR:* $${totalCartCost.toFixed(2)}\n\n`;
+    msg += `\n💵 *RESUMEN DE PAGO:*\n`;
+    msg += `• Subtotal: $${subtotalVal.toFixed(2)}\n`;
+    msg += `• IVA (${ivaPercentage}%): $${taxVal.toFixed(2)}\n`;
+    msg += `• *TOTAL COMPLETO A PAGAR: $${totalCartCost.toFixed(2)}*\n\n`;
     msg += `_¡Muchas gracias! Pedido generado desde el catálogo digital._`;
 
     // Process phone formatting from business configuration WhatsApp number
@@ -208,13 +350,69 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
     setCheckoutStep('ready');
   };
 
-  const handleCompleteOrder = () => {
-    setCart([]);
-    setCustomerName('');
-    setDeliveryAddress('');
-    setNotes('');
-    setCheckoutStep('form');
-    setShowCartModal(false);
+  const handlePlaceOrderAndCheckout = async () => {
+    setIsCheckingOut(true);
+    setValidationError(null);
+
+    try {
+      const txItems = cart.map(item => {
+        const productId = item.id;
+        const name = item.type === 'product' ? (item.product?.name || '') : (item.foodItem?.name || '');
+        const price = item.type === 'product' ? (item.product?.price || 0) : (item.foodItem?.price || 0);
+        return {
+          productId,
+          name,
+          qty: item.quantity,
+          price
+        };
+      });
+
+      const transactionPayload: Omit<Transaction, 'id'> = {
+        type: 'Venta',
+        items: txItems,
+        subtotal: parseFloat(subtotalVal.toFixed(2)),
+        tax: parseFloat(taxVal.toFixed(2)),
+        total: parseFloat(totalCartCost.toFixed(2)),
+        method: 'Efectivo', // pickup / delivery
+        createdAt: new Date().toISOString(),
+      };
+
+      // 1. Save transaction to Firestore
+      const txId = await onAddTransaction(transactionPayload);
+
+      // 2. Adjust inventories stocks sequentially for products ONLY
+      for (const item of cart) {
+        if (item.type === 'product' && item.product) {
+          const targetProduct = products.find(p => p.id === item.product?.id);
+          if (targetProduct) {
+            const newStock = Math.max(0, targetProduct.stock - item.quantity);
+            await onUpdateProductStock(targetProduct.id, newStock);
+          }
+        }
+      }
+
+      // 3. Keep standard transaction representation for displaying physical-grade ticket overlay on-screen
+      setSuccessTx({
+        id: txId,
+        ...transactionPayload
+      });
+
+      // 4. Open WhatsApp chat with pre-filled message
+      window.open(waUrl, '_blank');
+
+      // 5. Clear cart & states
+      setCart([]);
+      setCustomerName('');
+      setDeliveryAddress('');
+      setNotes('');
+      setCheckoutStep('form');
+      setShowCartModal(false);
+    } catch (err) {
+      console.error(err);
+      setValidationError('Ocurrió un error al registrar el ticket de compra y actualizar inventarios.');
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   return (
@@ -295,7 +493,7 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
                     : 'bg-slate-100 text-slate-800 hover:bg-slate-250 border-transparent'
                 }`}
               >
-                {cat}
+                {getCategoryIcon(cat, config)} {cat}
               </button>
             );
           })}
@@ -329,8 +527,8 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
                         (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600';
                       }}
                     />
-                    <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[11px] font-black px-3 py-1 rounded-lg shadow-sm uppercase tracking-wider">
-                      {dish.category}
+                    <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[11px] font-black px-3 py-1 rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1">
+                      {getCategoryIcon(dish.category, config)} {dish.category}
                     </span>
                     {inCart && (
                       <span className="absolute top-3 right-3 bg-emerald-500 text-white text-[11px] font-black px-3 py-1 rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1.5">
@@ -427,7 +625,7 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
                     : 'bg-slate-100 text-slate-800 hover:bg-slate-250 border-transparent font-extrabold'
                 }`}
               >
-                {cat}
+                {getCategoryIcon(cat, config)} {cat}
               </button>
             );
           })}
@@ -467,8 +665,8 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
                       }}
                     />
                     
-                    <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-black px-3.5 py-1 rounded-lg shadow-sm uppercase tracking-wider">
-                      {p.category}
+                    <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-black px-3.5 py-1 rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1">
+                      {getCategoryIcon(p.category, config)} {p.category}
                     </span>
 
                     {isOutofStock ? (
@@ -823,16 +1021,14 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
                 </>
               ) : (
                 <div className="space-y-3">
-                  <a
-                    href={waUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={handleCompleteOrder}
-                    className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-black py-4 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] text-sm text-center cursor-pointer block font-sans"
+                  <button
+                    onClick={handlePlaceOrderAndCheckout}
+                    disabled={isCheckingOut}
+                    className="w-full bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-65 text-white font-black py-4 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] text-sm text-center cursor-pointer font-sans border-0 flex justify-center items-center"
                   >
                     <Send className="w-5 h-5 fill-white text-transparent" />
-                    Iniciar Chat y Enviar Pedido
-                  </a>
+                    {isCheckingOut ? 'Registrando y abriendo WhatsApp...' : 'Iniciar Chat y Enviar Pedido'}
+                  </button>
 
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -865,6 +1061,179 @@ export default function ComprasTab({ products, foodItems = [], config }: Compras
                   ⚠️ Atención: El número de WhatsApp no ha sido configurado en "Mant.". Se enviará al número por defecto (+5491112345678).
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Success receipt overlay modal */}
+      {successTx && (
+        <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-[99999] px-4 animate-in fade-in duration-300 font-sans">
+          {/* Custom isolated @media print styling rules inside ComprasTab */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              body * {
+                visibility: hidden !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                box-shadow: none !important;
+              }
+              #ticket-impresion-fiscal-online, #ticket-impresion-fiscal-online * {
+                visibility: visible !important;
+              }
+              #ticket-impresion-fiscal-online {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 4mm !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+              }
+              @page {
+                size: auto;
+                margin: 0mm;
+              }
+            }
+          `}} />
+
+          <div className="bg-white text-slate-900 rounded-3xl w-full max-w-sm border-2 border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] relative font-sans">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-50 border-b border-slate-100 p-4 shrink-0 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Check className="w-5 h-5 text-emerald-600 stroke-[3]" />
+                <span className="font-extrabold text-xs text-slate-800 uppercase tracking-widest pl-1 font-sans">¡Pedido Confirmado!</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuccessTx(null)}
+                className="w-8 h-8 rounded-full bg-slate-150 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body - Simulating receipt */}
+            <div className="flex-1 overflow-y-auto p-4 min-h-0 bg-slate-50/50">
+              <p className="text-center text-xs text-emerald-800 font-extrabold leading-tight font-sans bg-emerald-50 rounded-xl p-3 border border-emerald-200 mb-4 shadow-3xs">
+                ¡Tu pedido se ha guardado en nuestro inventario y se abrió WhatsApp para coordinar tu entrega! Aquí está tu ticket oficial:
+              </p>
+
+              <div id="ticket-impresion-fiscal-online" className="bg-white border-2 border-slate-250 rounded-2xl p-5 shadow-sm space-y-4">
+                
+                {/* Store Branding Header */}
+                <div className="text-center space-y-0.5 border-b border-dashed border-slate-200 pb-3">
+                  <h4 className="font-black text-slate-950 text-base uppercase tracking-tight font-sans">
+                    {config?.name || 'DONDE EL GOYO'}
+                  </h4>
+                  <p className="text-[10px] text-slate-450 font-black uppercase tracking-wider font-sans">
+                    Ticket de Pedido Digital
+                  </p>
+                  {config?.whatsapp && (
+                    <p className="text-xs text-slate-500 font-mono">
+                      WhatsApp: +{config.whatsapp}
+                    </p>
+                  )}
+                </div>
+
+                {/* Ticket Meta Info */}
+                <div className="text-xs space-y-1 block leading-normal text-slate-600 font-medium font-sans">
+                  <div className="flex justify-between">
+                    <span className="font-black text-slate-900">NRO COMPROBANTE:</span>
+                    <span className="font-mono text-slate-805 font-black">#{successTx.id.toUpperCase()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>FECHA:</span>
+                    <span>{new Date(successTx.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-0.5">
+                    <span>MÉTODO DE PAGO:</span>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      EFECTIVO / ENTREGA
+                    </span>
+                  </div>
+                </div>
+
+                {/* Items Break Down Table */}
+                <div className="border-t border-dashed border-slate-200 pt-3 font-sans">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 font-sans font-sans">Artículos Solicitados</p>
+                  
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {successTx.items.map((item, i) => (
+                      <div key={i} className="flex justify-between items-start text-xs border-b border-slate-50 pb-1.5 last:border-0 last:pb-0 font-sans font-sans">
+                        <div className="min-w-0 flex-1 pr-2">
+                          <p className="font-bold text-slate-850 truncate">{item.name.toUpperCase()}</p>
+                          <p className="text-[10px] text-slate-450 font-semibold font-sans font-sans">
+                            {item.qty} unids x ${item.price.toFixed(2)}
+                          </p>
+                        </div>
+                        <span className="font-black text-slate-950 shrink-0 font-mono font-sans">
+                          ${(item.qty * item.price).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Final Totals summary */}
+                <div className="border-t border-dashed border-slate-200 pt-3 text-xs space-y-1.5 font-medium text-slate-650 font-sans font-sans">
+                  <div className="flex justify-between font-sans">
+                    <span>SUBTOTAL:</span>
+                    <span className="font-mono">${successTx.subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-sans">
+                    <span>IVA ({ivaPercentage}%):</span>
+                    <span className="font-mono">${successTx.tax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between pt-1.5 border-t border-slate-100 items-baseline font-sans font-sans">
+                    <span className="font-black text-xs text-slate-950 uppercase font-sans">TOTAL A PAGAR:</span>
+                    <span className="font-mono font-black text-base text-emerald-650 font-sans">
+                      ${successTx.total.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Ticket Footer */}
+                <p className="text-[10px] text-slate-450 italic font-bold text-center pt-2 font-sans">
+                  ¡Gracias por su preferencia en catálogo digital!
+                </p>
+
+              </div>
+            </div>
+
+            {/* Quick action buttons block */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 space-y-2 font-sans shrink-0">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => downloadReceiptPDF(successTx)}
+                  className="py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs transition-colors flex items-center justify-center gap-1.5 border-2 border-slate-350 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-slate-600" />
+                  Guardar PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="py-3 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs transition-colors flex items-center justify-center gap-1.5 border-2 border-slate-350 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4 text-slate-600" />
+                  Imprimir Ticket
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSuccessTx(null)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-2xl text-xs transition-all duration-150 active:scale-97 border border-emerald-550 cursor-pointer shadow-md"
+              >
+                Hecho / Volver al Inicio
+              </button>
             </div>
           </div>
         </div>

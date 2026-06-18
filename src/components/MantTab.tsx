@@ -3,6 +3,29 @@ import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plu
 import { Product, FoodItem, BusinessConfig } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
 
+const PRESET_EMOJIS = [
+  '🛍️', '🛒', '🥤', '🧴', '🥛', '🍿', '🥩', '🍎', '🥦', '🍞', '🍬', 
+  '🧹', '🧼', '🍷', '🍺', '🐶', '💊', '📎', '🔋', '👕', '🍳', 
+  '🍲', '🍰', '🍕', '🍔', '🌮', '🍣', '☕', '📦', '🔑', '💍', '💐', '⚽'
+];
+
+const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
+  'Todos': '🛒',
+  'Todo': '🛒',
+  'Bebidas': '🥤',
+  'Abarrotes': '🧴',
+  'Lácteos': '🥛',
+  'Snacks': '🍿',
+  'Almuerzos': '🍳',
+  'Sopas': '🍲',
+  'Postres': '🍰',
+};
+
+function getCategoryIcon(cat: string, customIcons?: Record<string, string>): string {
+  if (cat === 'Todos' || cat === 'Todo') return '🛒';
+  return customIcons?.[cat] || DEFAULT_CATEGORY_ICONS[cat] || '📦';
+}
+
 interface MantTabProps {
   products: Product[];
   foodItems: FoodItem[];
@@ -45,12 +68,21 @@ export default function MantTab({
   const [ivaPercentInput, setIvaPercentInput] = useState(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
   const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
   
+  // Dynamic categories management state
+  const [productCategoriesList, setProductCategoriesList] = useState<string[]>([]);
+  const [foodItemCategoriesList, setFoodItemCategoriesList] = useState<string[]>([]);
+  const [newProductCat, setNewProductCat] = useState('');
+  const [newFoodCat, setNewFoodCat] = useState('');
+  const [productSelectedEmoji, setProductSelectedEmoji] = useState('🛍️');
+  const [foodSelectedEmoji, setFoodSelectedEmoji] = useState('🍳');
+  const [categoryIconsList, setCategoryIconsList] = useState<Record<string, string>>({});
+
   // Kitchen dish builder form state
   const [showDishModal, setShowDishModal] = useState(false);
   const [dishName, setDishName] = useState('');
   const [dishDesc, setDishDesc] = useState('');
   const [dishPrice, setDishPrice] = useState(10.00);
-  const [dishCategory, setDishCategory] = useState<FoodItem['category']>('Almuerzos');
+  const [dishCategory, setDishCategory] = useState<string>('Almuerzos');
   
   const [loading, setLoading] = useState(false);
   const [notifySaved, setNotifySaved] = useState(false);
@@ -63,7 +95,52 @@ export default function MantTab({
     setAdminPinField(config.adminPin || '1234');
     setLocalBannerUrl(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
     setIvaPercentInput(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
+    setProductCategoriesList(config.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']);
+    setFoodItemCategoriesList(config.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']);
+    setCategoryIconsList(config.categoryIcons || {});
   }, [config]);
+
+  const handleAddProductCat = () => {
+    const val = newProductCat.trim();
+    if (!val) return;
+    if (productCategoriesList.includes(val)) return;
+    setProductCategoriesList([...productCategoriesList, val]);
+    setCategoryIconsList(prev => ({
+      ...prev,
+      [val]: productSelectedEmoji
+    }));
+    setNewProductCat('');
+  };
+
+  const handleAddFoodCat = () => {
+    const val = newFoodCat.trim();
+    if (!val) return;
+    if (foodItemCategoriesList.includes(val)) return;
+    setFoodItemCategoriesList([...foodItemCategoriesList, val]);
+    setCategoryIconsList(prev => ({
+      ...prev,
+      [val]: foodSelectedEmoji
+    }));
+    setNewFoodCat('');
+  };
+
+  const handleRemoveProductCat = (cat: string) => {
+    setProductCategoriesList(productCategoriesList.filter(c => c !== cat));
+    setCategoryIconsList(prev => {
+      const next = { ...prev };
+      delete next[cat];
+      return next;
+    });
+  };
+
+  const handleRemoveFoodCat = (cat: string) => {
+    setFoodItemCategoriesList(foodItemCategoriesList.filter(c => c !== cat));
+    setCategoryIconsList(prev => {
+      const next = { ...prev };
+      delete next[cat];
+      return next;
+    });
+  };
 
   // Handle cell phone gallery selection & browser canvas mini-compression to keep data fast and small (under 80kb)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +213,10 @@ export default function MantTab({
         gps: gps.trim(),
         adminPin: adminPinField.trim(),
         bannerUrl: localBannerUrl.trim(),
-        ivaPercentage: Number(ivaPercentInput)
+        ivaPercentage: Number(ivaPercentInput),
+        productCategories: productCategoriesList,
+        foodItemCategories: foodItemCategoriesList,
+        categoryIcons: categoryIconsList
       });
       setNotifySaved(true);
       setTimeout(() => setNotifySaved(false), 3000);
@@ -468,6 +548,144 @@ export default function MantTab({
             )}
           </div>
 
+          {/* Categories Management Panel */}
+          <div className="space-y-4 border-t border-gray-100 pt-3.5">
+            <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider">
+              Categorías de Productos y Alimentos
+            </h4>
+            <p className="text-[10px] text-gray-400 leading-normal">
+              Agregue, organice y personalice los rubros ofrecidos. Los cambios se aplicarán al guardar la configuración general.
+            </p>
+
+            {/* Product Categories */}
+            <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+              <label className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">
+                🛍️ Categorías de Productos (La Bodega)
+              </label>
+              <div className="flex flex-wrap gap-2 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+                {productCategoriesList.map(cat => (
+                  <span key={cat} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-200 shadow-3xs">
+                    <span className="text-sm select-none">{getCategoryIcon(cat, categoryIconsList)}</span>
+                    {cat}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveProductCat(cat)}
+                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer"
+                    >
+                      <X className="w-3 h-3 stroke-[2.5]" />
+                    </button>
+                  </span>
+                ))}
+                {productCategoriesList.length === 0 && (
+                  <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ej. Bebidas, Enlatados, Jabones..."
+                  className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                  value={newProductCat}
+                  onChange={(e) => setNewProductCat(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddProductCat(); } }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddProductCat}
+                  className="bg-indigo-600 text-white font-extrabold text-xs px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors cursor-pointer shadow-3xs"
+                >
+                  Agregar
+                </button>
+              </div>
+              {/* Product Emoji Selector */}
+              <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                  🎨 Escoge un emoji para asociarlo al rubro nuevo que va a agregar:
+                </span>
+                <div className="flex gap-1 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
+                  {PRESET_EMOJIS.map(em => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => setProductSelectedEmoji(em)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-base transition-all border cursor-pointer select-none ${
+                        productSelectedEmoji === em
+                          ? 'bg-indigo-50 border-indigo-600 ring-2 ring-indigo-500/10 scale-110'
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Food Item Categories */}
+            <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+              <label className="text-[9.5px] font-black text-emerald-700 uppercase tracking-widest block">
+                🍳 Categorías del Menú (Alimentos y Cocina)
+              </label>
+              <div className="flex flex-wrap gap-2 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+                {foodItemCategoriesList.map(cat => (
+                  <span key={cat} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-850 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-200 shadow-3xs">
+                    <span className="text-sm select-none">{getCategoryIcon(cat, categoryIconsList)}</span>
+                    {cat}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFoodCat(cat)}
+                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer"
+                    >
+                      <X className="w-3 h-3 stroke-[2.5]" />
+                    </button>
+                  </span>
+                ))}
+                {foodItemCategoriesList.length === 0 && (
+                  <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ej. Sopas, Desayunos, Postres..."
+                  className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                  value={newFoodCat}
+                  onChange={(e) => setNewFoodCat(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFoodCat(); } }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddFoodCat}
+                  className="bg-emerald-650 text-white font-extrabold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors cursor-pointer shadow-3xs"
+                >
+                  Agregar
+                </button>
+              </div>
+              {/* Food Emoji Selector */}
+              <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                  🎨 Escoge un emoji para asociarlo al rubro nuevo que va a agregar:
+                </span>
+                <div className="flex gap-1 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
+                  {PRESET_EMOJIS.map(em => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => setFoodSelectedEmoji(em)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-base transition-all border cursor-pointer select-none ${
+                        foodSelectedEmoji === em
+                          ? 'bg-emerald-5 border-emerald-600 ring-2 ring-emerald-500/10 scale-110'
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <button
             onClick={handleSaveConfig}
             disabled={loading}
@@ -491,8 +709,13 @@ export default function MantTab({
         </div>
 
         <button
-          onClick={() => setShowDishModal(true)}
-          className="w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-2 border-dashed border-indigo-200 p-4 rounded-xl text-xs font-bold transition-all outline-none"
+          onClick={() => {
+            if (foodItemCategoriesList.length > 0) {
+              setDishCategory(foodItemCategoriesList[0]);
+            }
+            setShowDishModal(true);
+          }}
+          className="w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-2 border-dashed border-indigo-200 p-4 rounded-xl text-xs font-bold transition-all outline-hidden cursor-pointer"
         >
           <Plus className="w-4.5 h-4.5 stroke-[2.2]" />
           <span>Agregar nuevo plato al menú</span>
@@ -606,12 +829,11 @@ export default function MantTab({
                   <select
                     className="w-full bg-gray-50 border border-gray-10s rounded-xl px-3 py-3 text-sm outline-none cursor-pointer"
                     value={dishCategory}
-                    onChange={(e) => setDishCategory(e.target.value as FoodItem['category'])}
+                    onChange={(e) => setDishCategory(e.target.value)}
                   >
-                    <option value="Almuerzos">Almuerzos</option>
-                    <option value="Sopas">Sopas</option>
-                    <option value="Postres">Postres</option>
-                    <option value="Bebidas">Bebidas</option>
+                    {foodItemCategoriesList.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
               </div>

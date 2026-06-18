@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check } from 'lucide-react';
-import { Product } from '../types';
+import { Product, BusinessConfig } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
@@ -9,6 +9,7 @@ interface InventarioTabProps {
   onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'>) => Promise<void>;
   onEditProduct: (item: Product) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
+  config?: BusinessConfig;
 }
 
 const PRESET_IMAGES = [
@@ -28,6 +29,11 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Lácteos': '🥛',
   'Snacks': '🍿',
 };
+
+export function getCategoryIcon(cat: string, config?: BusinessConfig): string {
+  if (cat === 'Todos' || cat === 'Todo') return '🛒';
+  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || '📦';
+}
 
 function detectCategory(tags: string[]): Product['category'] {
   const s = tags.join(' ').toLowerCase();
@@ -66,14 +72,26 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
 }
 
 
-export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct }: InventarioTabProps) {
+export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct, config }: InventarioTabProps) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    sku: '', name: '', category: 'Bebidas' as Product['category'],
-    stock: 0, price: 0.0, cost: 0.0, imageUrl: PRESET_IMAGES[0].url
+  
+  const productCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
+  const defaultCategory = productCats.length > 0 ? productCats[0] : 'Bebidas';
+
+  const [formData, setFormData] = useState<{
+    sku: string;
+    name: string;
+    category: string;
+    stock: string | number;
+    price: string | number;
+    cost: string | number;
+    imageUrl: string;
+  }>({
+    sku: '', name: '', category: defaultCategory,
+    stock: 0, price: '', cost: '', imageUrl: PRESET_IMAGES[0].url
   });
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -167,11 +185,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setProductFetchMsg('');
     setFormData({
       sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
-      name: '', category: 'Bebidas', stock: 10, price: 1.50, cost: 1.00,
+      name: '', category: defaultCategory, stock: 12, price: '', cost: '',
       imageUrl: PRESET_IMAGES[0].url
     });
     setShowAddModal(true);
-  }, []);
+  }, [defaultCategory]);
 
   const handleOpenEdit = useCallback((product: Product) => {
     setEditingItem(product);
@@ -203,17 +221,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       setFormData({
         sku: barcode,
         name: '',
-        category: 'Abarrotes',
-        stock: 10,
-        price: 1.50,
-        cost: 1.00,
+        category: defaultCategory,
+        stock: 12,
+        price: '',
+        cost: '',
         imageUrl: PRESET_IMAGES[0].url
       });
       setShowAddModal(true);
       // Auto-buscar detalles desde bases de datos externas Open Food Facts / UPCitemdb
       lookupBarcode(barcode);
     }
-  }, [products, handleOpenEdit, lookupBarcode]);
+  }, [products, handleOpenEdit, lookupBarcode, defaultCategory]);
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
@@ -222,10 +240,19 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     }
     setLoading(true);
     try {
+      const parsedData = {
+        sku: formData.sku,
+        name: formData.name,
+        category: formData.category,
+        stock: parseInt(String(formData.stock), 10) || 0,
+        price: parseFloat(String(formData.price)) || 0,
+        cost: parseFloat(String(formData.cost)) || 0,
+        imageUrl: formData.imageUrl
+      };
       if (editingItem) {
-        await onEditProduct({ ...editingItem, ...formData, updatedAt: new Date().toISOString() });
+        await onEditProduct({ ...editingItem, ...parsedData, updatedAt: new Date().toISOString() });
       } else {
-        await onAddProduct(formData);
+        await onAddProduct(parsedData);
       }
       setShowAddModal(false);
     } catch (err) {
@@ -290,7 +317,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     reader.readAsDataURL(file);
   };
 
-  const categories = ['Todos', 'Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
+  const categories = ['Todos', ...productCats];
 
   return (
     <div className="space-y-5 pb-24">
@@ -369,7 +396,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 : 'bg-white text-slate-800 shadow-sm border-2 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            <span className="text-3xl">{CATEGORY_ICONS[cat] || '📦'}</span>
+            <span className="text-3xl">{getCategoryIcon(cat, config)}</span>
             <span className="font-black">{cat}</span>
           </button>
         ))}
@@ -408,7 +435,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <div className="p-4 flex flex-col space-y-2.5">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-50 border border-emerald-150 px-2.5 py-1 rounded-lg">
-                    {CATEGORY_ICONS[p.category] || '📦'} {p.category}
+                    {getCategoryIcon(p.category, config)} {p.category}
                   </span>
                   <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-lg border ${marginPercent >= 30 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
                     +{marginPercent}% margen
@@ -553,11 +580,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Categoría *</label>
               <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
-                value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as Product['category'] })}>
-                <option value="Bebidas">🥤 Bebidas</option>
-                <option value="Abarrotes">🧴 Abarrotes</option>
-                <option value="Lácteos">🥛 Lácteos</option>
-                <option value="Snacks">🍿 Snacks</option>
+                value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                {productCats.map(cat => (
+                  <option key={cat} value={cat}>
+                    {getCategoryIcon(cat, config)} {cat}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -573,7 +601,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                    <input type={type} step={step} min="0"
                     className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-2 py-3.5 text-sm text-center outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
                      value={(formData as any)[key]}
-                     onChange={(e) => setFormData({ ...formData, [key]: key === 'stock' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0 })} />
+                     onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} />
                 </div>
               ))}
             </div>

@@ -22,7 +22,7 @@ service cloud.firestore {
       return data.id is string && data.id.size() <= 100
           && data.sku is string && data.sku.size() <= 100
           && data.name is string && data.name.size() <= 150
-          && data.category is string && (data.category == "Bebidas" || data.category == "Abarrotes" || data.category == "Lácteos" || data.category == "Snacks")
+          && data.category is string && data.category.size() <= 100
           && data.stock is number && data.stock >= 0
           && data.price is number && data.price >= 0
           && data.cost is number && data.cost >= 0
@@ -67,7 +67,7 @@ service cloud.firestore {
           && data.name is string && data.name.size() <= 150
           && data.description is string && data.description.size() <= 1000
           && data.price is number && data.price >= 0
-          && data.category is string && (data.category == "Almuerzos" || data.category == "Sopas" || data.category == "Postres" || data.category == "Bebidas")
+          && data.category is string && data.category.size() <= 100
           && data.isPopular is bool
           && data.imageUrl is string;
     }

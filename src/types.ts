@@ -2,7 +2,7 @@ export interface Product {
   id: string;
   sku: string;
   name: string;
-  category: 'Bebidas' | 'Abarrotes' | 'Lácteos' | 'Snacks';
+  category: string;
   stock: number;
   price: number;
   cost: number;
@@ -38,7 +38,7 @@ export interface FoodItem {
   name: string;
   description: string;
   price: number;
-  category: 'Almuerzos' | 'Sopas' | 'Postres' | 'Bebidas';
+  category: string;
   isPopular: boolean;
   imageUrl: string;
 }
@@ -51,6 +51,9 @@ export interface BusinessConfig {
   adminPin: string;
   bannerUrl?: string;
   ivaPercentage?: number;
+  productCategories?: string[];
+  foodItemCategories?: string[];
+  categoryIcons?: Record<string, string>;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.';

@@ -114,7 +114,7 @@ export default function App() {
     }
   };
 
-  const handleAddTransaction = async (tx: Omit<Transaction, 'id'>) => {
+  const handleAddTransaction = async (tx: Omit<Transaction, 'id'>): Promise<string> => {
     const id = 'tx-' + Math.floor(100 + Math.random() * 900);
     const newTx: Transaction = {
       ...tx,
@@ -126,6 +126,7 @@ export default function App() {
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `transactions/${id}`);
     }
+    return id;
   };
 
   const handleUpdateProductStock = async (id: string, newStock: number) => {
@@ -198,6 +199,7 @@ export default function App() {
             onAddProduct={handleAddProduct}
             onEditProduct={handleEditProduct}
             onDeleteProduct={handleDeleteProduct}
+            config={config}
           />
         )}
 
@@ -216,7 +218,13 @@ export default function App() {
         )}
 
         {currentTab === 'Compras' && (
-          <ComprasTab products={products} foodItems={foodItems} config={config} />
+          <ComprasTab
+            products={products}
+            foodItems={foodItems}
+            config={config}
+            onAddTransaction={handleAddTransaction}
+            onUpdateProductStock={handleUpdateProductStock}
+          />
         )}
 
         {currentTab === 'Mant.' && (

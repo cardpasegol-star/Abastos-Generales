@@ -3,10 +3,22 @@ import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, S
 import { Product, CartItem, Transaction, BusinessConfig } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
+const CATEGORY_ICONS: Record<string, string> = {
+  'Bebidas': '🥤',
+  'Abarrotes': '🧴',
+  'Lácteos': '🥛',
+  'Snacks': '🍿',
+};
+
+function getCategoryIcon(cat: string, config?: BusinessConfig): string {
+  if (cat === 'Todos' || cat === 'Todo') return '🛒';
+  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || '📦';
+}
+
 interface CajaTabProps {
   products: Product[];
   onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'>) => Promise<void>;
-  onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
+  onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
   config: BusinessConfig;
 }
@@ -710,12 +722,13 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
                   <select
                     className="w-full bg-slate-950 border-2 border-slate-755 rounded-xl px-2.5 py-2.5 font-black outline-none text-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
                     value={apiScannedProduct.category}
-                    onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, category: e.target.value as Product['category'] })}
+                    onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, category: e.target.value })}
                   >
-                    <option value="Bebidas">🥤 Bebidas</option>
-                    <option value="Abarrotes">🧴 Abarrotes</option>
-                    <option value="Lácteos">🥛 Lácteos</option>
-                    <option value="Snacks">🍿 Snacks</option>
+                    {(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']).map(cat => (
+                      <option key={cat} value={cat}>
+                        {getCategoryIcon(cat, config)} {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

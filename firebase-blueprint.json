@@ -8,7 +8,7 @@
         "id": { "type": "string", "description": "Unique identifier (UUID or barcode)" },
         "sku": { "type": "string", "description": "Barcode or custom SKU" },
         "name": { "type": "string", "description": "Generic name of the product" },
-        "category": { "type": "string", "enum": ["Bebidas", "Abarrotes", "Lácteos", "Snacks"], "description": "Categorization" },
+        "category": { "type": "string", "description": "Categorization" },
         "stock": { "type": "number", "description": "Amount of units available" },
         "price": { "type": "number", "description": "Retail price of the product" },
         "cost": { "type": "number", "description": "Cost price of the product" },
@@ -45,7 +45,7 @@
         "name": { "type": "string", "description": "Name of the dish" },
         "description": { "type": "string", "description": "Description of ingredients and preparation" },
         "price": { "type": "number", "description": "Portion price" },
-        "category": { "type": "string", "enum": ["Almuerzos", "Sopas", "Postres", "Bebidas"], "description": "Dish category list" },
+        "category": { "type": "string", "description": "Dish category list" },
         "isPopular": { "type": "boolean", "description": "Whether to highlight with popular badge" },
         "imageUrl": { "type": "string", "description": "Visual reference" }
       },
