@@ -419,7 +419,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <div className="relative h-44 w-full bg-slate-100 shrink-0">
                 <img
                   alt={p.name}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                  className="w-full h-full object-contain p-2.5 bg-white transition-transform duration-500 hover:scale-[1.01]"
                   src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
                   onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'; }}
                   referrerPolicy="no-referrer"
@@ -523,7 +523,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                       <RefreshCw className="w-4 h-4 text-white animate-spin" />
                     </div>
                   )}
-                  <img src={formData.imageUrl} className="w-full h-full object-cover" alt="preview" />
+                  <img src={formData.imageUrl} className="w-full h-full object-contain p-1 bg-white" alt="preview" />
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
                   <label className="flex items-center justify-center gap-2 bg-emerald-50 border-2 border-emerald-200 text-emerald-800 font-black text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-emerald-100/60 transition-colors">

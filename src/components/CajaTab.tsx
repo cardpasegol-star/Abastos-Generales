@@ -457,9 +457,9 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
               key={item.product.id}
               className="bg-white p-4 rounded-3xl border-2 border-slate-250 flex items-center gap-4 shadow-sm hover:border-emerald-250 transition-all"
             >
-              <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 flex-shrink-0 overflow-hidden">
+              <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex-shrink-0 overflow-hidden">
                 <img
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain p-1 bg-white"
                   src={item.product.imageUrl}
                   alt={item.product.name}
                   referrerPolicy="no-referrer"
@@ -698,8 +698,8 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
               
               {/* Image Preview and Info */}
               <div className="flex gap-3 items-center">
-                <div className="w-16 h-16 rounded-xl border-2 border-slate-700 bg-slate-950 overflow-hidden flex-shrink-0">
-                  <img src={apiScannedProduct.imageUrl} className="w-full h-full object-cover" alt="" />
+                <div className="w-16 h-16 rounded-xl border-2 border-slate-700 bg-white overflow-hidden flex-shrink-0">
+                  <img src={apiScannedProduct.imageUrl} className="w-full h-full object-contain p-1 bg-white" alt="" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded-md font-black tracking-widest border border-emerald-500/25 uppercase font-mono">

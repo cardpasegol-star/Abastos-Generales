@@ -659,7 +659,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                       src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
                       alt={p.name}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-transform duration-305 ease-out hover:scale-102"
+                      className="w-full h-full object-contain p-2.5 bg-white transition-transform duration-305 ease-out hover:scale-101"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
                       }}
@@ -820,7 +820,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                               src={img || fallbackImg}
                               alt={name}
                               referrerPolicy="no-referrer"
-                              className="w-12 h-12 object-cover rounded-xl border-2 border-slate-200 bg-white"
+                              className="w-12 h-12 object-contain p-1 rounded-xl border-2 border-slate-200 bg-white"
                             />
 
                             <div className="flex-1 min-w-0 space-y-1 select-all">
