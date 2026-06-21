@@ -17,7 +17,7 @@ function getCategoryIcon(cat: string, config?: BusinessConfig): string {
 
 interface CajaTabProps {
   products: Product[];
-  onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'>) => Promise<void>;
+  onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'> & { id?: string }) => Promise<void>;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
   config: BusinessConfig;
@@ -292,7 +292,10 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
 
   // Calculations
   const ivaPercentage = config?.ivaPercentage !== undefined ? config.ivaPercentage : 15;
-  const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const subtotal = cart.reduce((acc, item) => {
+    const liveProd = products.find(p => p.id === item.product.id) || item.product;
+    return acc + liveProd.price * item.quantity;
+  }, 0);
   const tax = subtotal * (ivaPercentage / 100);
   const total = subtotal + tax;
 
@@ -316,12 +319,15 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
     setErrorMessage('');
 
     try {
-      const txItems = cart.map(item => ({
-        productId: item.product.id,
-        name: item.product.name,
-        qty: item.quantity,
-        price: item.product.price,
-      }));
+      const txItems = cart.map(item => {
+        const liveProd = products.find(p => p.id === item.product.id) || item.product;
+        return {
+          productId: liveProd.id,
+          name: liveProd.name,
+          qty: item.quantity,
+          price: liveProd.price,
+        };
+      });
 
       const transactionPayload: Omit<Transaction, 'id'> = {
         type: transactionType,
@@ -452,54 +458,57 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
         </div>
 
         <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-          {cart.map((item) => (
-            <div
-              key={item.product.id}
-              className="bg-white p-4 rounded-3xl border-2 border-slate-250 flex items-center gap-4 shadow-sm hover:border-emerald-250 transition-all"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex-shrink-0 overflow-hidden">
-                <img
-                  className="w-full h-full object-contain p-1 bg-white"
-                  src={item.product.imageUrl}
-                  alt={item.product.name}
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div className="flex-grow min-w-0">
-                <p className="font-extrabold text-base text-slate-1000 truncate">{item.product.name}</p>
-                <div className="flex items-center justify-between mt-1 text-sm">
-                  <span className="text-slate-500 font-extrabold">{item.quantity} x ${item.product.price.toFixed(2)}</span>
-                  <span className="font-black text-emerald-600 text-base">${(item.product.price * item.quantity).toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Counter increment controls */}
-              <div className="flex gap-2 items-center bg-slate-100 p-1.5 rounded-2xl border-2 border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => updateCartQuantity(item.product.id, -1)}
-                  className="w-7 h-7 bg-white rounded-xl font-black text-sm flex items-center justify-center text-slate-800 hover:bg-slate-250 shadow-sm transition-all active:scale-95"
-                >
-                  -
-                </button>
-                <span className="text-sm font-black w-5 text-center text-slate-900">{item.quantity}</span>
-                <button
-                  type="button"
-                  onClick={() => updateCartQuantity(item.product.id, 1)}
-                  className="w-7 h-7 bg-white rounded-xl font-black text-sm flex items-center justify-center text-slate-800 hover:bg-slate-250 shadow-sm transition-all active:scale-95"
-                >
-                  +
-                </button>
-              </div>
-
-              <button
-                onClick={() => removeFromCart(item.product.id)}
-                className="text-slate-400 hover:text-rose-600 p-2.5 rounded-full hover:bg-rose-50 transition-all cursor-pointer"
+          {cart.map((item) => {
+            const liveProd = products.find(p => p.id === item.product.id) || item.product;
+            return (
+              <div
+                key={liveProd.id}
+                className="bg-white p-4 rounded-3xl border-2 border-slate-250 flex items-center gap-4 shadow-sm hover:border-emerald-250 transition-all"
               >
-                <Trash2 className="w-5 h-5 stroke-[2]" />
-              </button>
-            </div>
-          ))}
+                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex-shrink-0 overflow-hidden">
+                  <img
+                    className="w-full h-full object-contain p-1 bg-white"
+                    src={liveProd.imageUrl}
+                    alt={liveProd.name}
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="flex-grow min-w-0">
+                  <p className="font-extrabold text-base text-slate-1000 truncate">{liveProd.name}</p>
+                  <div className="flex items-center justify-between mt-1 text-sm">
+                    <span className="text-slate-500 font-extrabold">{item.quantity} x ${liveProd.price.toFixed(2)}</span>
+                    <span className="font-black text-emerald-600 text-base">${(liveProd.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Counter increment controls */}
+                <div className="flex gap-2 items-center bg-slate-100 p-1.5 rounded-2xl border-2 border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => updateCartQuantity(liveProd.id, -1)}
+                    className="w-7 h-7 bg-white rounded-xl font-black text-sm flex items-center justify-center text-slate-800 hover:bg-slate-250 shadow-sm transition-all active:scale-95"
+                  >
+                    -
+                  </button>
+                  <span className="text-sm font-black w-5 text-center text-slate-900">{item.quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => updateCartQuantity(liveProd.id, 1)}
+                    className="w-7 h-7 bg-white rounded-xl font-black text-sm flex items-center justify-center text-slate-800 hover:bg-slate-250 shadow-sm transition-all active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => removeFromCart(liveProd.id)}
+                  className="text-slate-400 hover:text-rose-600 p-2.5 rounded-full hover:bg-rose-50 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-5 h-5 stroke-[2]" />
+                </button>
+              </div>
+            );
+          })}
 
           {cart.length === 0 && (
             <div className="py-12 bg-slate-50 border-2 border-dashed border-slate-250 rounded-3xl flex flex-col items-center justify-center text-center text-slate-400 space-y-3">

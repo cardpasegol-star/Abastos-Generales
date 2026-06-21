@@ -6,7 +6,7 @@ import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
   products: Product[];
-  onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'>) => Promise<void>;
+  onAddProduct: (item: Omit<Product, 'id' | 'updatedAt'> & { id?: string }) => Promise<void>;
   onEditProduct: (item: Product) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
   config?: BusinessConfig;
@@ -241,13 +241,13 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setLoading(true);
     try {
       const parsedData = {
-        sku: formData.sku,
-        name: formData.name,
-        category: formData.category,
+        sku: formData.sku || '',
+        name: formData.name || '',
+        category: formData.category || defaultCategory,
         stock: parseInt(String(formData.stock), 10) || 0,
         price: parseFloat(String(formData.price)) || 0,
         cost: parseFloat(String(formData.cost)) || 0,
-        imageUrl: formData.imageUrl
+        imageUrl: formData.imageUrl || PRESET_IMAGES[0].url
       };
       if (editingItem) {
         await onEditProduct({ ...editingItem, ...parsedData, updatedAt: new Date().toISOString() });
@@ -257,6 +257,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       setShowAddModal(false);
     } catch (err) {
       console.error(err);
+      alert('Error al guardar el producto: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -271,6 +272,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       setShowAddModal(false);
     } catch (err) {
       console.error(err);
+      alert('Error al eliminar el producto: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }

@@ -83,8 +83,8 @@ export default function App() {
   }, []);
 
   // 2. Action Handlers mapping directly to Firestore
-  const handleAddProduct = async (item: Omit<Product, 'id' | 'updatedAt'>) => {
-    const id = 'prod-' + Math.floor(1000 + Math.random() * 9000);
+  const handleAddProduct = async (item: Omit<Product, 'id' | 'updatedAt'> & { id?: string }) => {
+    const id = item.id || 'prod-' + Math.floor(1000 + Math.random() * 9000);
     const newProduct: Product = {
       ...item,
       id,

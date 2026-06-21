@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, AlertTriangle, RefreshCw, Check } from 'lucide-react';
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 interface BarcodeScannerProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);         // requestAnimationFrame ID
   const detectorRef = useRef<any>(null);
+  const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const [status, setStatus] = useState<'loading'|'active'|'detected'|'error'|'unsupported'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [scannedCode, setScannedCode] = useState('');
@@ -24,6 +26,12 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+    }
+    if (zxingReaderRef.current) {
+      try {
+        zxingReaderRef.current.reset();
+      } catch (e) {}
+      zxingReaderRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -47,13 +55,6 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
     const startCameraAndDetection = async () => {
       // Verificar si BarcodeDetector nativo está soportado
       const hasDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-      if (!hasDetector) {
-        if (active) {
-          setStatus('unsupported');
-          setErrorMsg('Tu navegador no soporta escaneo automático. Usa Google Chrome en Android para escanear, o ingresa el código manualmente.');
-        }
-        return;
-      }
 
       try {
         // PASO 1: Pedir la cámara trasera
@@ -78,53 +79,90 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
 
         // PASO 2: Asignar stream al video element
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
           videoRef.current.setAttribute('playsinline', 'true');
+          videoRef.current.setAttribute('webkit-playsinline', 'true');
+          videoRef.current.muted = true;
 
           const playVideo = async () => {
             try {
-              await videoRef.current?.play();
+              if (videoRef.current) {
+                await videoRef.current.play();
+              }
               if (active) {
                 setStatus('active');
                 
-                // PASO 4: Inicializar BarcodeDetector
-                const BarcodeDetectorClass = (window as any).BarcodeDetector;
-                const detector = new BarcodeDetectorClass({
-                  formats: ['ean_13', 'ean_8', 'code_128', 'qr_code']
-                });
-                detectorRef.current = detector;
+                if (hasDetector) {
+                  // --- PROCEDIMIENTO DE ESCANEO ORIGINAL PARA DISPOSITIVOS COMPATIBLES (Android Chrome, etc) ---
+                  const BarcodeDetectorClass = (window as any).BarcodeDetector;
+                  const detector = new BarcodeDetectorClass({
+                    formats: ['ean_13', 'ean_8', 'code_128', 'qr_code']
+                  });
+                  detectorRef.current = detector;
 
-                // PASO 5: Loop de detección con requestAnimationFrame
-                const detectFrame = async () => {
-                  if (!active || !videoRef.current || status === 'detected') return;
-                  try {
-                    const barcodes = await detector.detect(videoRef.current);
-                    if (active && barcodes && barcodes.length > 0) {
-                      const rawVal = barcodes[0].rawValue;
-                      if (rawVal && active) {
-                        // Detener loop y stream
-                        active = false;
-                        stopCamera();
+                  // Loop de detección con requestAnimationFrame
+                  const detectFrame = async () => {
+                    if (!active || !videoRef.current || status === 'detected') return;
+                    try {
+                      const barcodes = await detector.detect(videoRef.current);
+                      if (active && barcodes && barcodes.length > 0) {
+                        const rawVal = barcodes[0].rawValue;
+                        if (rawVal && active) {
+                          // Detener loop y stream
+                          active = false;
+                          stopCamera();
 
-                        // Vibración háptica
-                        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-                          try { navigator.vibrate(120); } catch (e) {}
+                          // Vibración háptica
+                          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                            try { navigator.vibrate(120); } catch (e) {}
+                          }
+
+                          setScannedCode(rawVal);
+                          setStatus('detected');
+                          return;
                         }
-
-                        setScannedCode(rawVal);
-                        setStatus('detected');
-                        return;
                       }
+                    } catch (err) {
+                      // Ignorar fallos continuos de lectura en frames vacíos
                     }
-                  } catch (err) {
-                    // Ignorar fallos continuos de lectura en frames vacíos
-                  }
-                  if (active) {
-                    rafRef.current = requestAnimationFrame(detectFrame);
-                  }
-                };
+                    if (active) {
+                      rafRef.current = requestAnimationFrame(detectFrame);
+                    }
+                  };
 
-                rafRef.current = requestAnimationFrame(detectFrame);
+                  rafRef.current = requestAnimationFrame(detectFrame);
+                } else {
+                  // --- MODELO FALLBACK ULTRA COMPATIBLE PARA IPHONE / SAFARI / IOS CHROME (ZXing library) ---
+                  console.log('Iniciando fallback de escaneo con @zxing/library...');
+                  const reader = new BrowserMultiFormatReader();
+                  zxingReaderRef.current = reader;
+
+                  if (videoRef.current) {
+                    reader.decodeFromVideoElementContinuously(videoRef.current, (result, err) => {
+                      if (!active) return;
+                      if (result) {
+                        const rawVal = result.getText();
+                        if (rawVal && active) {
+                          active = false;
+                          
+                          if (zxingReaderRef.current) {
+                            try {
+                              zxingReaderRef.current.reset();
+                            } catch (e) {}
+                            zxingReaderRef.current = null;
+                          }
+                          stopCamera();
+
+                          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                            try { navigator.vibrate(120); } catch (e) {}
+                          }
+
+                          setScannedCode(rawVal);
+                          setStatus('detected');
+                        }
+                      }
+                    });
+                  }
+                }
               }
             } catch (err) {
               console.error('video.play() falló o fue cancelado:', err);
@@ -135,10 +173,23 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
             }
           };
 
-          // PASO 3: Esperar loadedmetadata antes de play()
-          videoRef.current.onloadedmetadata = () => {
+          // Registrar eventos de carga de metadatos/datos ANTES de asignar el srcObject para evitar condiciones de carrera en iOS
+          let loaded = false;
+          const onLoaded = () => {
+            if (loaded) return;
+            loaded = true;
             playVideo();
           };
+
+          videoRef.current.onloadedmetadata = onLoaded;
+          videoRef.current.onloadeddata = onLoaded;
+
+          videoRef.current.srcObject = stream;
+
+          // Si el navegador ya procesó los metadatos de inmediato (común en engines rápidos como iOS WebKit)
+          if (videoRef.current.readyState >= 1) {
+            onLoaded();
+          }
         }
 
       } catch (err: any) {

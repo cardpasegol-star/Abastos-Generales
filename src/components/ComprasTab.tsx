@@ -151,7 +151,11 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   
   const ivaPercentage = config?.ivaPercentage !== undefined ? config.ivaPercentage : 15;
   const subtotalVal = cart.reduce((sum, item) => {
-    const price = item.type === 'product' ? (item.product?.price || 0) : (item.foodItem?.price || 0);
+    const liveProduct = item.type === 'product' ? products.find(p => p.id === item.id) : null;
+    const liveFoodItem = item.type === 'meal' ? foodItems.find(f => f.id === item.id) : null;
+    const price = item.type === 'product'
+      ? (liveProduct?.price ?? item.product?.price ?? 0)
+      : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
     return sum + price * item.quantity;
   }, 0);
   const taxVal = subtotalVal * (ivaPercentage / 100);
@@ -312,10 +316,11 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       msg += `\n🍲 *MENÚ DE COMIDAS (La Cocina):*\n`;
       msg += `------------------------------------\n`;
       cartMeals.forEach((item) => {
-        if (!item.foodItem) return;
-        const itemSubtotal = item.foodItem.price * item.quantity;
-        msg += `• *${item.quantity}x* _${item.foodItem.name}_\n`;
-        msg += `  Precio cu: $${item.foodItem.price.toFixed(2)} | Sub: $${itemSubtotal.toFixed(2)}\n`;
+        const liveFoodItem = foodItems.find(f => f.id === item.id) || item.foodItem;
+        if (!liveFoodItem) return;
+        const itemSubtotal = liveFoodItem.price * item.quantity;
+        msg += `• *${item.quantity}x* _${liveFoodItem.name}_\n`;
+        msg += `  Precio cu: $${liveFoodItem.price.toFixed(2)} | Sub: $${itemSubtotal.toFixed(2)}\n`;
       });
       msg += `------------------------------------\n`;
     }
@@ -325,10 +330,11 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       msg += `\n📦 *PRODUCTOS DE TIENDA:*\n`;
       msg += `------------------------------------\n`;
       cartProducts.forEach((item) => {
-        if (!item.product) return;
-        const itemSubtotal = item.product.price * item.quantity;
-        msg += `• *${item.quantity}x* _${item.product.name}_\n`;
-        msg += `  Precio cu: $${item.product.price.toFixed(2)} | Sub: $${itemSubtotal.toFixed(2)}\n`;
+        const liveProduct = products.find(p => p.id === item.id) || item.product;
+        if (!liveProduct) return;
+        const itemSubtotal = liveProduct.price * item.quantity;
+        msg += `• *${item.quantity}x* _${liveProduct.name}_\n`;
+        msg += `  Precio cu: $${liveProduct.price.toFixed(2)} | Sub: $${itemSubtotal.toFixed(2)}\n`;
       });
       msg += `------------------------------------\n`;
     }
@@ -357,8 +363,14 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     try {
       const txItems = cart.map(item => {
         const productId = item.id;
-        const name = item.type === 'product' ? (item.product?.name || '') : (item.foodItem?.name || '');
-        const price = item.type === 'product' ? (item.product?.price || 0) : (item.foodItem?.price || 0);
+        const liveProduct = item.type === 'product' ? products.find(p => p.id === item.id) : null;
+        const liveFoodItem = item.type === 'meal' ? foodItems.find(f => f.id === item.id) : null;
+        const name = item.type === 'product'
+          ? (liveProduct?.name || item.product?.name || '')
+          : (liveFoodItem?.name || item.foodItem?.name || '');
+        const price = item.type === 'product'
+          ? (liveProduct?.price ?? item.product?.price ?? 0)
+          : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
         return {
           productId,
           name,
@@ -804,9 +816,18 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                     
                     <div className="divide-y-2 divide-slate-100 bg-slate-50 border-2 border-slate-200 rounded-2xl overflow-hidden">
                       {cart.map((item) => {
-                        const name = item.type === 'product' ? (item.product?.name || '') : (item.foodItem?.name || '');
-                        const img = item.type === 'product' ? item.product?.imageUrl : item.foodItem?.imageUrl;
-                        const price = item.type === 'product' ? (item.product?.price || 0) : (item.foodItem?.price || 0);
+                        const liveProduct = item.type === 'product' ? products.find(p => p.id === item.id) : null;
+                        const liveFoodItem = item.type === 'meal' ? foodItems.find(f => f.id === item.id) : null;
+                        
+                        const name = item.type === 'product'
+                          ? (liveProduct?.name || item.product?.name || '')
+                          : (liveFoodItem?.name || item.foodItem?.name || '');
+                        const img = item.type === 'product'
+                          ? (liveProduct?.imageUrl || item.product?.imageUrl)
+                          : (liveFoodItem?.imageUrl || item.foodItem?.imageUrl);
+                        const price = item.type === 'product'
+                          ? (liveProduct?.price ?? item.product?.price ?? 0)
+                          : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
                         const fallbackImg = item.type === 'product' 
                           ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=100'
                           : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=100';
