@@ -57,21 +57,34 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
       const hasDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
       try {
-        // PASO 1: Pedir la cámara trasera
+        // PASO 1: Pedir la cámara trasera con máxima compatibilidad
         let stream: MediaStream;
         try {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
           });
         } catch (e1) {
-          console.warn('Fallo facingMode environment, intentando cualquier cámara disponible:', e1);
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: true
-          });
+          console.warn('Fallo constraints ideales, intentando facingMode simple:', e1);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'environment' }
+            });
+          } catch (e2) {
+            console.warn('Fallo facingMode environment, intentando cualquier cámara disponible:', e2);
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true
+            });
+          }
         }
 
         if (!active) {
-          stream.getTracks().forEach(track => track.stop());
+          if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+          }
           return;
         }
 
@@ -271,18 +284,18 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
         {/* Dynamic Inner video / results container */}
         <div className="relative bg-slate-955 flex flex-col items-center justify-center overflow-hidden" style={{ height: '310px' }}>
           
-          {/* El video element debe estar en el DOM aunque status sea 'loading' */}
+          {/* El video element debe estar en el DOM y visible al layout engine en 'loading' para que iOS cargue metadatos y play() funcione */}
           <video
             ref={videoRef}
             className="w-full h-full object-cover animate-in fade-in duration-300"
-            style={{ display: status === 'active' ? 'block' : 'none' }}
+            style={{ display: (status === 'active' || status === 'loading') ? 'block' : 'none' }}
             playsInline
             muted
           />
 
           {status === 'loading' && (
-            /* INITIALIZING / SPINNER */
-            <div className="text-center p-6 space-y-3">
+            /* INITIALIZING / SPINNER - Absoluto cubriendo al video durante la carga */
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-900 z-10 space-y-3 animate-in fade-in duration-200">
               <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin mx-auto" />
               <p className="text-xs text-slate-300 font-extrabold uppercase tracking-wide">Iniciando cámara...</p>
             </div>
