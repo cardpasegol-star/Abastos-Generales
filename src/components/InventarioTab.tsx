@@ -43,6 +43,30 @@ function detectCategory(tags: string[]): Product['category'] {
   return 'Abarrotes';
 }
 
+function isBarcodeMatch(sku: string, scanCode: string): boolean {
+  if (!sku || !scanCode) return false;
+  
+  const s1 = sku.trim().toLowerCase();
+  const s2 = scanCode.trim().toLowerCase();
+  
+  // 1. Exact or case-insensitive match
+  if (s1 === s2) return true;
+  
+  // 2. Sanitized alphanumeric match (removing all spaces, dashes, etc.)
+  const san1 = s1.replace(/[^a-z0-9]/g, '');
+  const san2 = s2.replace(/[^a-z0-9]/g, '');
+  if (san1 === san2) return true;
+  
+  // 3. Match ignoring leading zeros (for numeric codes)
+  if (/^\d+$/.test(san1) && /^\d+$/.test(san2)) {
+    if (san1.replace(/^0+/, '') === san2.replace(/^0+/, '')) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agotado') {
   const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
   const color = tipo === 'bajo' ? '#D97706' : '#DC2626';
@@ -206,9 +230,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const handleBarcodeScanResult = useCallback((barcode: string) => {
     setShowScanner(false);
     
-    // Buscar en el Firestore existente si el código ya existe
+    // Buscar en el Firestore existente si el código ya existe con coincidencia robusta
     const foundProduct = products.find(
-      p => p.sku === barcode || p.sku.trim() === barcode.trim()
+      p => isBarcodeMatch(p.sku, barcode)
     );
 
     if (foundProduct) {

@@ -65,6 +65,31 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
   // Alphanumeric sanitization assistant
   const sanitize = (val: string) => val.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
 
+  // Robust match function for SKUs/Barcodes to handle leading zeros, spaces, dashes, case-sensitivity
+  const isBarcodeMatch = (sku: string, scanCode: string): boolean => {
+    if (!sku || !scanCode) return false;
+    
+    const s1 = sku.trim().toLowerCase();
+    const s2 = scanCode.trim().toLowerCase();
+    
+    // 1. Exact or case-insensitive match
+    if (s1 === s2) return true;
+    
+    // 2. Sanitized alphanumeric match (removing all spaces, dashes, etc.)
+    const san1 = s1.replace(/[^a-z0-9]/g, '');
+    const san2 = s2.replace(/[^a-z0-9]/g, '');
+    if (san1 === san2) return true;
+    
+    // 3. Match ignoring leading zeros (for numeric codes)
+    if (/^\d+$/.test(san1) && /^\d+$/.test(san2)) {
+      if (san1.replace(/^0+/, '') === san2.replace(/^0+/, '')) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   const detectCategory = (tags: string[]): Product['category'] => {
     const s = tags.join(' ').toLowerCase();
     if (s.includes('bebida') || s.includes('drink') || s.includes('juice') || s.includes('water')) return 'Bebidas';
@@ -77,11 +102,9 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
   const handleLocalOrAPILookup = async (barcode: string) => {
     if (!barcode.trim()) return;
 
-    const cleanBarcode = sanitize(barcode);
-    
-    // 1. Search locally in custom Firestore inventory list
+    // 1. Search locally in custom Firestore inventory list using robust matching
     const found = products.find(
-      p => sanitize(p.sku) === cleanBarcode
+      p => isBarcodeMatch(p.sku, barcode)
     );
 
     if (found) {
@@ -186,10 +209,9 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
     if (e) e.preventDefault();
     if (!barcodeInput.trim()) return;
 
-    // Search locally by exact SKU or Name search
-    const cleanInput = sanitize(barcodeInput);
+    // Search locally by exact robust SKU match or Name search
     const found = products.find(
-      p => sanitize(p.sku) === cleanInput ||
+      p => isBarcodeMatch(p.sku, barcodeInput) ||
            p.name.toLowerCase().includes(barcodeInput.trim().toLowerCase())
     );
 
