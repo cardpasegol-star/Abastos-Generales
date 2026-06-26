@@ -54,6 +54,9 @@ export interface BusinessConfig {
   productCategories?: string[];
   foodItemCategories?: string[];
   categoryIcons?: Record<string, string>;
+  licenseExpirationDate?: string; // YYYY-MM-DD
+  licenseStatus?: 'active' | 'suspended'; // 'active' | 'suspended'
+  licenseMessage?: string; // Custom block screen message
 }
 
-export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.';
+export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';

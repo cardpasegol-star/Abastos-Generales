@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop } from 'lucide-react';
+import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
 
@@ -37,6 +37,8 @@ interface MantTabProps {
   onDeleteFoodItem: (id: string) => Promise<void>;
   isUnlocked: boolean;
   onUnlock: (unlocked: boolean) => void;
+  isMasterUnlocked: boolean;
+  onUnlockMaster: (unlocked: boolean) => void;
 }
 
 export default function MantTab({
@@ -49,7 +51,9 @@ export default function MantTab({
   onAddFoodItem,
   onDeleteFoodItem,
   isUnlocked,
-  onUnlock
+  onUnlock,
+  isMasterUnlocked,
+  onUnlockMaster
 }: MantTabProps) {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -172,6 +176,36 @@ export default function MantTab({
     reader.readAsDataURL(file);
   };
 
+  // Handle physical keyboard keypresses when screen is locked
+  useEffect(() => {
+    if (isUnlocked) return;
+
+    let buffer = '';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key;
+      if (key === 'Backspace') {
+        buffer = buffer.slice(0, -1);
+      } else if (key.length === 1) {
+        buffer += key;
+        if (buffer.length > 20) {
+          buffer = buffer.slice(-20);
+        }
+        
+        if (buffer.endsWith('Aramis2012') || buffer.endsWith('2012')) {
+          onUnlockMaster(true);
+          onUnlock(true);
+          buffer = '';
+        } else if (buffer.endsWith(config.adminPin || '1234')) {
+          onUnlock(true);
+          buffer = '';
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isUnlocked, onUnlock, onUnlockMaster, config.adminPin]);
+
   // Handle dial entries
   const handleDial = (num: string) => {
     if (pinError) setPinError(false);
@@ -181,6 +215,13 @@ export default function MantTab({
       
       // Auto check on 4 entries
       if (nextPin.length === 4) {
+        if (nextPin === '2012') {
+          onUnlockMaster(true);
+          onUnlock(true);
+          setPin('');
+          return;
+        }
+        
         const correctPin = config.adminPin || '1234';
         if (nextPin === correctPin) {
           onUnlock(true);
@@ -294,9 +335,9 @@ export default function MantTab({
   // 1. LOCK SCREEN (Initial Auth Dial State)
   if (!isUnlocked) {
     return (
-      <div id="lockscreen-container" className="flex flex-col items-center justify-center min-h-[500px] space-y-7 animate-in fade-in duration-300">
+      <div id="lockscreen-container" className="flex flex-col items-center justify-center min-h-[500px] space-y-7 animate-in fade-in duration-300 animate-out duration-300">
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 bg-indigo-50 border border-indigo-100 rounded-3xl flex items-center justify-center mx-auto mb-2 text-indigo-600">
+          <div className="w-16 h-16 bg-indigo-50 border border-indigo-100 rounded-3xl flex items-center justify-center mx-auto mb-2 text-indigo-600 select-none">
             <ShieldCheck className="w-8 h-8 stroke-[1.8]" />
           </div>
           <h2 className="text-base font-extrabold text-gray-900 tracking-tight">Acceso Restringido</h2>

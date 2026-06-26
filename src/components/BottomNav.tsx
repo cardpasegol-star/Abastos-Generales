@@ -1,14 +1,15 @@
 import React from 'react';
-import { Package2, Receipt, BarChart3, Utensils, Settings, ShoppingCart } from 'lucide-react';
+import { Package2, Receipt, BarChart3, Utensils, Settings, ShoppingCart, KeyRound } from 'lucide-react';
 import { ActiveTab } from '../types';
 
 interface BottomNavProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   isAdminUnlocked: boolean;
+  isMasterUnlocked?: boolean;
 }
 
-export default function BottomNav({ activeTab, setActiveTab, isAdminUnlocked }: BottomNavProps) {
+export default function BottomNav({ activeTab, setActiveTab, isAdminUnlocked, isMasterUnlocked = false }: BottomNavProps) {
   const navItems = [
     { id: 'Inventario' as ActiveTab, label: 'Inventario', icon: Package2 },
     { id: 'Caja' as ActiveTab, label: 'Caja', icon: Receipt },
@@ -17,7 +18,14 @@ export default function BottomNav({ activeTab, setActiveTab, isAdminUnlocked }: 
     { id: 'Mant.' as ActiveTab, label: 'Mant.', icon: Settings },
   ];
 
+  if (isMasterUnlocked) {
+    navItems.push({ id: 'Master' as ActiveTab, label: 'Master', icon: KeyRound });
+  }
+
   const visibleNavItems = navItems.filter((item) => {
+    if (item.id === 'Master') {
+      return isMasterUnlocked;
+    }
     if (!isAdminUnlocked && item.id !== 'Compras' && item.id !== 'Mant.') {
       return false;
     }

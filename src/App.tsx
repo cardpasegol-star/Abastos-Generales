@@ -11,9 +11,12 @@ import CajaTab from './components/CajaTab';
 import ReportesTab from './components/ReportesTab';
 import ComprasTab from './components/ComprasTab';
 import MantTab from './components/MantTab';
+import MasterTab from './components/MasterTab';
+import LicenseBlockScreen from './components/LicenseBlockScreen';
 
 export default function App() {
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [isMasterUnlocked, setIsMasterUnlocked] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('Compras');
   const [products, setProducts] = useState<Product[]>([]);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
@@ -180,10 +183,38 @@ export default function App() {
     );
   }
 
+  // Check if current date exceeds the expiration date or is manually suspended
+  const isLicenseActive = () => {
+    if (config.licenseStatus === 'suspended') return false;
+    if (!config.licenseExpirationDate) return true; // By default active
+    
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+    
+    return todayStr <= config.licenseExpirationDate;
+  };
+
+  // If the license is expired/suspended and the developer has not unlocked the session
+  if (!isLicenseActive() && !isMasterUnlocked) {
+    return (
+      <LicenseBlockScreen 
+        config={config} 
+        onUnlockMaster={() => {
+          setIsMasterUnlocked(true);
+          setActiveTab('Master');
+        }} 
+      />
+    );
+  }
+
   // Shield tabs in case activeTab is set to restricted and user is not unlocked
-  const currentTab = (!isAdminUnlocked && (activeTab === 'Inventario' || activeTab === 'Caja' || activeTab === 'Reportes'))
+  // We allow 'Master' tab if isMasterUnlocked is active
+  const currentTab = (!isAdminUnlocked && (activeTab === 'Inventario' || activeTab === 'Caja' || activeTab === 'Reportes') && activeTab !== 'Master')
     ? 'Compras'
-    : activeTab;
+    : (activeTab === 'Master' && !isMasterUnlocked ? 'Compras' : activeTab);
 
   // 4. Primary client layout canvas with persistent bottom nav
   return (
@@ -239,12 +270,32 @@ export default function App() {
             onDeleteFoodItem={handleDeleteFoodItem}
             isUnlocked={isAdminUnlocked}
             onUnlock={setIsAdminUnlocked}
+            isMasterUnlocked={isMasterUnlocked}
+            onUnlockMaster={setIsMasterUnlocked}
+          />
+        )}
+
+        {currentTab === 'Master' && (
+          <MasterTab
+            config={config}
+            products={products}
+            transactions={transactions}
+            onUpdateConfig={handleUpdateConfig}
+            onLockMaster={() => {
+              setIsMasterUnlocked(false);
+              setActiveTab('Compras');
+            }}
           />
         )}
       </main>
 
       {/* Persistent Bottom Nav tab-selector */}
-      <BottomNav activeTab={currentTab} setActiveTab={setActiveTab} isAdminUnlocked={isAdminUnlocked} />
+      <BottomNav 
+        activeTab={currentTab} 
+        setActiveTab={setActiveTab} 
+        isAdminUnlocked={isAdminUnlocked} 
+        isMasterUnlocked={isMasterUnlocked}
+      />
     </div>
   );
 }

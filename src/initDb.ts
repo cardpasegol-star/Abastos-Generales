@@ -172,7 +172,10 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   gps: 'Calle Principal #123',
   adminPin: '1234',
   bannerUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800',
-  ivaPercentage: 15
+  ivaPercentage: 15,
+  licenseExpirationDate: '2026-12-31',
+  licenseStatus: 'active',
+  licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.'
 };
 
 export async function bootstrapDatabaseIfEmpty() {
