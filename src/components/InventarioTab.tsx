@@ -1078,6 +1078,16 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   </button>
                 ))}
               </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">O pegar URL de Imagen Externa</label>
+                <input
+                  type="text"
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white outline-none font-bold text-slate-900"
+                  value={formData.imageUrl}
+                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                />
+              </div>
             </div>
 
             {/* Nombre */}
