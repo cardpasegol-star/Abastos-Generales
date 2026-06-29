@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check } from 'lucide-react';
+import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check, UploadCloud, ChevronRight, FileSpreadsheet, FileText, Clipboard, CheckCircle2, Trash2, ArrowRight } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Product, BusinessConfig } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
@@ -122,6 +123,490 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [productFetchMsg, setProductFetchMsg] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // ── ESTADOS Y CLASES PARA CARGA MASIVA ──
+  interface ImportProduct {
+    sku: string;
+    name: string;
+    category: string;
+    stock: number;
+    cost: number;
+    price: number;
+    selected: boolean;
+  }
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importTab, setImportTab] = useState<'excel' | 'pdf' | 'text'>('excel');
+  const [pastedText, setPastedText] = useState('');
+  
+  const [excelSheets, setExcelSheets] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>('');
+  const [excelRawRows, setExcelRawRows] = useState<any[][]>([]);
+  const [excelHeaders, setExcelHeaders] = useState<string[]>([]);
+  
+  const [mappings, setMappings] = useState({
+    sku: '',
+    name: '',
+    category: '',
+    stock: '',
+    cost: '',
+    price: ''
+  });
+
+  const [candidateProducts, setCandidateProducts] = useState<ImportProduct[]>([]);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
+  const [importStatus, setImportStatus] = useState<'idle' | 'importing' | 'completed'>('idle');
+  const [allSelected, setAllSelected] = useState(true);
+
+  // Carga dinámica de PDF.js desde CDN para evitar cargar el bundle en runtime innecesariamente
+  const loadPdfJs = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).pdfjsLib) {
+        resolve((window as any).pdfjsLib);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        const pdfjsLib = (window as any).pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve(pdfjsLib);
+      };
+      script.onerror = (err) => reject(err);
+      document.head.appendChild(script);
+    });
+  };
+
+  const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingFile(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        if (!data) return;
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        setExcelSheets(workbook.SheetNames);
+        const firstSheetName = workbook.SheetNames[0];
+        setSelectedSheet(firstSheetName);
+        
+        processWorkbookSheet(workbook, firstSheetName);
+      } catch (err) {
+        console.error("Error parsing Excel:", err);
+        alert("Ocurrió un error al procesar el archivo Excel. Asegúrese de que es un archivo .xlsx, .xls o .csv válido.");
+      } finally {
+        setIsProcessingFile(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const processWorkbookSheet = (workbook: XLSX.WorkBook, sheetName: string) => {
+    const worksheet = workbook.Sheets[sheetName];
+    const rawRows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+    if (rawRows.length === 0) {
+      setExcelRawRows([]);
+      setExcelHeaders([]);
+      return;
+    }
+    
+    setExcelRawRows(rawRows);
+    
+    let headerIndex = 0;
+    while (headerIndex < rawRows.length && (!rawRows[headerIndex] || rawRows[headerIndex].length === 0)) {
+      headerIndex++;
+    }
+    
+    const headers = rawRows[headerIndex] ? rawRows[headerIndex].map((h: any) => String(h || '').trim()) : [];
+    setExcelHeaders(headers);
+    
+    const autoMappings = {
+      sku: '',
+      name: '',
+      category: '',
+      stock: '',
+      cost: '',
+      price: ''
+    };
+    
+    headers.forEach((h: string) => {
+      const lh = h.toLowerCase();
+      if (/(sku|codigo|código|barras|barcode|upc|ean|id)/.test(lh)) {
+        autoMappings.sku = h;
+      } else if (/(nombre|name|producto|desc|descripcion|art|articulo|artículo|item)/.test(lh)) {
+        autoMappings.name = h;
+      } else if (/(categoria|categoría|category|grupo|familia|tipo)/.test(lh)) {
+        autoMappings.category = h;
+      } else if (/(stock|cantidad|cant|qty|quantity|inventario|uds|unidades)/.test(lh)) {
+        autoMappings.stock = h;
+      } else if (/(costo|cost|compra|cost_price|precio compra|valor compra)/.test(lh)) {
+        autoMappings.cost = h;
+      } else if (/(precio|price|venta|retail|precio venta|valor venta|pvp)/.test(lh)) {
+        autoMappings.price = h;
+      }
+    });
+
+    if (!autoMappings.sku) autoMappings.sku = headers.find(h => /(sku|cod)/i.test(h)) || headers[0] || '';
+    if (!autoMappings.name) autoMappings.name = headers.find(h => /(nom|prod|desc)/i.test(h)) || headers[1] || '';
+    if (!autoMappings.price) autoMappings.price = headers.find(h => /(prec|val|vent)/i.test(h)) || headers[2] || '';
+    
+    setMappings(autoMappings);
+    generateCandidatesFromExcel(rawRows, headerIndex + 1, autoMappings);
+  };
+
+  const generateCandidatesFromExcel = (rawRows: any[][], dataStartIdx: number, currentMappings: typeof mappings) => {
+    const headers = rawRows[dataStartIdx - 1] ? rawRows[dataStartIdx - 1].map((h: any) => String(h || '').trim()) : [];
+    
+    const skuIdx = headers.indexOf(currentMappings.sku);
+    const nameIdx = headers.indexOf(currentMappings.name);
+    const categoryIdx = headers.indexOf(currentMappings.category);
+    const stockIdx = headers.indexOf(currentMappings.stock);
+    const costIdx = headers.indexOf(currentMappings.cost);
+    const priceIdx = headers.indexOf(currentMappings.price);
+    
+    const candidates: ImportProduct[] = [];
+    
+    for (let i = dataStartIdx; i < rawRows.length; i++) {
+      const row = rawRows[i];
+      if (!row || row.length === 0) continue;
+      
+      const rawSku = skuIdx !== -1 ? String(row[skuIdx] ?? '').trim() : '';
+      const rawName = nameIdx !== -1 ? String(row[nameIdx] ?? '').trim() : '';
+      const rawCategory = categoryIdx !== -1 ? String(row[categoryIdx] ?? '').trim() : '';
+      const rawStock = stockIdx !== -1 ? Number(row[stockIdx]) : NaN;
+      const rawCost = costIdx !== -1 ? Number(row[costIdx]) : NaN;
+      const rawPrice = priceIdx !== -1 ? Number(row[priceIdx]) : NaN;
+      
+      if (!rawSku && !rawName) continue;
+      
+      const finalSku = rawSku || 'SKU-' + Math.floor(1000 + Math.random() * 9000);
+      const finalName = rawName || 'Producto sin Nombre';
+      
+      let finalCategory = defaultCategory;
+      if (rawCategory) {
+        const matchedCat = productCats.find(c => c.toLowerCase() === rawCategory.toLowerCase());
+        if (matchedCat) {
+          finalCategory = matchedCat;
+        } else {
+          finalCategory = rawCategory;
+        }
+      } else {
+        finalCategory = detectCategory([finalName]);
+      }
+      
+      const stock = isNaN(rawStock) ? 10 : rawStock;
+      const price = isNaN(rawPrice) ? 0 : rawPrice;
+      const cost = isNaN(rawCost) ? Math.round(price * 0.7) : rawCost;
+      
+      candidates.push({
+        sku: finalSku,
+        name: finalName,
+        category: finalCategory,
+        stock: stock,
+        cost: cost,
+        price: price,
+        selected: true
+      });
+    }
+    
+    setCandidateProducts(candidates);
+    setAllSelected(true);
+  };
+
+  const handleMappingChange = (field: keyof typeof mappings, val: string) => {
+    const updated = { ...mappings, [field]: val };
+    setMappings(updated);
+    
+    let headerIndex = 0;
+    while (headerIndex < excelRawRows.length && (!excelRawRows[headerIndex] || excelRawRows[headerIndex].length === 0)) {
+      headerIndex++;
+    }
+    generateCandidatesFromExcel(excelRawRows, headerIndex + 1, updated);
+  };
+
+  const handlePdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingFile(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const arrayBuffer = evt.target?.result as ArrayBuffer;
+        if (!arrayBuffer) return;
+        
+        const pdfjsLib = await loadPdfJs();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          fullText += pageText + '\n';
+        }
+        
+        parseTextLines(fullText);
+      } catch (err) {
+        console.error("Error parsing PDF:", err);
+        alert("No se pudo extraer texto de este archivo PDF. Verifique que no sea una imagen escaneada sin OCR o intente copiar y pegar el texto en la pestaña de Texto Plano.");
+      } finally {
+        setIsProcessingFile(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const parseTextLines = (text: string) => {
+    const lines = text.split('\n');
+    const parsed: ImportProduct[] = [];
+    
+    lines.forEach(line => {
+      const clean = line.trim();
+      if (!clean || clean.length < 5) return;
+      
+      if (/(total|subtotal|factura|fecha|proveedor|cliente|rut|iva|pagina|página|impuesto|remisión|guia|guía)/i.test(clean)) return;
+      if (/^(código|sku|nombre|producto|descripción|precio|costo|cant|stock)/i.test(clean)) return;
+
+      const tokens = clean.split(/\s+/);
+      if (tokens.length < 2) return;
+
+      let stock = 10;
+      let cost = 0;
+      let price = 0;
+      let nameTokens = [...tokens];
+      
+      const numericValues: number[] = [];
+      const numericIndices: number[] = [];
+      
+      for (let i = tokens.length - 1; i >= 0; i--) {
+        const rawToken = tokens[i];
+        const cleanedToken = rawToken.replace(/[$\s,.]/g, '');
+        if (/^\d+$/.test(cleanedToken)) {
+          const valStr = rawToken.replace(/[^\d.]/g, '').replace(',', '.');
+          const val = parseFloat(valStr);
+          if (!isNaN(val)) {
+            numericValues.push(val);
+            numericIndices.push(i);
+          }
+          if (numericValues.length >= 3) break;
+        }
+      }
+
+      if (numericValues.length >= 3) {
+        price = numericValues[0];
+        cost = numericValues[1];
+        stock = numericValues[2];
+        nameTokens = tokens.slice(0, Math.min(...numericIndices));
+      } else if (numericValues.length === 2) {
+        price = numericValues[0];
+        cost = numericValues[1];
+        stock = 10;
+        nameTokens = tokens.slice(0, Math.min(...numericIndices));
+      } else if (numericValues.length === 1) {
+        price = numericValues[0];
+        cost = Math.round(price * 0.7);
+        stock = 10;
+        nameTokens = tokens.slice(0, Math.min(...numericIndices));
+      }
+
+      let sku = '';
+      if (nameTokens.length > 1) {
+        const firstToken = nameTokens[0];
+        if (/^\d+$/.test(firstToken) || (firstToken.length >= 4 && /[0-9]/.test(firstToken))) {
+          sku = firstToken;
+          nameTokens.shift();
+        } else {
+          sku = 'SKU-' + Math.floor(1000 + Math.random() * 9000);
+        }
+      } else {
+        sku = 'SKU-' + Math.floor(1000 + Math.random() * 9000);
+      }
+
+      const name = nameTokens.join(' ').trim();
+      
+      if (name && name.length > 2) {
+        parsed.push({
+          sku,
+          name,
+          category: detectCategory([name]),
+          stock,
+          cost,
+          price,
+          selected: true
+        });
+      }
+    });
+
+    if (parsed.length > 0) {
+      setCandidateProducts(parsed);
+      setAllSelected(true);
+    } else {
+      alert("No se pudieron extraer productos del archivo o texto. Asegúrese de que el formato coincida con una lista de productos.");
+    }
+  };
+
+  const handleProcessPastedText = () => {
+    if (!pastedText.trim()) return;
+    
+    const lines = pastedText.split('\n');
+    const parsed: ImportProduct[] = [];
+    
+    lines.forEach(line => {
+      const clean = line.trim();
+      if (!clean) return;
+      
+      let delimiter = ',';
+      if (clean.includes('\t')) {
+        delimiter = '\t';
+      } else if (clean.includes(';')) {
+        delimiter = ';';
+      }
+      
+      const parts = clean.split(delimiter).map(p => p.trim());
+      
+      if (parts.length >= 2) {
+        let sku = parts[0];
+        let name = parts[1];
+        let category = parts[2] || '';
+        let stock = parseFloat(parts[3] || '10');
+        let cost = parseFloat(parts[4] || '0');
+        let price = parseFloat(parts[5] || '0');
+        
+        if (parts.length === 2) {
+          name = parts[0];
+          price = parseFloat(parts[1]) || 0;
+          sku = 'SKU-' + Math.floor(1000 + Math.random() * 9000);
+          category = detectCategory([name]);
+          stock = 10;
+          cost = Math.round(price * 0.7);
+        } else if (parts.length === 3) {
+          sku = parts[0];
+          name = parts[1];
+          price = parseFloat(parts[2]) || 0;
+          category = detectCategory([name]);
+          stock = 10;
+          cost = Math.round(price * 0.7);
+        } else if (parts.length === 4) {
+          sku = parts[0];
+          name = parts[1];
+          category = parts[2];
+          price = parseFloat(parts[3]) || 0;
+          stock = 10;
+          cost = Math.round(price * 0.7);
+        } else if (parts.length === 5) {
+          sku = parts[0];
+          name = parts[1];
+          category = parts[2];
+          stock = parseFloat(parts[3]) || 10;
+          price = parseFloat(parts[4]) || 0;
+          cost = Math.round(price * 0.7);
+        }
+        
+        const matchedCat = productCats.find(c => c.toLowerCase() === category.toLowerCase());
+        const finalCategory = matchedCat || detectCategory([name]);
+        
+        if (name && name.length > 1) {
+          parsed.push({
+            sku: sku || 'SKU-' + Math.floor(1000 + Math.random() * 9000),
+            name: name,
+            category: finalCategory,
+            stock: isNaN(stock) ? 10 : stock,
+            cost: isNaN(cost) ? 0 : cost,
+            price: isNaN(price) ? 0 : price,
+            selected: true
+          });
+        }
+      }
+    });
+    
+    if (parsed.length > 0) {
+      setCandidateProducts(prev => [...prev, ...parsed]);
+      setAllSelected(true);
+      setPastedText('');
+      alert(`Se procesaron ${parsed.length} productos con éxito y se agregaron a la vista previa.`);
+    } else {
+      parseTextLines(pastedText);
+    }
+  };
+
+  const handleToggleCandidate = (index: number) => {
+    setCandidateProducts(prev => {
+      const next = [...prev];
+      next[index].selected = !next[index].selected;
+      return next;
+    });
+  };
+
+  const handleUpdateCandidateField = (index: number, field: keyof ImportProduct, val: any) => {
+    setCandidateProducts(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: val };
+      return next;
+    });
+  };
+
+  const handleRemoveCandidate = (index: number) => {
+    setCandidateProducts(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleToggleAllCandidates = () => {
+    const nextVal = !allSelected;
+    setAllSelected(nextVal);
+    setCandidateProducts(prev => prev.map(p => ({ ...p, selected: nextVal })));
+  };
+
+  const handleExecuteImport = async () => {
+    const active = candidateProducts.filter(p => p.selected);
+    if (active.length === 0) {
+      alert("Por favor, seleccione al menos un producto para importar.");
+      return;
+    }
+
+    setImportStatus('importing');
+    setImportProgress({ current: 0, total: active.length });
+
+    try {
+      for (let i = 0; i < active.length; i++) {
+        const item = active[i];
+        
+        const toAdd = {
+          sku: item.sku.trim(),
+          name: item.name.trim(),
+          category: item.category,
+          stock: Number(item.stock) || 0,
+          cost: Number(item.cost) || 0,
+          price: Number(item.price) || 0,
+          imageUrl: PRESET_IMAGES[0].url
+        };
+
+        await onAddProduct(toAdd);
+        setImportProgress({ current: i + 1, total: active.length });
+      }
+      
+      setImportStatus('completed');
+    } catch (err) {
+      console.error("Error doing bulk import:", err);
+      alert("Hubo un error durante la carga de productos.");
+      setImportStatus('idle');
+      setImportProgress(null);
+    }
+  };
+
+  const handleResetImport = () => {
+    setCandidateProducts([]);
+    setExcelSheets([]);
+    setSelectedSheet('');
+    setExcelRawRows([]);
+    setExcelHeaders([]);
+    setImportStatus('idle');
+    setImportProgress(null);
+    setAllSelected(true);
+  };
 
   const lookupBarcode = useCallback(async (barcode: string) => {
     setFormData(prev => ({ ...prev, sku: barcode }));
@@ -383,6 +868,27 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           <span className="text-2xl font-black text-rose-700">{outOfStockItems.length}</span>
         </div>
       </section>
+
+      {/* ── CARGA MASIVA BANNER ── */}
+      <button
+        type="button"
+        onClick={() => {
+          handleResetImport();
+          setShowImportModal(true);
+        }}
+        className="w-full flex items-center justify-between p-3.5 bg-emerald-50/55 hover:bg-emerald-50 border-2 border-dashed border-emerald-350 rounded-2xl transition-all hover:scale-[1.01] active:scale-99 cursor-pointer group text-left shadow-2xs"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-110 transition-transform">
+            <UploadCloud className="w-5.5 h-5.5 stroke-[2.5]" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800">Carga Masiva de Productos</h4>
+            <p className="text-[10px] text-emerald-600 font-bold mt-0.5 leading-tight">Importa inventario desde archivos de Excel, PDF o texto plano.</p>
+          </div>
+        </div>
+        <ChevronRight className="w-5 h-5 text-emerald-500 group-hover:translate-x-1 transition-transform" />
+      </button>
 
       {/* ── BÚSQUEDA CON BOTÓN DE ESCÁNER DE BARRAS DIRECTO (REGLA 6) ── */}
       <div className="flex gap-2">
@@ -656,6 +1162,399 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             </button>
           </div>
 
+        </div>,
+        document.body
+      )}
+
+      {/* ── PORTAL PARA CARGA MASIVA DE PRODUCTOS ── */}
+      {showImportModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" style={{ zIndex: 99999 }}>
+          <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-slate-100 font-sans animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4.5 border-b border-slate-100 shrink-0 bg-slate-50/50">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <UploadCloud className="w-5.5 h-5.5 text-emerald-600 stroke-[2.5]" />
+                  Carga Masiva de Inventario
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Sube tu listado en Excel, PDF o Texto plano para agregar productos rápidamente.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+              >
+                <X className="w-5.5 h-5.5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {importStatus === 'idle' ? (
+                <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                  
+                  {/* Left Column: Input Source Config */}
+                  <div className="w-full md:w-80 border-r border-slate-100 p-5 flex flex-col gap-4 bg-slate-50/30 overflow-y-auto shrink-0">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">1. Origen del Archivo</h4>
+                    
+                    {/* Source Tab Selector */}
+                    <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setImportTab('excel')}
+                        className={`py-2 text-[11px] font-extrabold rounded-lg transition-all flex flex-col items-center gap-1 cursor-pointer ${importTab === 'excel' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImportTab('pdf')}
+                        className={`py-2 text-[11px] font-extrabold rounded-lg transition-all flex flex-col items-center gap-1 cursor-pointer ${importTab === 'pdf' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        <FileText className="w-4 h-4" />
+                        PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImportTab('text')}
+                        className={`py-2 text-[11px] font-extrabold rounded-lg transition-all flex flex-col items-center gap-1 cursor-pointer ${importTab === 'text' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        <Clipboard className="w-4 h-4" />
+                        Texto
+                      </button>
+                    </div>
+
+                    {/* Source tab inputs */}
+                    {importTab === 'excel' && (
+                      <div className="flex flex-col gap-4">
+                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-white hover:bg-emerald-50/10 p-6 rounded-2xl cursor-pointer transition-all text-center">
+                          <FileSpreadsheet className="w-8 h-8 text-emerald-600 mb-2" />
+                          <span className="text-xs font-bold text-slate-700">Seleccionar Excel/CSV</span>
+                          <span className="text-[10px] text-slate-400 mt-0.5">Soporta .xlsx, .xls, .csv</span>
+                          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelFileChange} className="hidden" />
+                        </label>
+
+                        {/* Sheet Selection if multiple */}
+                        {excelSheets.length > 1 && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs font-bold text-slate-500">Hoja de cálculo:</span>
+                            <select
+                              value={selectedSheet}
+                              onChange={(e) => {
+                                setSelectedSheet(e.target.value);
+                                const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                                if (fileInput && fileInput.files?.[0]) {
+                                  const reader = new FileReader();
+                                  reader.onload = (evt) => {
+                                    const data = evt.target?.result;
+                                    if (data) {
+                                      const workbook = XLSX.read(data, { type: 'array' });
+                                      processWorkbookSheet(workbook, e.target.value);
+                                    }
+                                  };
+                                  reader.readAsArrayBuffer(fileInput.files[0]);
+                                }
+                              }}
+                              className="w-full text-xs font-bold bg-white border border-slate-200 p-2.5 rounded-xl outline-none text-slate-700"
+                            >
+                              {excelSheets.map(sheet => <option key={sheet} value={sheet}>{sheet}</option>)}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Mappings selection */}
+                        {excelHeaders.length > 0 && (
+                          <div className="flex flex-col gap-2.5 bg-slate-100/50 p-3 rounded-2xl border border-slate-100">
+                            <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500">Mapeo de Columnas</h5>
+                            
+                            {(['sku', 'name', 'category', 'stock', 'cost', 'price'] as const).map((field) => (
+                              <div key={field} className="flex flex-col gap-0.5">
+                                <label className="text-[10px] font-bold text-slate-600 capitalize">
+                                  {field === 'sku' ? 'Código / SKU *' : field === 'name' ? 'Nombre Producto *' : field === 'category' ? 'Categoría' : field === 'stock' ? 'Stock Inicial' : field === 'cost' ? 'Costo Compra' : 'Precio Venta *'}
+                                </label>
+                                <select
+                                  value={mappings[field]}
+                                  onChange={(e) => handleMappingChange(field, e.target.value)}
+                                  className="w-full text-xs font-bold bg-white border border-slate-200 px-2 py-1.5 rounded-lg outline-none text-slate-700"
+                                >
+                                  <option value="">-- Omitir / Auto --</option>
+                                  {excelHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {importTab === 'pdf' && (
+                      <div className="flex flex-col gap-4">
+                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-white hover:bg-emerald-50/10 p-6 rounded-2xl cursor-pointer transition-all text-center">
+                          <FileText className="w-8 h-8 text-rose-500 mb-2" />
+                          <span className="text-xs font-bold text-slate-700">Seleccionar Factura PDF</span>
+                          <span className="text-[10px] text-slate-400 mt-0.5">Soporta PDF con formato texto</span>
+                          <input type="file" accept=".pdf" onChange={handlePdfFileChange} className="hidden" />
+                        </label>
+                        <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-[11px] text-amber-800 font-medium leading-relaxed">
+                          <strong>💡 Tip:</strong> El lector intentará identificar automáticamente el código de barras, descripción, precio unitario y cantidad del documento.
+                        </div>
+                      </div>
+                    )}
+
+                    {importTab === 'text' && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-bold text-slate-500">Pegar Texto / CSV / TSV:</span>
+                          <textarea
+                            rows={8}
+                            value={pastedText}
+                            onChange={(e) => setPastedText(e.target.value)}
+                            placeholder="SKU-123, Detergente Liquido, Abarrotes, 15, 3200, 4500&#10;SKU-124, Bebida Cola 3L, Bebidas, 24, 1800, 2500"
+                            className="w-full text-xs font-mono border border-slate-200 p-2.5 rounded-xl outline-none resize-none bg-white"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleProcessPastedText}
+                          className="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-900 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                          Procesar Texto
+                        </button>
+                        <div className="p-3 bg-slate-100 rounded-2xl text-[10px] text-slate-500 font-medium leading-normal">
+                          <strong>Formato admitido:</strong><br />
+                          Una línea por producto.<br />
+                          Separado por coma o tabulador:<br />
+                          <code className="bg-white px-1 py-0.5 rounded text-rose-600 font-mono text-[9px]">SKU, Nombre, Categoría, Stock, Costo, Precio</code>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Preview Table with candidates */}
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-500">2. Vista Previa de Productos</span>
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full">
+                          {candidateProducts.length} encontrados
+                        </span>
+                      </div>
+                      
+                      {candidateProducts.length > 0 && (
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-600">
+                            <input
+                              type="checkbox"
+                              checked={allSelected}
+                              onChange={handleToggleAllCandidates}
+                              className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                            />
+                            Seleccionar Todos
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleResetImport}
+                            className="text-xs font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Limpiar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Table or Empty State */}
+                    <div className="flex-1 overflow-auto p-4">
+                      {isProcessingFile ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                          <RefreshCw className="w-8 h-8 animate-spin text-emerald-600 mb-3" />
+                          <p className="text-xs font-bold">Procesando archivo, por favor espere...</p>
+                        </div>
+                      ) : candidateProducts.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 max-w-sm mx-auto text-center py-12">
+                          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-4 shadow-2xs">
+                            <Clipboard className="w-8 h-8 stroke-[1.5]" />
+                          </div>
+                          <h5 className="text-sm font-extrabold text-slate-700">Sin datos que mostrar</h5>
+                          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                            Carga un archivo Excel, PDF o escribe/pega texto estructurado en el panel izquierdo para generar el listado preliminar.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="border border-slate-150 rounded-2xl overflow-hidden bg-white">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-100/75 text-slate-600 font-extrabold border-b border-slate-150">
+                                <th className="p-3 w-10 text-center">Sel.</th>
+                                <th className="p-3 w-28">Código / SKU</th>
+                                <th className="p-3">Nombre del Producto</th>
+                                <th className="p-3 w-32">Categoría</th>
+                                <th className="p-3 w-16 text-right">Stock</th>
+                                <th className="p-3 w-20 text-right">Costo</th>
+                                <th className="p-3 w-20 text-right">Precio</th>
+                                <th className="p-3 w-10 text-center">Acción</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {candidateProducts.map((p, idx) => (
+                                <tr key={idx} className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors ${!p.selected ? 'opacity-55' : ''}`}>
+                                  <td className="p-2.5 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={p.selected}
+                                      onChange={() => handleToggleCandidate(idx)}
+                                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4.5 h-4.5 cursor-pointer"
+                                    />
+                                  </td>
+                                  <td className="p-2.5">
+                                    <input
+                                      type="text"
+                                      value={p.sku}
+                                      onChange={(e) => handleUpdateCandidateField(idx, 'sku', e.target.value)}
+                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-2 py-1.5 rounded-lg outline-none font-mono text-[11px] text-indigo-700 font-black"
+                                    />
+                                  </td>
+                                  <td className="p-2.5">
+                                    <input
+                                      type="text"
+                                      value={p.name}
+                                      onChange={(e) => handleUpdateCandidateField(idx, 'name', e.target.value)}
+                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-2 py-1.5 rounded-lg outline-none font-extrabold text-slate-800"
+                                    />
+                                  </td>
+                                  <td className="p-2.5">
+                                    <select
+                                      value={p.category}
+                                      onChange={(e) => handleUpdateCandidateField(idx, 'category', e.target.value)}
+                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1 py-1.5 rounded-lg outline-none font-bold text-slate-700"
+                                    >
+                                      {productCats.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                  <td className="p-2.5">
+                                    <input
+                                      type="number"
+                                      value={p.stock}
+                                      onChange={(e) => handleUpdateCandidateField(idx, 'stock', parseFloat(e.target.value) || 0)}
+                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-black"
+                                    />
+                                  </td>
+                                  <td className="p-2.5">
+                                    <input
+                                      type="number"
+                                      value={p.cost}
+                                      onChange={(e) => handleUpdateCandidateField(idx, 'cost', parseFloat(e.target.value) || 0)}
+                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-bold text-emerald-800"
+                                    />
+                                  </td>
+                                  <td className="p-2.5">
+                                    <input
+                                      type="number"
+                                      value={p.price}
+                                      onChange={(e) => handleUpdateCandidateField(idx, 'price', parseFloat(e.target.value) || 0)}
+                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-black text-indigo-900"
+                                    />
+                                  </td>
+                                  <td className="p-2.5 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveCandidate(idx)}
+                                      className="w-7 h-7 rounded-full hover:bg-rose-50 text-rose-500 flex items-center justify-center transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              ) : importStatus === 'importing' ? (
+                /* Importing Progress Screen */
+                <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-md mx-auto text-center">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-5 text-emerald-600 animate-bounce">
+                    <UploadCloud className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-base font-black text-slate-800">Cargando Inventario Masivamente</h4>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Por favor no cierres esta pestaña. Estamos registrando y sincronizando tus productos en el servidor.</p>
+                  
+                  {importProgress && (
+                    <div className="w-full mt-6">
+                      <div className="flex justify-between text-xs font-black text-slate-600 mb-2">
+                        <span>Progreso total:</span>
+                        <span>{importProgress.current} de {importProgress.total} ({Math.round((importProgress.current / importProgress.total) * 100)}%)</span>
+                      </div>
+                      <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                          style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Completed Screen */
+                <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-sm mx-auto text-center">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-5 shadow-sm animate-pulse">
+                    <CheckCircle2 className="w-9 h-9 stroke-[2.5]" />
+                  </div>
+                  <h4 className="text-base font-black text-slate-800">¡Importación Exitosa!</h4>
+                  <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                    Se han registrado y guardado con éxito todos los productos seleccionados en la tienda virtual de forma masiva.
+                  </p>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowImportModal(false);
+                      handleResetImport();
+                    }}
+                    className="mt-6 w-full bg-emerald-600 text-white font-black py-3.5 rounded-2xl text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-md cursor-pointer border border-emerald-500"
+                  >
+                    Entendido, Volver al Inventario
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {importStatus === 'idle' && (
+              <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-between items-center shrink-0">
+                <span className="text-xs font-bold text-slate-600">
+                  {candidateProducts.filter(p => p.selected).length} productos listos para importar.
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowImportModal(false)}
+                    className="bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 font-extrabold px-4.5 py-2.5 rounded-xl text-xs active:scale-95 transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={candidateProducts.filter(p => p.selected).length === 0}
+                    onClick={handleExecuteImport}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-6 py-2.5 rounded-xl text-xs active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shadow-md cursor-pointer flex items-center gap-1.5 border border-emerald-500"
+                  >
+                    Confirmar Importación Masiva
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>,
         document.body
       )}
