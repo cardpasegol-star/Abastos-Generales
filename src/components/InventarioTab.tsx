@@ -123,6 +123,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [productFetchMsg, setProductFetchMsg] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [formData.imageUrl]);
 
   // ── ESTADOS Y CLASES PARA CARGA MASIVA ──
   interface ImportProduct {
@@ -1055,7 +1060,20 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                       <RefreshCw className="w-4 h-4 text-white animate-spin" />
                     </div>
                   )}
-                  <img src={formData.imageUrl} className="w-full h-full object-contain p-1 bg-white" alt="preview" />
+                  {imageError || !formData.imageUrl ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-400 p-2 text-center select-none">
+                      <PackageOpen className="w-8 h-8 text-slate-350" />
+                      <span className="text-[9px] font-bold text-slate-400 mt-1 leading-none">Sin Imagen</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={formData.imageUrl}
+                      className="w-full h-full object-contain p-1 bg-white"
+                      alt="preview"
+                      referrerPolicy="no-referrer"
+                      onError={() => setImageError(true)}
+                    />
+                  )}
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
                   <label className="flex items-center justify-center gap-2 bg-emerald-50 border-2 border-emerald-200 text-emerald-800 font-black text-xs py-2.5 px-3 rounded-xl cursor-pointer hover:bg-emerald-100/60 transition-colors">
@@ -1074,19 +1092,45 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 {PRESET_IMAGES.map((img, i) => (
                   <button key={i} type="button" onClick={() => setFormData({ ...formData, imageUrl: img.url })}
                     className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${formData.imageUrl === img.url ? 'ring-2 ring-emerald-500 scale-105 border-emerald-600' : 'border-slate-200 opacity-60'}`}>
-                    <img src={img.url} className="w-full h-full object-cover" alt="" />
+                    <img src={img.url} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
                   </button>
                 ))}
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">O pegar URL de Imagen Externa</label>
-                <input
-                  type="text"
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white outline-none font-bold text-slate-900"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                />
+                {(() => {
+                  const isPresetUrl = PRESET_IMAGES.some(img => img.url === formData.imageUrl);
+                  const isBase64Url = formData.imageUrl?.startsWith('data:');
+                  const displayUrl = (isPresetUrl || isBase64Url) ? '' : formData.imageUrl;
+                  return (
+                    <>
+                      <input
+                        type="text"
+                        placeholder="https://ejemplo.com/imagen.jpg"
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white outline-none font-bold text-slate-900"
+                        value={displayUrl}
+                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                      />
+                      {displayUrl && (imageError || !/\.(jpg|jpeg|png|webp|gif|svg|bmp)/i.test(displayUrl)) && (
+                        <div className="p-3 bg-amber-50/85 border border-amber-200/80 rounded-2xl text-[11px] text-amber-800 font-medium leading-relaxed mt-2 animate-in fade-in duration-250">
+                          <div className="flex gap-1.5 items-start">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="font-extrabold text-amber-900 block mb-0.5">La imagen no se cargó correctamente</strong>
+                              La URL ingresada parece ser una página web o un enlace protegido. Para cargar la imagen con éxito:
+                              <ul className="list-disc list-inside mt-1 space-y-0.5 text-amber-950 font-semibold">
+                                <li>Busca el producto en Google o en tu proveedor.</li>
+                                <li>Haz <strong>clic derecho</strong> (o mantén pulsado en celular) sobre la imagen del producto.</li>
+                                <li>Selecciona <strong>"Copiar dirección de imagen"</strong>.</li>
+                                <li>Pega ese enlace aquí (debe terminar en <code className="bg-amber-100 px-1 py-0.2 rounded text-rose-700 font-mono text-[9px] font-bold">.jpg</code>, <code className="bg-amber-100 px-1 py-0.2 rounded text-rose-700 font-mono text-[9px] font-bold">.png</code> o <code className="bg-amber-100 px-1 py-0.2 rounded text-rose-700 font-mono text-[9px] font-bold">.webp</code>).</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
