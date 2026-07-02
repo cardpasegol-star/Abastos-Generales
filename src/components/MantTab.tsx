@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock } from 'lucide-react';
+import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
+
+const FOOD_PRESET_IMAGES = [
+  { label: 'Salada', url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200' },
+  { label: 'Pan', url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=200' },
+  { label: 'Sopa', url: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&q=80&w=200' },
+  { label: 'Carne', url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=200' },
+  { label: 'Desayuno', url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&q=80&w=200' },
+  { label: 'Postre', url: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&q=80&w=200' },
+  { label: 'Bebida', url: 'https://images.unsplash.com/photo-1497534446932-c925b458314e?auto=format&fit=crop&q=80&w=200' }
+];
 
 const PRESET_EMOJIS = [
   '🛍️', '🛒', '🥤', '🧴', '🥛', '🍿', '🥩', '🍎', '🥦', '🍞', '🍬', 
@@ -85,8 +95,56 @@ export default function MantTab({
   const [showDishModal, setShowDishModal] = useState(false);
   const [dishName, setDishName] = useState('');
   const [dishDesc, setDishDesc] = useState('');
-  const [dishPrice, setDishPrice] = useState(10.00);
+  const [dishPrice, setDishPrice] = useState<string>('');
   const [dishCategory, setDishCategory] = useState<string>('Almuerzos');
+  const [dishImageUrl, setDishImageUrl] = useState('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
+  const [uploadingDishImage, setUploadingDishImage] = useState(false);
+  const [dishImageError, setDishImageError] = useState(false);
+
+  useEffect(() => {
+    setDishImageError(false);
+  }, [dishImageUrl]);
+
+  const handleDishImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingDishImage(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400; // Optimal width for food thumbnails
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH) {
+          const scale = MAX_WIDTH / width;
+          width = MAX_WIDTH;
+          height = height * scale;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.7);
+          setDishImageUrl(compressed);
+        } else {
+          setDishImageUrl(event.target?.result as string);
+        }
+        setUploadingDishImage(false);
+      };
+      img.onerror = () => {
+        setUploadingDishImage(false);
+      };
+    };
+    reader.onerror = () => {
+      setUploadingDishImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
   
   const [loading, setLoading] = useState(false);
   const [notifySaved, setNotifySaved] = useState(false);
@@ -298,14 +356,15 @@ export default function MantTab({
       await onAddFoodItem({
         name: dishName.trim(),
         description: dishDesc.trim(),
-        price: dishPrice,
+        price: parseFloat(dishPrice) || 0,
         category: dishCategory,
         isPopular: false,
-        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
+        imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
       });
       setDishName('');
       setDishDesc('');
-      setDishPrice(10.00);
+      setDishPrice('');
+      setDishImageUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
       setShowDishModal(false);
     } catch (err) {
       console.error(err);
@@ -751,9 +810,14 @@ export default function MantTab({
 
         <button
           onClick={() => {
+            setDishName('');
+            setDishDesc('');
+            setDishPrice('');
             if (foodItemCategoriesList.length > 0) {
               setDishCategory(foodItemCategoriesList[0]);
             }
+            setDishImageUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
+            setDishImageError(false);
             setShowDishModal(true);
           }}
           className="w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-2 border-dashed border-indigo-200 p-4 rounded-xl text-xs font-bold transition-all outline-hidden cursor-pointer"
@@ -853,6 +917,88 @@ export default function MantTab({
                 />
               </div>
 
+              {/* Imagen del Plato */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Imagen del Plato</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-slate-300 shrink-0 bg-slate-50 relative flex items-center justify-center">
+                    {uploadingDishImage && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                        <RefreshCw className="w-4 h-4 text-white animate-spin" />
+                      </div>
+                    )}
+                    {dishImageError || !dishImageUrl ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-400 p-2 text-center select-none">
+                        <PackageOpen className="w-6 h-6 text-slate-350" />
+                        <span className="text-[8px] font-bold text-slate-400 mt-1 leading-none">Sin Imagen</span>
+                      </div>
+                    ) : (
+                      <img
+                        src={dishImageUrl}
+                        className="w-full h-full object-contain p-1 bg-white"
+                        alt="preview"
+                        referrerPolicy="no-referrer"
+                        onError={() => setDishImageError(true)}
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="flex items-center justify-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-extrabold text-[10px] py-1.5 px-2 rounded-xl cursor-pointer hover:bg-emerald-100/60 transition-colors select-none">
+                      <Image className="w-3.5 h-3.5 text-emerald-700 stroke-[2.5]" />
+                      <span>Subir desde Galería</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleDishImageUpload} />
+                    </label>
+                    <label className="flex items-center justify-center gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 font-extrabold text-[10px] py-1.5 px-2 rounded-xl cursor-pointer hover:bg-slate-200 transition-colors select-none">
+                      <Camera className="w-3.5 h-3.5 text-slate-650 stroke-[2.5]" />
+                      <span>Tomar Foto</span>
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleDishImageUpload} />
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Preset food images selection row */}
+                <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none">
+                  {FOOD_PRESET_IMAGES.map((img, i) => (
+                    <button key={i} type="button" onClick={() => setDishImageUrl(img.url)}
+                      className={`w-10 h-10 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${dishImageUrl === img.url ? 'ring-2 ring-emerald-500 scale-105 border-emerald-600' : 'border-slate-200 opacity-60'}`}>
+                      <img src={img.url} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                    </button>
+                  ))}
+                </div>
+
+                {/* External Image URL with same auto-clean mechanism for presets/base64 */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">O pegar URL de Imagen Externa</label>
+                  {(() => {
+                    const isPresetUrl = FOOD_PRESET_IMAGES.some(img => img.url === dishImageUrl);
+                    const isBase64Url = dishImageUrl?.startsWith('data:');
+                    const displayUrl = (isPresetUrl || isBase64Url) ? '' : dishImageUrl;
+                    return (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="https://ejemplo.com/plato.jpg"
+                          className="w-full bg-slate-50 border border-slate-350 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white outline-none font-bold text-slate-900"
+                          value={displayUrl}
+                          onChange={(e) => setDishImageUrl(e.target.value)}
+                        />
+                        {displayUrl && (dishImageError || !/\.(jpg|jpeg|png|webp|gif|svg|bmp)/i.test(displayUrl)) && (
+                          <div className="p-2.5 bg-amber-50/85 border border-amber-200/80 rounded-xl text-[10px] text-amber-800 font-medium leading-relaxed mt-1.5 animate-in fade-in duration-250">
+                            <div className="flex gap-1.5 items-start">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                              <div>
+                                <strong className="font-extrabold text-amber-900 block mb-0.5">La imagen no se cargó correctamente</strong>
+                                Asegúrate de que la URL termine en <code className="bg-amber-100 px-1 py-0.2 rounded text-rose-700 font-mono text-[8px] font-bold">.jpg</code>, <code className="bg-amber-100 px-1 py-0.2 rounded text-rose-700 font-mono text-[8px] font-bold">.png</code> o <code className="bg-amber-100 px-1 py-0.2 rounded text-rose-700 font-mono text-[8px] font-bold">.webp</code>.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Precio ($) *</label>
@@ -860,9 +1006,9 @@ export default function MantTab({
                     type="number"
                     step="0.01"
                     required
-                    className="w-full bg-gray-50 border border-gray-10s rounded-xl px-4 py-3 text-sm text-center outline-none font-bold"
+                    className="w-full bg-gray-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-center outline-none font-bold"
                     value={dishPrice}
-                    onChange={(e) => setDishPrice(parseFloat(e.target.value) || 0.0)}
+                    onChange={(e) => setDishPrice(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1">
