@@ -66,6 +66,59 @@ app.post("/api/gemini/suggest-price", async (req, res) => {
   }
 });
 
+// Dedicated endpoint for AI-assisted scanning when product is new or public APIs fail/timeout
+app.post("/api/gemini/ai-assisted-scan", async (req, res) => {
+  try {
+    const { barcode } = req.body;
+    if (!barcode) {
+      return res.status(400).json({ error: "Se requiere el código de barras." });
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: `Analiza este código de barras o producto de almacén: "${barcode}". Si el código de barras es conocido (ej: prefijo EAN 780 de Chile, o un código EAN común), identifica el producto real de almacén de Chile. Si el código no es conocido o es genérico, inventa o sugiere de forma inteligente un producto de almacén chileno común y realista que podría tener este código de barras (por ejemplo, un refresco, cereal, fideos, golosina chilena, etc.). Genera una sugerencia de precio CLP para el mercado minorista (almacenes/minimarkets) en Chile.`,
+      config: {
+        systemInstruction: "Actúa como un experto en retail de almacenes en Chile. Estima un nombre de producto realista en español chileno (ej: 'Néctar Soprole Durazno 1L'), clasifícalo en una de estas categorías: 'Bebidas', 'Abarrotes', 'Lácteos', 'Snacks', y sugiere un precio realista de venta al público en Pesos Chilenos (CLP). El precio sugerido debe ser un número entero (ej: 1400). Explica la razón de forma concisa en exactamente una línea.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            nombre_estimado: {
+              type: Type.STRING,
+              description: "Nombre estimado o sugerido de forma realista en español chileno."
+            },
+            categoria_estimada: {
+              type: Type.STRING,
+              enum: ["Bebidas", "Abarrotes", "Lácteos", "Snacks"],
+              description: "La categoría del producto."
+            },
+            precio_sugerido: {
+              type: Type.INTEGER,
+              description: "Precio sugerido de venta minorista en CLP (ej: 1500)."
+            },
+            razon_sugerencia: {
+              type: Type.STRING,
+              description: "Breve explicación de exactamente 1 línea."
+            }
+          },
+          required: ["nombre_estimado", "categoria_estimada", "precio_sugerido", "razon_sugerencia"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error("No se recibió respuesta de Gemini");
+    }
+
+    const data = JSON.parse(text.trim());
+    res.json(data);
+  } catch (error: any) {
+    console.error("Error in ai-assisted-scan:", error);
+    res.status(500).json({ error: error.message || "Error al procesar el escaneo asistido con IA." });
+  }
+});
+
 // Vite middleware setup for development, static serve for production
 async function setupVite() {
   if (process.env.NODE_ENV !== "production") {

@@ -645,75 +645,131 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const lookupBarcode = useCallback(async (barcode: string) => {
     setFormData(prev => ({ ...prev, sku: barcode }));
     setFetchingProduct(true);
-    setProductFetchMsg('');
-    
+    setProductFetchMsg('🔍 Buscando en inventario local...');
+    setGeminiSuggestion(null);
+    setSuggestionError(null);
+
+    // Paso 1: Buscar primero en nuestra colección de Firestore local (productos ya cargados en memoria)
+    const localMatch = products.find(p => isBarcodeMatch(p.sku, barcode));
+    if (localMatch) {
+      setFormData({
+        sku: localMatch.sku,
+        name: localMatch.name,
+        category: localMatch.category,
+        stock: localMatch.stock,
+        price: localMatch.price,
+        cost: localMatch.cost,
+        imageUrl: localMatch.imageUrl || PRESET_IMAGES[0].url
+      });
+      setProductFetchMsg(`✅ Encontrado en inventario local: ${localMatch.name}`);
+      setFetchingProduct(false);
+      return;
+    }
+
     let found = false;
     let pName = '';
     let pImg = '';
     let pCat: Product['category'] = 'Abarrotes';
 
-    // Paso 1: Consulta a Open Food Facts API
+    // Paso 2: Consulta de inmediato a la API gratuita de Open Food Facts con un timeout estricto de 2 segundos
+    setProductFetchMsg('🔍 Consultando Open Food Facts...');
     try {
-      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 1 && data.product) {
+        if (data && (data.status === 'success' || data.status === 1 || data.product)) {
           const p = data.product;
-          pName = p.product_name_es || p.product_name || p.product_name_en || '';
-          pImg = p.image_front_url || p.image_url || '';
-          pCat = detectCategory(p.categories_tags || []);
-          found = true;
-        }
-      }
-    } catch (err) {
-      console.warn('Open Food Facts lookup failed:', err);
-    }
-
-    // Paso 2 (Fallback): Consulta en cascada a UPCitemdb con AllOrigins CORS proxy
-    if (!found) {
-      try {
-        const upcUrl = `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(upcUrl)}`;
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.contents) {
-            const upcData = JSON.parse(data.contents);
-            if (upcData && upcData.items && upcData.items.length > 0) {
-              const item = upcData.items[0];
-              pName = item.title || '';
-              pImg = item.images?.[0] || '';
-              if (item.category) {
-                pCat = detectCategory([item.category]);
-              }
-              found = true;
-            }
+          if (p) {
+            pName = p.product_name_es || p.product_name || p.product_name_en || '';
+            pImg = p.image_front_url || p.image_url || '';
+            pCat = detectCategory(p.categories_tags || p.categories_hierarchy || []);
+            found = !!pName;
           }
         }
-      } catch (err) {
-        console.warn('UPCitemdb fallback lookup failed:', err);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.warn('Open Food Facts lookup timed out (2s)');
+      } else {
+        console.warn('Open Food Facts lookup failed:', err);
       }
     }
 
-    // Paso 3 & 4: Auto-llenado o Alerta amistosa
+    // Paso 3: Si Open Food Facts no responde a tiempo (timeout de 2s) o el producto es nuevo, activa el "modo asistido por IA" usando Gemini 3 Flash
+    if (!found) {
+      setProductFetchMsg('✨ Activando modo asistido por IA con Gemini...');
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 segundos de timeout para el fallback de Gemini
+
+        const res = await fetch("/api/gemini/ai-assisted-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ barcode }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.nombre_estimado) {
+            pName = data.nombre_estimado;
+            pCat = data.categoria_estimada || 'Abarrotes';
+            
+            setFormData(prev => ({
+              ...prev,
+              sku: barcode,
+              name: pName,
+              category: pCat,
+              price: data.precio_sugerido || ''
+            }));
+
+            setGeminiSuggestion({
+              precio_sugerido: data.precio_sugerido,
+              razon_sugerencia: data.razon_sugerencia
+            });
+
+            setProductFetchMsg(`✨ IA: Completado como "${pName}"`);
+            found = true;
+          }
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.warn('Gemini assisted scan timed out (2s)');
+        } else {
+          console.warn('Gemini assisted scan failed:', err);
+        }
+      }
+    }
+
+    // Paso 4: Carga y actualización de inputs
     if (found) {
-      setFormData(prev => ({
-        ...prev,
-        sku: barcode,
-        name: pName || prev.name,
-        imageUrl: pImg || prev.imageUrl,
-        category: pCat
-      }));
-      setProductFetchMsg(pName ? `✅ Encontrado: ${pName}` : '⚠️ Código OK, completa el nombre manualmente.');
-      if (pName) {
+      if (!geminiSuggestion && pName) {
+        // Encontrado por Open Food Facts, actualiza el formulario y busca precio sugerido en segundo plano
+        setFormData(prev => ({
+          ...prev,
+          sku: barcode,
+          name: pName,
+          imageUrl: pImg || prev.imageUrl,
+          category: pCat
+        }));
+        setProductFetchMsg(`✅ Encontrado: ${pName}`);
         fetchGeminiPriceSuggestion(pName, barcode);
       }
     } else {
-      setProductFetchMsg('⚠️ No encontrado. Ingrese los datos de forma manual.');
-      alert('Producto nuevo no encontrado en bases de datos públicas. Por favor, ingrese los detalles manualmente.');
+      // Si la IA tampoco pudo determinarlo por timeout total de red, se permite el ingreso manual sin popup bloqueante
+      setProductFetchMsg('⚠️ No encontrado. Por favor, ingresa los detalles de forma manual.');
     }
+
     setFetchingProduct(false);
-  }, []);
+  }, [products, detectCategory, fetchGeminiPriceSuggestion, geminiSuggestion]);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
