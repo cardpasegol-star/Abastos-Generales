@@ -630,33 +630,41 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       });
       
       let data;
+      const rawText = await res.text();
       try {
         if (!res.ok) {
-          const text = await res.text();
           let errData;
           try {
-            errData = JSON.parse(text);
-          } catch {
-            errData = { error: "Respuesta no válida del servidor." };
+            errData = JSON.parse(rawText);
+          } catch (e: any) {
+            console.error("ERROR: No se pudo parsear la respuesta de error del servidor como JSON.", {
+              rawText,
+              parseError: e.message
+            });
+            errData = { error: `Respuesta no válida del servidor (no es JSON): ${rawText.substring(0, 100)}...` };
           }
           throw new Error(errData.error || "Error al obtener la sugerencia");
         }
-        data = await res.json();
-      } catch (parseErr) {
-        console.warn("Parsing JSON suggestion response failed, using default values", parseErr);
+        data = JSON.parse(rawText);
+      } catch (parseErr: any) {
+        console.error("ERROR CRÍTICO: Falló la decodificación de la respuesta JSON del backend para la sugerencia de precio de Gemini.", {
+          rawText,
+          errorMessage: parseErr.message,
+          errorStack: parseErr.stack
+        });
         data = {
           precio_sugerido: 1200,
-          razon_sugerencia: "Precio estimado para abarrotes base en Chile."
+          razon_sugerencia: "Precio de emergencia (falló respuesta JSON)."
         };
       }
       
       setGeminiSuggestion(data);
     } catch (err: any) {
-      console.error(err);
-      // Fallback fallback
+      console.error("Error en fetchGeminiPriceSuggestion:", err);
+      // Fallback final en caso de cualquier error
       setGeminiSuggestion({
         precio_sugerido: 1200,
-        razon_sugerencia: "Precio estimado para abarrotes base en Chile."
+        razon_sugerencia: "Precio de emergencia (error en red o servidor)."
       });
     } finally {
       setLoadingSuggestion(false);
@@ -670,7 +678,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setGeminiSuggestion(null);
     setSuggestionError(null);
 
-    // Paso 1: Buscar primero en nuestra colección de Firestore local (productos ya cargados en memoria)
+    // Nivel 1: Buscar primero en nuestra colección de Firestore local (productos ya cargados en memoria)
     const localMatch = products.find(p => isBarcodeMatch(p.sku, barcode));
     if (localMatch) {
       setFormData({
@@ -692,7 +700,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     let pImg = '';
     let pCat: Product['category'] = 'Abarrotes';
 
-    // Paso 2: Consulta de inmediato a la API gratuita de Open Food Facts con un timeout estricto de 2 segundos
+    // Nivel 2 (Primera API Pública): Consulta a Open Food Facts con un timeout estricto de 2 segundos
     setProductFetchMsg('🔍 Consultando Open Food Facts...');
     try {
       const controller = new AbortController();
@@ -717,13 +725,71 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.warn('Open Food Facts lookup timed out (2s)');
+        console.warn('Nivel 2: Open Food Facts lookup timed out (2s)');
       } else {
-        console.warn('Open Food Facts lookup failed:', err);
+        console.warn('Nivel 2: Open Food Facts lookup failed:', err);
       }
     }
 
-    // Paso 3: Si Open Food Facts no responde a tiempo (timeout de 2s) o el producto es nuevo, activa el "modo asistido por IA" usando Gemini 3 Flash
+    // Nivel 3 (Segunda API Pública): Si falla la anterior, consulta a BigProductData o BarcodeLookup (con 2s timeout)
+    if (!found) {
+      setProductFetchMsg('🔍 Consultando BigProductData / BarcodeLookup...');
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+        const res = await fetch(`https://api.barcodelookup.com/v3/products?barcode=${barcode}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.products && data.products.length > 0) {
+            const prod = data.products[0];
+            pName = prod.title || prod.product_name || '';
+            pImg = prod.images?.[0] || '';
+            if (prod.category) {
+              pCat = detectCategory([prod.category]);
+            }
+            found = !!pName;
+          }
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.warn('Nivel 3: BarcodeLookup timed out (2s)');
+        } else {
+          console.warn('Nivel 3: BarcodeLookup failed:', err);
+        }
+
+        // Intento secundario con BigProductData u otro endpoint
+        try {
+          const controller2 = new AbortController();
+          const timeoutId2 = setTimeout(() => controller2.abort(), 2000);
+          const res2 = await fetch(`https://bigproductdata.com/api/v1/product/${barcode}`, {
+            signal: controller2.signal
+          });
+          clearTimeout(timeoutId2);
+          if (res2.ok) {
+            const data2 = await res2.json();
+            if (data2 && data2.title) {
+              pName = data2.title;
+              pCat = detectCategory([data2.category || '']);
+              pImg = data2.image || '';
+              found = true;
+            }
+          }
+        } catch (err2: any) {
+          if (err2.name === 'AbortError') {
+            console.warn('Nivel 3: BigProductData timed out (2s)');
+          } else {
+            console.warn('Nivel 3: BigProductData failed:', err2);
+          }
+        }
+      }
+    }
+
+    // Nivel 4 (Gemini Flash Real): Si ninguna API tradicional encuentra el producto, dispara la llamada a Gemini 3.5 Flash de forma correcta
     if (!found) {
       setProductFetchMsg('✨ Activando modo asistido por IA con Gemini...');
       try {
@@ -739,19 +805,24 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         clearTimeout(timeoutId);
 
         let data;
+        const rawText = await res.text();
         try {
           if (res.ok) {
-            data = await res.json();
+            data = JSON.parse(rawText);
           } else {
-            throw new Error("HTTP Status error");
+            throw new Error(`HTTP Status error: ${res.status}`);
           }
-        } catch (jsonErr) {
-          console.warn("Invalid JSON in assisted scan fallback", jsonErr);
+        } catch (jsonErr: any) {
+          console.error("ERROR CRÍTICO: Falló el parseo de la respuesta JSON de escaneo asistido en backend.", {
+            rawText,
+            errorMessage: jsonErr.message,
+            errorStack: jsonErr.stack
+          });
           data = {
             nombre_estimado: `Producto nuevo (${barcode})`,
             categoria_estimada: "Abarrotes" as Product['category'],
             precio_sugerido: 1200,
-            razon_sugerencia: "Precio estimado para abarrotes base en Chile."
+            razon_sugerencia: "Precio de emergencia (falló respuesta JSON de escaneo asistido)."
           };
         }
 
@@ -777,9 +848,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         }
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          console.warn('Gemini assisted scan timed out (2s)');
+          console.warn('Nivel 4: Gemini assisted scan timed out (2s)');
         } else {
-          console.warn('Gemini assisted scan failed:', err);
+          console.warn('Nivel 4: Gemini assisted scan failed:', err);
         }
         
         // Final fallback en caso de error de red o timeout total
@@ -801,7 +872,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       }
     }
 
-    // Paso 4: Carga y actualización de inputs
+    // Paso final: Carga y actualización de inputs si fue encontrado por APIs de Nivel 2 o 3
     if (found) {
       if (!geminiSuggestion && pName) {
         // Encontrado por Open Food Facts, actualiza el formulario y busca precio sugerido en segundo plano
