@@ -125,6 +125,10 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  const [geminiSuggestion, setGeminiSuggestion] = useState<{ precio_sugerido: number; razon_sugerencia: string } | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+
   useEffect(() => {
     setImageError(false);
   }, [formData.imageUrl]);
@@ -613,6 +617,31 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setAllSelected(true);
   };
 
+  const fetchGeminiPriceSuggestion = async (name: string, barcode: string) => {
+    if (!name.trim() && !barcode.trim()) return;
+    setLoadingSuggestion(true);
+    setSuggestionError(null);
+    setGeminiSuggestion(null);
+    try {
+      const res = await fetch("/api/gemini/suggest-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, barcode }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Error al obtener la sugerencia");
+      }
+      const data = await res.json();
+      setGeminiSuggestion(data);
+    } catch (err: any) {
+      console.error(err);
+      setSuggestionError(err.message || "Error al obtener sugerencia.");
+    } finally {
+      setLoadingSuggestion(false);
+    }
+  };
+
   const lookupBarcode = useCallback(async (barcode: string) => {
     setFormData(prev => ({ ...prev, sku: barcode }));
     setFetchingProduct(true);
@@ -676,6 +705,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         category: pCat
       }));
       setProductFetchMsg(pName ? `✅ Encontrado: ${pName}` : '⚠️ Código OK, completa el nombre manualmente.');
+      if (pName) {
+        fetchGeminiPriceSuggestion(pName, barcode);
+      }
     } else {
       setProductFetchMsg('⚠️ No encontrado. Ingrese los datos de forma manual.');
       alert('Producto nuevo no encontrado en bases de datos públicas. Por favor, ingrese los detalles manualmente.');
@@ -697,6 +729,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const handleOpenAdd = useCallback(() => {
     setEditingItem(null);
     setProductFetchMsg('');
+    setGeminiSuggestion(null);
+    setSuggestionError(null);
     setFormData({
       sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
       name: '', category: defaultCategory, stock: 12, price: '', cost: '',
@@ -708,6 +742,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const handleOpenEdit = useCallback((product: Product) => {
     setEditingItem(product);
     setProductFetchMsg('');
+    setGeminiSuggestion(null);
+    setSuggestionError(null);
     setFormData({
       sku: product.sku, name: product.name, category: product.category,
       stock: product.stock, price: product.price, cost: product.cost,
@@ -1190,6 +1226,63 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                      onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} />
                 </div>
               ))}
+            </div>
+
+            {/* Sugerencia de Precio Gemini */}
+            <div className="mt-2 p-3 bg-indigo-50/70 border-2 border-indigo-200/80 rounded-2xl space-y-2 animate-in fade-in duration-250">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black text-indigo-850 uppercase tracking-wider flex items-center gap-1.5">
+                  ✨ Sugerencia de Precio IA (Chile)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => fetchGeminiPriceSuggestion(formData.name, formData.sku)}
+                  disabled={loadingSuggestion || (!formData.name.trim() && !formData.sku.trim())}
+                  className="text-[10px] font-black text-indigo-700 hover:text-indigo-905 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer bg-white px-2.5 py-1 rounded-lg border-2 border-indigo-100 active:scale-95 transition-all"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingSuggestion ? 'animate-spin' : ''}`} />
+                  {geminiSuggestion ? 'Recalcular' : 'Consultar'}
+                </button>
+              </div>
+
+              {loadingSuggestion && (
+                <div className="py-1.5 flex items-center gap-2 text-xs text-indigo-700 font-bold animate-pulse">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Analizando mercado con Gemini...</span>
+                </div>
+              )}
+
+              {suggestionError && (
+                <div className="text-xs text-rose-600 font-bold p-1">
+                  ❌ {suggestionError}
+                </div>
+              )}
+
+              {geminiSuggestion && (
+                <div className="space-y-1.5 animate-in fade-in duration-250">
+                  <div className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-indigo-100">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <span className="text-lg font-black text-slate-950">${geminiSuggestion.precio_sugerido.toLocaleString('es-CL')} CLP</span>
+                      <p className="text-[11px] text-slate-550 font-bold leading-normal mt-0.5">{geminiSuggestion.razon_sugerencia}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, price: geminiSuggestion.precio_sugerido })}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black px-3.5 py-2 rounded-xl transition-colors shrink-0 shadow-sm shadow-indigo-500/10 active:scale-95 cursor-pointer border border-indigo-500"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!loadingSuggestion && !suggestionError && !geminiSuggestion && (
+                <p className="text-[10px] text-indigo-550 font-bold leading-normal">
+                  {formData.name.trim() 
+                    ? 'Haz clic en "Consultar" para analizar precios recomendados para este producto.' 
+                    : 'Ingresa el nombre del producto para habilitar la sugerencia con IA.'}
+                </p>
+              )}
             </div>
           </div>
 
