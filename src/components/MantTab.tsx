@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen } from 'lucide-react';
-import { Product, FoodItem, BusinessConfig } from '../types';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { Product, FoodItem, BusinessConfig, Empleado } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
 
 const FOOD_PRESET_IMAGES = [
@@ -49,6 +51,9 @@ interface MantTabProps {
   onUnlock: (unlocked: boolean) => void;
   isMasterUnlocked: boolean;
   onUnlockMaster: (unlocked: boolean) => void;
+  currentEmployee: Empleado | null;
+  onLoginSuccess: (emp: Empleado | null) => void;
+  tenantId?: string;
 }
 
 export default function MantTab({
@@ -63,10 +68,18 @@ export default function MantTab({
   isUnlocked,
   onUnlock,
   isMasterUnlocked,
-  onUnlockMaster
+  onUnlockMaster,
+  currentEmployee,
+  onLoginSuccess,
+  tenantId
 }: MantTabProps) {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
+  
+  // Role-based login and employee states
+  const [employeesList, setEmployeesList] = useState<Empleado[]>([]);
+  const [loginRole, setLoginRole] = useState<'dueno' | 'empleado'>('empleado');
+  const [loginSelectedEmpId, setLoginSelectedEmpId] = useState<string>('');
   
   // Custom interactive confirm/alert states
   const [confirmDeleteDish, setConfirmDeleteDish] = useState<{ id: string; name: string } | null>(null);
@@ -148,6 +161,27 @@ export default function MantTab({
   
   const [loading, setLoading] = useState(false);
   const [notifySaved, setNotifySaved] = useState(false);
+  const [notifySavedKitchenCats, setNotifySavedKitchenCats] = useState(false);
+
+  const handleSaveKitchenCategories = async () => {
+    setLoading(true);
+    try {
+      await onUpdateConfig({
+        ...config,
+        foodItemCategories: foodItemCategoriesList,
+        categoryIcons: {
+          ...config.categoryIcons,
+          ...categoryIconsList
+        }
+      });
+      setNotifySavedKitchenCats(true);
+      setTimeout(() => setNotifySavedKitchenCats(false), 3000);
+    } catch (err) {
+      console.error("Error al guardar categorías de cocina:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Keep state sync with firebase config loaded prop
   useEffect(() => {
@@ -161,6 +195,46 @@ export default function MantTab({
     setFoodItemCategoriesList(config.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']);
     setCategoryIconsList(config.categoryIcons || {});
   }, [config]);
+
+  // Fetch employees list from config/business_info/empleados subcollection
+  useEffect(() => {
+    async function fetchEmployees() {
+      try {
+        const ref = tenantId
+          ? collection(db, 'tenants', tenantId, 'config', 'business_info', 'empleados')
+          : collection(db, 'config', 'business_info', 'empleados');
+        const snap = await getDocs(ref);
+        const list: Empleado[] = [];
+        snap.forEach(doc => {
+          list.push({ id: doc.id, ...doc.data() } as Empleado);
+        });
+        
+        // Ensure there are at least 3 slots for employees to configure
+        const filledList = [...list];
+        while (filledList.length < 3) {
+          filledList.push({
+            id: `emp_${filledList.length + 1}`,
+            name: '',
+            pin: '',
+            role: 'cajero'
+          });
+        }
+        const final3 = filledList.slice(0, 3);
+        setEmployeesList(final3);
+        
+        // Default select first employee with a name if none selected
+        const firstWithName = final3.find(e => e.name.trim() !== '');
+        if (firstWithName) {
+          setLoginSelectedEmpId(firstWithName.id);
+        } else if (final3.length > 0) {
+          setLoginSelectedEmpId(final3[0].id);
+        }
+      } catch (err) {
+        console.error('Error fetching employees:', err);
+      }
+    }
+    fetchEmployees();
+  }, []);
 
   const handleAddProductCat = () => {
     const val = newProductCat.trim();
@@ -240,6 +314,11 @@ export default function MantTab({
 
     let buffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keys if they are typing in an input element
+      if (document.activeElement?.tagName === 'INPUT') {
+        return;
+      }
+      
       const key = e.key;
       if (key === 'Backspace') {
         buffer = buffer.slice(0, -1);
@@ -249,12 +328,17 @@ export default function MantTab({
           buffer = buffer.slice(-20);
         }
         
-        if (buffer.endsWith('Aramis2012') || buffer.endsWith('2012')) {
+        if (buffer.endsWith('Saraghina2024') || buffer.endsWith('2024') || buffer.endsWith('Aramis2012')) {
           onUnlockMaster(true);
           onUnlock(true);
+          const devEmp: Empleado = { id: 'dev', name: 'Desarrollador', pin: 'Saraghina2024', role: 'admin' };
+          onLoginSuccess(devEmp);
           buffer = '';
         } else if (buffer.endsWith(config.adminPin || '1234')) {
           onUnlock(true);
+          onUnlockMaster(false);
+          const ownerEmp: Empleado = { id: 'dueno', name: 'Dueño', pin: config.adminPin || '1234', role: 'admin' };
+          onLoginSuccess(ownerEmp);
           buffer = '';
         }
       }
@@ -262,34 +346,106 @@ export default function MantTab({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isUnlocked, onUnlock, onUnlockMaster, config.adminPin]);
+  }, [isUnlocked, onUnlock, onUnlockMaster, config.adminPin, onLoginSuccess]);
+
+  const handleVerifyPin = (overridePin?: string) => {
+    const pinToVerify = (overridePin !== undefined ? overridePin : pin).trim();
+    
+    // 1. Master/Desarrollador Bypass
+    if (pinToVerify === 'Saraghina2024' || pinToVerify === '2024' || pinToVerify === 'Aramis2012') {
+      onUnlockMaster(true);
+      onUnlock(true);
+      const devEmp: Empleado = { id: 'dev', name: 'Desarrollador', pin: pinToVerify, role: 'admin' };
+      onLoginSuccess(devEmp);
+      setPin('');
+      return;
+    }
+    
+    // 2. Dueño Login
+    if (loginRole === 'dueno') {
+      const correctPin = config.adminPin || '1234';
+      if (pinToVerify === correctPin) {
+        onUnlock(true);
+        onUnlockMaster(false);
+        const ownerEmp: Empleado = { id: 'dueno', name: 'Dueño', pin: pinToVerify, role: 'admin' };
+        onLoginSuccess(ownerEmp);
+        setPin('');
+      } else {
+        setPinError(true);
+        setTimeout(() => {
+          setPin('');
+          setPinError(false);
+        }, 1500);
+      }
+    } 
+    // 3. Empleado Login
+    else {
+      const selectedEmp = employeesList.find(e => e.id === loginSelectedEmpId);
+      if (selectedEmp && selectedEmp.pin === pinToVerify) {
+        onUnlock(false);
+        onUnlockMaster(false);
+        onLoginSuccess(selectedEmp);
+        setPin('');
+      } else {
+        setPinError(true);
+        setTimeout(() => {
+          setPin('');
+          setPinError(false);
+        }, 1500);
+      }
+    }
+  };
 
   // Handle dial entries
   const handleDial = (num: string) => {
     if (pinError) setPinError(false);
-    if (pin.length < 4) {
-      const nextPin = pin + num;
-      setPin(nextPin);
-      
-      // Auto check on 4 entries
-      if (nextPin.length === 4) {
-        if (nextPin === '2012') {
-          onUnlockMaster(true);
-          onUnlock(true);
+    const nextPin = pin + num;
+    setPin(nextPin);
+    
+    // Auto check if it matches master PIN
+    if (nextPin === '2024' || nextPin === 'Saraghina2024' || nextPin === 'Aramis2012') {
+      onUnlockMaster(true);
+      onUnlock(true);
+      const devEmp: Empleado = { id: 'dev', name: 'Desarrollador', pin: nextPin, role: 'admin' };
+      onLoginSuccess(devEmp);
+      setPin('');
+      return;
+    }
+
+    // Check if nextPin is a prefix of any master pin to prevent early auto-submit
+    const isMasterPrefix = 
+      'Saraghina2024'.startsWith(nextPin) || 
+      'Aramis2012'.startsWith(nextPin);
+
+    if (isMasterPrefix) {
+      return;
+    }
+
+    // Auto submit employee PIN if they complete 4 digits
+    if (loginRole === 'empleado' && nextPin.length === 4) {
+      const selectedEmp = employeesList.find(e => e.id === loginSelectedEmpId);
+      if (selectedEmp && selectedEmp.pin === nextPin) {
+        onUnlock(false);
+        onUnlockMaster(false);
+        onLoginSuccess(selectedEmp);
+        setPin('');
+      } else {
+        setPinError(true);
+        setTimeout(() => {
           setPin('');
-          return;
-        }
-        
-        const correctPin = config.adminPin || '1234';
-        if (nextPin === correctPin) {
-          onUnlock(true);
-        } else {
-          setPinError(true);
-          setTimeout(() => {
-            setPin('');
-            setPinError(false);
-          }, 1000);
-        }
+          setPinError(false);
+        }, 1500);
+      }
+    }
+    // Auto submit owner PIN if they complete their configured 4-digit PIN
+    else if (loginRole === 'dueno' && nextPin.length === (config.adminPin || '1234').length) {
+      const correctPin = config.adminPin || '1234';
+      if (nextPin === correctPin) {
+        onUnlock(true);
+        onUnlockMaster(false);
+        const ownerEmp: Empleado = { id: 'dueno', name: 'Dueño', pin: nextPin, role: 'admin' };
+        onLoginSuccess(ownerEmp);
+        setPin('');
       }
     }
   };
@@ -317,6 +473,28 @@ export default function MantTab({
         foodItemCategories: foodItemCategoriesList,
         categoryIcons: categoryIconsList
       });
+
+      // Save each employee slot to the config/business_info/empleados subcollection
+      for (const emp of employeesList) {
+        if (emp.name.trim() && emp.pin.trim()) {
+          const empDocRef = tenantId
+            ? doc(db, 'tenants', tenantId, 'config', 'business_info', 'empleados', emp.id)
+            : doc(db, 'config', 'business_info', 'empleados', emp.id);
+          await setDoc(empDocRef, {
+            id: emp.id,
+            name: emp.name.trim(),
+            pin: emp.pin.trim(),
+            role: emp.role || 'cajero'
+          });
+        } else {
+          // If empty, clean up document
+          const empDocRef = tenantId
+            ? doc(db, 'tenants', tenantId, 'config', 'business_info', 'empleados', emp.id)
+            : doc(db, 'config', 'business_info', 'empleados', emp.id);
+          await deleteDoc(empDocRef).catch(() => {});
+        }
+      }
+
       setNotifySaved(true);
       setTimeout(() => setNotifySaved(false), 3000);
     } catch (err) {
@@ -330,7 +508,7 @@ export default function MantTab({
     setConfirmResetDb(false);
     setLoading(true);
     try {
-      await resetDatabaseToDefault();
+      await resetDatabaseToDefault(tenantId || 'default');
       setNotifyResetSuccess(true);
       setTimeout(() => setNotifyResetSuccess(false), 4000);
       // Unlocked session restarts
@@ -391,8 +569,41 @@ export default function MantTab({
     setConfirmDeleteDish({ id, name });
   };
 
-  // 1. LOCK SCREEN (Initial Auth Dial State)
+  // 1. Employee Dashboard (Active Non-Admin/Cajero Session)
+  if (currentEmployee && currentEmployee.role === 'cajero') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6 text-center animate-in fade-in duration-300">
+        <div className="w-16 h-16 bg-indigo-50 border border-indigo-100 rounded-3xl flex items-center justify-center mx-auto mb-2 text-indigo-600 select-none">
+          <ShieldCheck className="w-8 h-8 stroke-[1.8]" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-base font-extrabold text-gray-900 tracking-tight">Sesión de Empleado</h2>
+          <p className="text-xs text-slate-500 font-semibold">
+            Usuario activo: <span className="text-indigo-650 font-black">{currentEmployee.name}</span>
+          </p>
+          <p className="text-[11px] text-slate-405 font-medium px-6 max-w-xs mx-auto leading-normal">
+            La pestaña de configuración está restringida para el personal de caja. Pídale al Dueño desbloquearla con su clave si necesita realizar cambios.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            onLoginSuccess(null);
+            onUnlock(false);
+            onUnlockMaster(false);
+          }}
+          className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 uppercase tracking-wider cursor-pointer"
+        >
+          🔒 Cerrar Sesión
+        </button>
+      </div>
+    );
+  }
+
+  // 2. LOCK SCREEN (Initial Auth State)
   if (!isUnlocked) {
+    // Only show employees that have a name configured
+    const activeEmployees = employeesList.filter(e => e.name.trim() !== '');
+
     return (
       <div id="lockscreen-container" className="flex flex-col items-center justify-center min-h-[500px] space-y-7 animate-in fade-in duration-300 animate-out duration-300">
         <div className="text-center space-y-2">
@@ -401,18 +612,98 @@ export default function MantTab({
           </div>
           <h2 className="text-base font-extrabold text-gray-900 tracking-tight">Acceso Restringido</h2>
           <p className="text-xs text-gray-405 font-medium leading-normal">
-            Ingrese su PIN de administrador para continuar
+            Seleccione su rol e ingrese sus credenciales para continuar
           </p>
         </div>
 
+        {/* Unified Selector Panel */}
+        <div className="w-full max-w-[270px] space-y-4">
+          {/* Dropdown: Seleccionar Rol */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block text-center">
+              Rol de Acceso
+            </label>
+            <select
+              value={loginRole}
+              onChange={(e) => {
+                const role = e.target.value as 'dueno' | 'empleado';
+                setLoginRole(role);
+                setPin('');
+                setPinError(false);
+                if (role === 'empleado' && activeEmployees.length > 0) {
+                  setLoginSelectedEmpId(activeEmployees[0].id);
+                }
+              }}
+              className="w-full bg-white border-2 border-slate-200 rounded-2xl px-4 py-3 text-slate-800 font-bold text-center focus:outline-none focus:border-indigo-600 transition-all text-sm shadow-sm cursor-pointer"
+            >
+              <option value="empleado">Empleado (Cajero)</option>
+              <option value="dueno">Dueño / Administrador</option>
+            </select>
+          </div>
+
+          {/* Dropdown: Seleccionar Empleado (only visible if role is Empleado) */}
+          {loginRole === 'empleado' && (
+            <div className="space-y-1.5 animate-in fade-in duration-200">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block text-center">
+                Seleccione su Usuario
+              </label>
+              <select
+                value={loginSelectedEmpId}
+                onChange={(e) => {
+                  setLoginSelectedEmpId(e.target.value);
+                  setPin('');
+                  setPinError(false);
+                }}
+                className="w-full bg-white border-2 border-slate-200 rounded-2xl px-4 py-3 text-slate-800 font-extrabold text-center focus:outline-none focus:border-indigo-600 transition-all text-sm shadow-sm cursor-pointer"
+              >
+                {activeEmployees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </option>
+                ))}
+                {activeEmployees.length === 0 && (
+                  <option value="">Sin empleados registrados</option>
+                )}
+              </select>
+            </div>
+          )}
+
+          {/* Password/PIN Input Field */}
+          <div className="space-y-1">
+            <input
+              type="password"
+              placeholder="PIN o Clave Alfanumérica"
+              value={pin}
+              onChange={(e) => {
+                setPin(e.target.value);
+                setPinError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleVerifyPin();
+                }
+              }}
+              className="w-full bg-white border-2 border-slate-200 rounded-2xl px-4 py-3 text-center font-black text-slate-850 focus:outline-none focus:border-indigo-600 transition-all text-sm shadow-sm tracking-widest outline-none"
+              autoFocus
+            />
+
+            <button
+              onClick={() => handleVerifyPin()}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-2xl transition-all shadow-md active:scale-95 text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              <span>Desbloquear</span>
+            </button>
+          </div>
+        </div>
+
         {/* Visual Dots Indicators */}
-        <div className={`flex gap-4 py-2 ${pinError ? 'animate-bounce' : ''}`}>
+        <div className={`flex gap-4 py-1 items-center ${pinError ? 'animate-bounce' : ''}`}>
           {[0, 1, 2, 3].map((idx) => {
             const active = idx < pin.length;
             return (
               <div
                 key={idx}
-                className={`w-4.5 h-4.5 rounded-full border-2 transition-all duration-150 ${
+                className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
                   pinError 
                     ? 'border-rose-400 bg-rose-500 shadow-rose-200 shadow-sm' 
                     : active 
@@ -422,6 +713,9 @@ export default function MantTab({
               ></div>
             );
           })}
+          {pin.length > 4 && (
+            <span className="text-[10px] text-indigo-600 font-extrabold font-mono leading-none bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">+{pin.length - 4}</span>
+          )}
         </div>
 
         {/* Tactical Dial Numeric Pad */}
@@ -756,7 +1050,11 @@ export default function MantTab({
                 <button
                   type="button"
                   onClick={handleAddFoodCat}
-                  className="bg-emerald-650 text-white font-extrabold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors cursor-pointer shadow-3xs"
+                  className={`font-extrabold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-3xs ${
+                    newFoodCat.trim() !== ''
+                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      : 'bg-slate-200 text-slate-450 hover:bg-slate-250'
+                  }`}
                 >
                   Agregar
                 </button>
@@ -783,6 +1081,83 @@ export default function MantTab({
                   ))}
                 </div>
               </div>
+
+              {/* Botón de Guardado Específico */}
+              <div className="pt-1.5 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleSaveKitchenCategories}
+                  disabled={!isUnlocked || loading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Guardar Categorías de Cocina</span>
+                </button>
+                {notifySavedKitchenCats && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
+                    <span>¡Categorías de cocina guardadas con éxito!</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Gestión de Personal */}
+          <div className="space-y-3.5 border-t border-gray-100 pt-3.5">
+            <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider">
+              👥 Gestión de Personal (Hasta 3 Empleados)
+            </h4>
+            <p className="text-[10px] text-gray-450 leading-normal">
+              Configure los nombres y códigos PIN de acceso para su personal de turno. Deje campos vacíos para deshabilitar un slot. Los cambios se aplicarán al guardar la configuración general.
+            </p>
+
+            <div className="space-y-3">
+              {employeesList.map((emp, index) => (
+                <div key={emp.id} className="bg-slate-50/50 p-3.5 rounded-2xl border border-slate-150 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
+                      Slot #{index + 1} - {emp.name.trim() ? `Empleado: ${emp.name}` : 'Disponible'}
+                    </span>
+                    <span className="text-[9px] bg-slate-100 text-slate-600 font-black px-2 py-0.5 rounded-md border border-slate-200">
+                      Rol: Cajero
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-450 uppercase tracking-widest block">Nombre completo</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. Juan Pérez"
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-none transition-all font-semibold outline-none"
+                        value={emp.name}
+                        onChange={(e) => {
+                          const newList = [...employeesList];
+                          newList[index] = { ...newList[index], name: e.target.value };
+                          setEmployeesList(newList);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-450 uppercase tracking-widest block">PIN (4 dígitos)</label>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="Ej. 1111"
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs text-center focus:ring-2 focus:ring-indigo-600/10 focus:outline-none transition-all font-black tracking-widest outline-none"
+                        value={emp.pin}
+                        onChange={(e) => {
+                          const cleanVal = e.target.value.replace(/[^0-9]/g, '');
+                          const newList = [...employeesList];
+                          newList[index] = { ...newList[index], pin: cleanVal };
+                          setEmployeesList(newList);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

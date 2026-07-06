@@ -1,15 +1,22 @@
 import React from 'react';
-import { Package2, Receipt, BarChart3, Utensils, Settings, ShoppingCart, KeyRound } from 'lucide-react';
-import { ActiveTab } from '../types';
+import { Package2, Receipt, BarChart3, Settings, ShoppingCart, KeyRound } from 'lucide-react';
+import { ActiveTab, Empleado } from '../types';
 
 interface BottomNavProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
-  isAdminUnlocked: boolean;
+  currentEmployee: Empleado | null;
+  isAdminUnlocked?: boolean;
   isMasterUnlocked?: boolean;
 }
 
-export default function BottomNav({ activeTab, setActiveTab, isAdminUnlocked, isMasterUnlocked = false }: BottomNavProps) {
+export default function BottomNav({ 
+  activeTab, 
+  setActiveTab, 
+  currentEmployee, 
+  isAdminUnlocked = false, 
+  isMasterUnlocked = false 
+}: BottomNavProps) {
   const navItems = [
     { id: 'Inventario' as ActiveTab, label: 'Inventario', icon: Package2 },
     { id: 'Caja' as ActiveTab, label: 'Caja', icon: Receipt },
@@ -23,13 +30,33 @@ export default function BottomNav({ activeTab, setActiveTab, isAdminUnlocked, is
   }
 
   const visibleNavItems = navItems.filter((item) => {
-    if (item.id === 'Master') {
-      return isMasterUnlocked;
+    // 1. Desarrollador (Master) sees everything: 'Compras', 'Caja', 'Inventario', 'Reportes', 'Mant.', 'Master'
+    if (isMasterUnlocked) {
+      return true;
     }
-    if (!isAdminUnlocked && item.id !== 'Compras' && item.id !== 'Mant.') {
-      return false;
+
+    // 2. Dueño (Admin) sees: 'Inventario', 'Caja', 'Reportes', 'Compras', 'Mant.'
+    if (isAdminUnlocked) {
+      return (
+        item.id === 'Inventario' ||
+        item.id === 'Caja' ||
+        item.id === 'Reportes' ||
+        item.id === 'Compras' ||
+        item.id === 'Mant.'
+      );
     }
-    return true;
+
+    // 3. Empleado (Cajero) sees: 'Compras', 'Inventario', 'Mant.'
+    if (currentEmployee && currentEmployee.role === 'cajero') {
+      return (
+        item.id === 'Compras' ||
+        item.id === 'Inventario' ||
+        item.id === 'Mant.'
+      );
+    }
+
+    // 4. Default / Cliente Público (Not authenticated) sees: 'Compras', 'Mant.'
+    return item.id === 'Compras' || item.id === 'Mant.';
   });
 
   return (

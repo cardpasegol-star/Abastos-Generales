@@ -1,12 +1,14 @@
 import React from 'react';
-import { MapPin, Store, Phone } from 'lucide-react';
-import { BusinessConfig } from '../types';
+import { MapPin, Store, Phone, LogOut } from 'lucide-react';
+import { BusinessConfig, Empleado } from '../types';
 
 interface HeaderProps {
   config: BusinessConfig;
+  currentEmployee?: Empleado | null;
+  onLogout?: () => void;
 }
 
-export default function Header({ config }: HeaderProps) {
+export default function Header({ config, currentEmployee, onLogout }: HeaderProps) {
   const bannerImage = config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800';
 
   return (
@@ -40,7 +42,19 @@ export default function Header({ config }: HeaderProps) {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {currentEmployee && (
+              <div 
+                onClick={onLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/80 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-800 text-slate-200 hover:text-rose-200 rounded-full backdrop-blur-md text-[10px] font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                title="Cerrar Turno"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span className="truncate max-w-[80px]">{currentEmployee.name}</span>
+                <LogOut className="w-3.5 h-3.5 stroke-[2.5] ml-0.5 text-slate-400 hover:text-rose-300" />
+              </div>
+            )}
+
             {config.whatsapp && (
               <a
                 href={`https://wa.me/${config.whatsapp.replace(/[^0-9]/g, '')}`}

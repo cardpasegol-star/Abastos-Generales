@@ -9,7 +9,7 @@ service cloud.firestore {
 
     // Common Global Helpers
     function isValidId(id) { 
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-+%]+$'); 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\+%-]+$'); 
     }
 
     function incoming() { return request.resource.data; }
@@ -109,6 +109,76 @@ service cloud.firestore {
       allow create: if isValidConfig(incoming()) && isValidId(configId);
       allow update: if isValidConfig(incoming()) && isValidId(configId);
       allow delete: if false;
+
+      // Subcollection of employees
+      match /empleados/{empleadoId} {
+        allow read: if true;
+        allow create, update: if isValidId(empleadoId)
+          && incoming().id is string
+          && incoming().name is string
+          && incoming().pin is string
+          && incoming().role is string;
+        allow delete: if isValidId(empleadoId);
+      }
+    }
+
+    // ==========================================
+    // 5. TENANTS MULTI-TENANCY RULES
+    // ==========================================
+    match /tenants/{tenantId} {
+      allow read: if isValidId(tenantId);
+      allow write: if isValidId(tenantId);
+
+      match /products/{productId} {
+        allow read: if true;
+        allow create: if isValidProduct(incoming()) && isValidId(productId);
+        allow update: if isValidId(productId) && (
+          // Action: Update stock only during checkout/purchase
+          (incoming().id == existing().id
+            && incoming().sku == existing().sku
+            && incoming().name == existing().name
+            && incoming().category == existing().category
+            && incoming().price == existing().price
+            && incoming().cost == existing().cost
+            && incoming().imageUrl == existing().imageUrl
+            && incoming().stock is number && incoming().stock >= 0
+            && incoming().updatedAt is string)
+          ||
+          // Action: Full product definition update
+          isValidProduct(incoming())
+        );
+        allow delete: if isValidId(productId);
+      }
+
+      match /transactions/{transactionId} {
+        allow read: if true;
+        allow create: if isValidTransaction(incoming()) && isValidId(transactionId);
+        allow update, delete: if false;
+      }
+
+      match /foodItems/{foodItemId} {
+        allow read: if true;
+        allow create: if isValidFoodItem(incoming()) && isValidId(foodItemId);
+        allow update: if isValidFoodItem(incoming()) && isValidId(foodItemId);
+        allow delete: if isValidId(foodItemId);
+      }
+
+      match /config/{configId} {
+        allow read: if true;
+        allow create: if isValidConfig(incoming()) && isValidId(configId);
+        allow update: if isValidConfig(incoming()) && isValidId(configId);
+        allow delete: if false;
+
+        match /empleados/{empleadoId} {
+          allow read: if true;
+          allow create, update: if isValidId(empleadoId)
+            && incoming().id is string
+            && incoming().name is string
+            && incoming().pin is string
+            && incoming().role is string;
+          allow delete: if isValidId(empleadoId);
+        }
+      }
     }
   }
 }

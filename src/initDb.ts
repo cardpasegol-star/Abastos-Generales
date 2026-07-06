@@ -1,4 +1,4 @@
-import { collection, writeBatch, doc, getDocs, deleteDoc, query } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, deleteDoc, query, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { Product, FoodItem, Transaction, BusinessConfig } from './types';
 
@@ -33,7 +33,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     stock: 0,
     price: 2.10,
     cost: 1.50,
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCmxNbpFmcDvNNWcAACpe3NVcmkuxtdU_OlDMX7pt0tGGn1ICek5JL4WbqJIKwEgCvT8Mi4FQDzPfTlTtVVyB286dxdy7yDKJxG6lTEo4yZEW_mzrE32vy4GUYP4rRUXiou-FeoWO9kjp75WC-Dgyx2FPzw-WO3FqRffWAMBjnIjUBH1hFLxW4JrhBJFkSkFaRA4X1RCtGy8TAJpg_0gLlcyzWQygP2syWR1w6QJUR4fSgo7LfJjoPWEe51r0nodDConZcLP3qwQg4',
+    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCfltLCYu3aB_3sd7mXGNlKGUjdV6mTGvaP8oLfH1ogkMUYzcysGwRqOHRlAIVNQfCncW2GfIvIpU05SFsHLsl7ibHcRbvnvri5c9JQ10kOaWz6PD9Ka3J3TGNh4anl0fKMxhmQ0iU7LziNgPkg4SnyTKmNmNEfFcnoMykBP3p2ZKqXjGgpdqlro8hwr2EaVDjhuSsQmJDerBcEwcSAlT-DAyF2m5UxA4pay_IrcpQdwU7ZgbhuaC4rmLEvnFUG227N0SrfINWzYqg',
     updatedAt: new Date().toISOString()
   },
   {
@@ -178,72 +178,123 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.'
 };
 
-export async function bootstrapDatabaseIfEmpty() {
+export async function bootstrapDatabaseIfEmpty(tenantId: string) {
   try {
-    // 1. Check if config info exists
-    const configSnap = await getDocs(collection(db, 'config'));
+    // 1. Check if config info exists for this tenant
+    const configSnap = await getDocs(collection(db, 'tenants', tenantId, 'config'));
     if (configSnap.empty) {
-      console.log('Database empty. Bootstrapping "Donde el Goyo" assets...');
+      console.log(`Database empty for tenant "${tenantId}". Bootstrapping assets...`);
       const batch = writeBatch(db);
 
+      const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
+      const tenantConfig: BusinessConfig = {
+        ...DEFAULT_CONFIG,
+        name: tenantId.toLowerCase() === 'turco' ? 'Minimarket Virtual "DondeElTurco"' : `Minimarket "${formattedName}"`,
+        bannerUrl: tenantId.toLowerCase() === 'turco' 
+          ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800' // slightly different banner for turco
+          : DEFAULT_CONFIG.bannerUrl,
+        gps: tenantId.toLowerCase() === 'turco' ? 'Av. Holanda #123' : DEFAULT_CONFIG.gps,
+      };
+
       // Write config
-      batch.set(doc(db, 'config', DEFAULT_CONFIG.id), DEFAULT_CONFIG);
+      batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
       // Write products
       INITIAL_PRODUCTS.forEach(p => {
-        batch.set(doc(db, 'products', p.id), p);
+        batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
       });
 
       // Write food items
       INITIAL_FOOD_ITEMS.forEach(f => {
-        batch.set(doc(db, 'foodItems', f.id), f);
+        batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
       });
 
       // Write transactions
       INITIAL_TRANSACTIONS.forEach(t => {
-        batch.set(doc(db, 'transactions', t.id), t);
+        batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
       });
 
       await batch.commit();
-      console.log('Booster successfully commited.');
+      console.log(`Booster successfully committed for tenant "${tenantId}".`);
+    }
+
+    // 2. Ensure "empleados" subcollection exists and is populated under config/business_info
+    const empleadosRef = collection(db, 'tenants', tenantId, 'config', 'business_info', 'empleados');
+    const empleadosSnap = await getDocs(empleadosRef);
+    if (empleadosSnap.empty) {
+      console.log(`Bootstrapping default employees in tenants/${tenantId}/config/business_info/empleados...`);
+      const batch = writeBatch(db);
+      const defaultEmployees = [
+        { id: 'emp-admin', name: tenantId.toLowerCase() === 'turco' ? 'Don Elías' : 'Don Goyo', pin: '1234', role: 'admin' },
+        { id: 'emp-cajero', name: 'Empleado Cajero', pin: '4321', role: 'cajero' }
+      ];
+      defaultEmployees.forEach(emp => {
+        batch.set(doc(db, 'tenants', tenantId, 'config', 'business_info', 'empleados', emp.id), emp);
+      });
+      await batch.commit();
+      console.log('Employees bootstrapped successfully.');
     }
   } catch (err) {
     console.error('Error bootstrapping db:', err);
   }
 }
 
-export async function resetDatabaseToDefault() {
+export async function resetDatabaseToDefault(tenantId: string) {
   const collections = ['products', 'transactions', 'foodItems', 'config'];
 
   try {
     const batch = writeBatch(db);
 
-    // Delete existing documents
+    // Delete existing documents in root collections
     for (const coll of collections) {
-      const snap = await getDocs(collection(db, coll));
+      const snap = await getDocs(collection(db, 'tenants', tenantId, coll));
       snap.forEach(docSnap => {
         batch.delete(docSnap.ref);
       });
     }
 
+    // Also delete any subcollection documents of config/business_info/empleados
+    const empSnap = await getDocs(collection(db, 'tenants', tenantId, 'config', 'business_info', 'empleados'));
+    empSnap.forEach(docSnap => {
+      batch.delete(docSnap.ref);
+    });
+
     // Set defaults
-    batch.set(doc(db, 'config', DEFAULT_CONFIG.id), DEFAULT_CONFIG);
+    const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
+    const tenantConfig: BusinessConfig = {
+      ...DEFAULT_CONFIG,
+      name: tenantId.toLowerCase() === 'turco' ? 'Minimarket Virtual "DondeElTurco"' : `Minimarket "${formattedName}"`,
+      bannerUrl: tenantId.toLowerCase() === 'turco' 
+        ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800'
+        : DEFAULT_CONFIG.bannerUrl,
+      gps: tenantId.toLowerCase() === 'turco' ? 'Av. Holanda #123' : DEFAULT_CONFIG.gps,
+    };
+    batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
     INITIAL_PRODUCTS.forEach(p => {
-      batch.set(doc(db, 'products', p.id), p);
+      batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
     });
 
     INITIAL_FOOD_ITEMS.forEach(f => {
-      batch.set(doc(db, 'foodItems', f.id), f);
+      batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
     });
 
     INITIAL_TRANSACTIONS.forEach(t => {
-      batch.set(doc(db, 'transactions', t.id), t);
+      batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
+    });
+
+    // Seed default employees on reset
+    const defaultEmployees = [
+      { id: 'emp-admin', name: tenantId.toLowerCase() === 'turco' ? 'Don Elías' : 'Don Goyo', pin: '1234', role: 'admin' },
+      { id: 'emp-cajero', name: 'Empleado Cajero', pin: '4321', role: 'cajero' }
+    ];
+    defaultEmployees.forEach(emp => {
+      batch.set(doc(db, 'tenants', tenantId, 'config', 'business_info', 'empleados', emp.id), emp);
     });
 
     await batch.commit();
-    console.log('Database reset committed.');
+    console.log(`Database reset committed for tenant "${tenantId}".`);
   } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, 'reset_database');
+    handleFirestoreError(err, OperationType.WRITE, `tenants/${tenantId}/reset_database`);
   }
 }

@@ -34,7 +34,9 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
       zxingReaderRef.current = null;
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      try {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      } catch (e) {}
       streamRef.current = null;
     }
     if (videoRef.current) {
@@ -57,21 +59,23 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
       const hasDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
       try {
-        // PASO 1: Pedir la cámara trasera con máxima compatibilidad
+        // PASO 1: Pedir la cámara trasera usando facingMode "environment" directo de forma compatible
         let stream: MediaStream;
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
-              facingMode: { ideal: 'environment' },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
+              facingMode: "environment"
             }
           });
         } catch (e1) {
-          console.warn('Fallo constraints ideales, intentando facingMode simple:', e1);
+          console.warn('Fallo facingMode simple, intentando constraints extendidos:', e1);
           try {
             stream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: 'environment' }
+              video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
             });
           } catch (e2) {
             console.warn('Fallo facingMode environment, intentando cualquier cámara disponible:', e2);
@@ -92,6 +96,7 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
 
         // PASO 2: Asignar stream al video element
         if (videoRef.current) {
+          // Atributos obligatorios para iOS para evitar pantalla completa nativa y reproducir muted
           videoRef.current.setAttribute('playsinline', 'true');
           videoRef.current.setAttribute('webkit-playsinline', 'true');
           videoRef.current.muted = true;
@@ -181,7 +186,7 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
               console.error('video.play() falló o fue cancelado:', err);
               if (active) {
                 setStatus('error');
-                setErrorMsg('Error al reproducir la cámara. Por favor intenta de nuevo.');
+                setErrorMsg('Error al reproducir la cámara en tu dispositivo. Asegúrate de dar acceso de video en la configuración de Safari/Chrome.');
               }
             }
           };
@@ -210,14 +215,15 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
         if (active) {
           setStatus('error');
           const name = err.name;
-          if (name === 'NotAllowedError') {
-            setErrorMsg('Permiso de cámara denegado. Actívalo en configuración del navegador.');
+          if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+            setErrorMsg('Acceso a la cámara denegado. Para escanear en tu iPhone, ve a Ajustes > Safari (o tu navegador) > Cámara, y selecciona "Permitir".');
+            alert('Permiso de cámara denegado. Para escanear códigos en este iPhone, por favor permite el acceso a la cámara en los ajustes de privacidad de tu navegador.');
           } else if (name === 'NotFoundError') {
-            setErrorMsg('No se encontró cámara en este dispositivo.');
+            setErrorMsg('No se detectó ninguna cámara trasera compatible en este dispositivo.');
           } else if (name === 'NotReadableError') {
-            setErrorMsg('La cámara está siendo usada por otra app. Ciérrala e intenta de nuevo.');
+            setErrorMsg('La cámara está bloqueada por otra pestaña o aplicación abierta. Por favor ciérralas e intenta de nuevo.');
           } else {
-            setErrorMsg('Error al acceder a la cámara. Usa el código manual.');
+            setErrorMsg('No se pudo abrir la cámara. Por favor autoriza el permiso o ingresa el código numérico manualmente.');
           }
         }
       }
@@ -281,21 +287,31 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
           </button>
         </div>
 
-        {/* Dynamic Inner video / results container */}
-        <div className="relative bg-slate-955 flex flex-col items-center justify-center overflow-hidden" style={{ height: '310px' }}>
+        {/* Dimensiones explícitas de ancho y alto en píxeles y porcentaje para máxima estabilidad en Safari / iOS WebKit */}
+        <div 
+          className="relative bg-slate-955 flex flex-col items-center justify-center overflow-hidden" 
+          style={{ width: '100%', height: '310px', minHeight: '310px', maxHeight: '310px' }}
+        >
           
           {/* El video element debe estar en el DOM y visible al layout engine en 'loading' para que iOS cargue metadatos y play() funcione */}
           <video
             ref={videoRef}
-            className="w-full h-full object-cover animate-in fade-in duration-300"
-            style={{ display: (status === 'active' || status === 'loading') ? 'block' : 'none' }}
-            playsInline
-            muted
+            className="animate-in fade-in duration-300"
+            style={{ 
+              display: (status === 'active' || status === 'loading') ? 'block' : 'none',
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+            playsInline={true}
+            webkit-playsinline="true"
+            muted={true}
+            autoPlay={true}
           />
 
           {status === 'loading' && (
             /* INITIALIZING / SPINNER - Absoluto cubriendo al video durante la carga */
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-900 z-10 space-y-3 animate-in fade-in duration-200">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-900 z-10 space-y-3 animate-in fade-in duration-200" style={{ width: '100%', height: '100%' }}>
               <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin mx-auto" />
               <p className="text-xs text-slate-300 font-extrabold uppercase tracking-wide">Iniciando cámara...</p>
             </div>
@@ -303,7 +319,7 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
 
           {status === 'detected' && (
             /* DETECTED CODE FEEDBACK PANEL */
-            <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-slate-900 space-y-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-slate-900 space-y-4 animate-in fade-in duration-200" style={{ width: '100%', height: '100%' }}>
               <div className="w-14 h-14 rounded-full bg-emerald-500/10 border-2 border-emerald-500 flex items-center justify-center text-emerald-400">
                 <Check className="w-8 h-8 animate-bounce" />
               </div>
@@ -345,16 +361,16 @@ export default function BarcodeScanner({ isOpen, onClose, onBarcodeDetected }: B
 
           {(status === 'error' || status === 'unsupported') && (
             /* COMPATIBILITY FALLBACK OR ERROR */
-            <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center text-slate-300 space-y-4 w-full bg-slate-900">
+            <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center text-slate-300 space-y-4 w-full bg-slate-900" style={{ width: '100%', height: '100%' }}>
               <AlertTriangle className="w-11 h-11 text-amber-500 mx-auto" />
               <p className="text-xs font-semibold leading-relaxed px-4 text-slate-300">
                 {errorMsg}
               </p>
               
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 text-left space-y-1 w-full max-w-[320px]">
-                <p className="text-[10px] font-black text-slate-200">💡 CONSEJO PARA ACTIVAR:</p>
+              <div className="bg-slate-955 border border-slate-800 rounded-2xl p-3.5 text-left space-y-1.5 w-full max-w-[320px]">
+                <p className="text-[10px] font-black text-slate-200">💡 CONSEJO PARA ACTIVAR EN IPHONE:</p>
                 <p className="text-[9px] text-slate-400 leading-normal">
-                  Asegúrate de otorgar permisos de cámara si el navegador lo solicita. También puedes escribir el número de barra directamente en el campo de texto abajo.
+                  Asegúrate de dar permiso de cámara si el navegador te lo pregunta. Si ya lo denegaste, puedes restablecerlo recargando la página o en los Ajustes del iPhone. También puedes escribir el número directamente abajo.
                 </p>
               </div>
             </div>

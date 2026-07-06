@@ -31,6 +31,14 @@ export interface Transaction {
   total: number;
   method: 'Efectivo' | 'Tarjeta';
   createdAt: string;
+  employeeName?: string;
+}
+
+export interface Empleado {
+  id: string;
+  name: string;
+  pin: string;
+  role: 'admin' | 'cajero';
 }
 
 export interface FoodItem {

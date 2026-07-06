@@ -78,7 +78,12 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
     doc.text(`Fecha: ${formattedDate}`, 5, currentY);
     currentY += 3.5;
     doc.text(`Método de Pago: ${tx.method.toUpperCase()}`, 5, currentY);
-    currentY += 5;
+    currentY += 3.5;
+    if (tx.employeeName) {
+      doc.text(`Atendido por: ${tx.employeeName.toUpperCase()}`, 5, currentY);
+      currentY += 3.5;
+    }
+    currentY += 1.5;
 
     doc.line(5, currentY, 75, currentY);
     currentY += 4;
@@ -349,6 +354,14 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
                     <span className="px-2 py-0.5 rounded-lg font-black text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200">
                       {tx.method}
                     </span>
+                    {tx.employeeName && (
+                      <>
+                        <span>•</span>
+                        <span className="px-2 py-0.5 rounded-lg font-black text-[10px] bg-blue-50 text-blue-800 border border-blue-200">
+                          👤 {tx.employeeName}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -447,6 +460,12 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
                     <span>FECHA:</span>
                     <span>{new Date(selectedSale.createdAt).toLocaleString()}</span>
                   </div>
+                  {selectedSale.employeeName && (
+                    <div className="flex justify-between">
+                      <span>ATENDIDO POR:</span>
+                      <span className="font-extrabold text-slate-800">{selectedSale.employeeName.toUpperCase()}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center pt-0.5">
                     <span>MÉTODO DE PAGO:</span>
                     <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">

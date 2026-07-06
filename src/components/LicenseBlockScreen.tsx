@@ -14,7 +14,7 @@ export default function LicenseBlockScreen({ config, onUnlockMaster }: LicenseBl
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (masterPassword.trim() === 'Aramis2012') {
+    if (masterPassword.trim() === 'Saraghina2024') {
       onUnlockMaster();
     } else {
       setErrorMsg('Clave incorrecta');

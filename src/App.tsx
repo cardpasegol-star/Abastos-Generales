@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
-import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab } from './types';
+import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado } from './types';
 import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG } from './initDb';
 
 import Header from './components/Header';
@@ -13,77 +13,150 @@ import ComprasTab from './components/ComprasTab';
 import MantTab from './components/MantTab';
 import MasterTab from './components/MasterTab';
 import LicenseBlockScreen from './components/LicenseBlockScreen';
+import InicioTurno from './components/InicioTurno';
+import WelcomeScreen from './components/WelcomeScreen';
 
 export default function App() {
+  const [tenantId, setTenantId] = useState<string | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlTienda = params.get('tienda');
+      if (urlTienda) {
+        const clean = urlTienda.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        localStorage.setItem('tenant_tienda_id', clean);
+        return clean;
+      }
+      return localStorage.getItem('tenant_tienda_id');
+    } catch {
+      return null;
+    }
+  });
+
+  const [currentEmployee, setCurrentEmployee] = useState<Empleado | null>(() => {
+    try {
+      const saved = localStorage.getItem('currentEmployee');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [isMasterUnlocked, setIsMasterUnlocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('Compras');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    try {
+      const saved = localStorage.getItem('currentEmployee');
+      if (saved) {
+        const emp = JSON.parse(saved) as Empleado;
+        if (emp.id === 'dev') return 'Master';
+        if (emp.role === 'admin') return 'Mant.';
+        return 'Inventario';
+      }
+    } catch {}
+    return 'Compras';
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [config, setConfig] = useState<BusinessConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
-  // 1. Bootstrap and setup real-time subscriptions
+  // Sync unlock states when currentEmployee is set/restored
   useEffect(() => {
+    if (currentEmployee) {
+      if (currentEmployee.id === 'dev') {
+        setIsMasterUnlocked(true);
+        setIsAdminUnlocked(true);
+      } else if (currentEmployee.role === 'admin') {
+        setIsAdminUnlocked(true);
+        setIsMasterUnlocked(false);
+      } else {
+        setIsAdminUnlocked(false);
+        setIsMasterUnlocked(false);
+      }
+    } else {
+      setIsAdminUnlocked(false);
+      setIsMasterUnlocked(false);
+    }
+  }, [currentEmployee]);
+  useEffect(() => {
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
+
+    let unsubConfig: () => void = () => {};
+    let unsubProducts: () => void = () => {};
+    let unsubFood: () => void = () => {};
+    let unsubTx: () => void = () => {};
+
     async function init() {
-      // Bootstrap database with demo assets if it is completely empty
-      await bootstrapDatabaseIfEmpty();
+      setLoading(true);
+      // Bootstrap database with demo assets for this tenant if it is completely empty
+      await bootstrapDatabaseIfEmpty(tenantId);
 
       // Listen to config
-      const configRef = doc(db, 'config', 'business_info');
-      const unsubConfig = onSnapshot(configRef, (snap) => {
+      const configRef = doc(db, 'tenants', tenantId, 'config', 'business_info');
+      unsubConfig = onSnapshot(configRef, (snap) => {
         if (snap.exists()) {
           setConfig(snap.data() as BusinessConfig);
         } else {
-          // If deleted, restore default config
-          setDoc(configRef, DEFAULT_CONFIG).catch(err => 
-            handleFirestoreError(err, OperationType.WRITE, 'config/business_info')
+          // If deleted, restore default config tailored to tenantId
+          const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
+          const tenantConfig: BusinessConfig = {
+            ...DEFAULT_CONFIG,
+            name: tenantId.toLowerCase() === 'turco' ? 'Minimarket Virtual "DondeElTurco"' : `Minimarket "${formattedName}"`,
+            bannerUrl: tenantId.toLowerCase() === 'turco' 
+              ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800'
+              : DEFAULT_CONFIG.bannerUrl,
+            gps: tenantId.toLowerCase() === 'turco' ? 'Av. Holanda #123' : DEFAULT_CONFIG.gps,
+          };
+          setDoc(configRef, tenantConfig).catch(err => 
+            handleFirestoreError(err, OperationType.WRITE, `tenants/${tenantId}/config/business_info`)
           );
         }
-      }, err => handleFirestoreError(err, OperationType.GET, 'config/business_info'));
+      }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/config/business_info`));
 
       // Listen to products Catalog
-      const productsQuery = query(collection(db, 'products'), orderBy('sku', 'asc'));
-      const unsubProducts = onSnapshot(productsQuery, (snap) => {
+      const productsQuery = query(collection(db, 'tenants', tenantId, 'products'), orderBy('sku', 'asc'));
+      unsubProducts = onSnapshot(productsQuery, (snap) => {
         const prodList: Product[] = [];
         snap.forEach(d => {
           prodList.push(d.data() as Product);
         });
         setProducts(prodList);
         setLoading(false);
-      }, err => handleFirestoreError(err, OperationType.GET, 'products'));
+      }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/products`));
 
       // Listen to Food Items Catalog
-      const foodQuery = query(collection(db, 'foodItems'), orderBy('name', 'asc'));
-      const unsubFood = onSnapshot(foodQuery, (snap) => {
+      const foodQuery = query(collection(db, 'tenants', tenantId, 'foodItems'), orderBy('name', 'asc'));
+      unsubFood = onSnapshot(foodQuery, (snap) => {
         const dishList: FoodItem[] = [];
         snap.forEach(d => {
           dishList.push(d.data() as FoodItem);
         });
         setFoodItems(dishList);
-      }, err => handleFirestoreError(err, OperationType.GET, 'foodItems'));
+      }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/foodItems`));
 
       // Listen to Transactions logs
-      const txQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-      const unsubTx = onSnapshot(txQuery, (snap) => {
+      const txQuery = query(collection(db, 'tenants', tenantId, 'transactions'), orderBy('createdAt', 'desc'));
+      unsubTx = onSnapshot(txQuery, (snap) => {
         const txList: Transaction[] = [];
         snap.forEach(d => {
           txList.push(d.data() as Transaction);
         });
         setTransactions(txList);
-      }, err => handleFirestoreError(err, OperationType.GET, 'transactions'));
-
-      return () => {
-        unsubConfig();
-        unsubProducts();
-        unsubFood();
-        unsubTx();
-      };
+      }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/transactions`));
     }
 
     init();
-  }, []);
+
+    return () => {
+      unsubConfig();
+      unsubProducts();
+      unsubFood();
+      unsubTx();
+    };
+  }, [tenantId]);
 
   // 2. Action Handlers mapping directly to Firestore
   const handleAddProduct = async (item: Omit<Product, 'id' | 'updatedAt'> & { id?: string }) => {
@@ -95,57 +168,108 @@ export default function App() {
     };
 
     try {
-      await setDoc(doc(db, 'products', id), newProduct);
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'products', id)
+        : doc(db, 'products', id);
+      await setDoc(docRef, newProduct);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `products/${id}`);
+      handleFirestoreError(err, OperationType.CREATE, tenantId ? `tenants/${tenantId}/products/${id}` : `products/${id}`);
     }
   };
 
   const handleEditProduct = async (item: Product) => {
     try {
-      await setDoc(doc(db, 'products', item.id), item);
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'products', item.id)
+        : doc(db, 'products', item.id);
+      await setDoc(docRef, item);
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `products/${item.id}`);
+      handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/products/${item.id}` : `products/${item.id}`);
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'products', id));
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'products', id)
+        : doc(db, 'products', id);
+      await deleteDoc(docRef);
     } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `products/${id}`);
+      handleFirestoreError(err, OperationType.DELETE, tenantId ? `tenants/${tenantId}/products/${id}` : `products/${id}`);
     }
+  };
+
+  const handleLoginSuccess = (emp: Empleado | null) => {
+    setCurrentEmployee(emp);
+    if (emp) {
+      localStorage.setItem('currentEmployee', JSON.stringify(emp));
+      if (emp.id === 'dev') {
+        setIsMasterUnlocked(true);
+        setIsAdminUnlocked(true);
+        setActiveTab('Master');
+      } else if (emp.role === 'admin') {
+        setIsAdminUnlocked(true);
+        setIsMasterUnlocked(false);
+        setActiveTab('Mant.');
+      } else {
+        setIsAdminUnlocked(false);
+        setIsMasterUnlocked(false);
+        setActiveTab('Inventario');
+      }
+    } else {
+      localStorage.removeItem('currentEmployee');
+      setIsAdminUnlocked(false);
+      setIsMasterUnlocked(false);
+      setActiveTab('Compras');
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentEmployee(null);
+    localStorage.removeItem('currentEmployee');
+    setIsAdminUnlocked(false);
+    setIsMasterUnlocked(false);
+    setActiveTab('Compras');
   };
 
   const handleAddTransaction = async (tx: Omit<Transaction, 'id'>): Promise<string> => {
     const id = 'tx-' + Math.floor(100 + Math.random() * 900);
     const newTx: Transaction = {
       ...tx,
+      employeeName: tx.employeeName || currentEmployee?.name || undefined,
       id
     };
 
     try {
-      await setDoc(doc(db, 'transactions', id), newTx);
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'transactions', id)
+        : doc(db, 'transactions', id);
+      await setDoc(docRef, newTx);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `transactions/${id}`);
+      handleFirestoreError(err, OperationType.CREATE, tenantId ? `tenants/${tenantId}/transactions/${id}` : `transactions/${id}`);
     }
     return id;
   };
 
   const handleUpdateProductStock = async (id: string, newStock: number) => {
     try {
-      const prodRef = doc(db, 'products', id);
+      const prodRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'products', id)
+        : doc(db, 'products', id);
       await updateDoc(prodRef, { stock: newStock, updatedAt: new Date().toISOString() });
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
+      handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/products/${id}` : `products/${id}`);
     }
   };
 
   const handleUpdateConfig = async (newCfg: BusinessConfig) => {
     try {
-      await setDoc(doc(db, 'config', 'business_info'), newCfg);
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'config', 'business_info')
+        : doc(db, 'config', 'business_info');
+      await setDoc(docRef, newCfg);
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'config/business_info');
+      handleFirestoreError(err, OperationType.WRITE, tenantId ? `tenants/${tenantId}/config/business_info` : 'config/business_info');
     }
   };
 
@@ -157,19 +281,37 @@ export default function App() {
     };
 
     try {
-      await setDoc(doc(db, 'foodItems', id), newDish);
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'foodItems', id)
+        : doc(db, 'foodItems', id);
+      await setDoc(docRef, newDish);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `foodItems/${id}`);
+      handleFirestoreError(err, OperationType.CREATE, tenantId ? `tenants/${tenantId}/foodItems/${id}` : `foodItems/${id}`);
     }
   };
 
   const handleDeleteFoodItem = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'foodItems', id));
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'foodItems', id)
+        : doc(db, 'foodItems', id);
+      await deleteDoc(docRef);
     } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `foodItems/${id}`);
+      handleFirestoreError(err, OperationType.DELETE, tenantId ? `tenants/${tenantId}/foodItems/${id}` : `foodItems/${id}`);
     }
   };
+
+  // If tenantId is not set, show the welcome screen to select a store first
+  if (!tenantId) {
+    return (
+      <WelcomeScreen
+        onSelectStore={(id) => {
+          setTenantId(id);
+          localStorage.setItem('tenant_tienda_id', id);
+        }}
+      />
+    );
+  }
 
   // 3. Render loading layout screen representation
   if (loading) {
@@ -210,20 +352,38 @@ export default function App() {
     );
   }
 
-  // Shield tabs in case activeTab is set to restricted and user is not unlocked
-  // We allow 'Master' tab if isMasterUnlocked is active
-  const currentTab = (!isAdminUnlocked && (activeTab === 'Inventario' || activeTab === 'Caja' || activeTab === 'Reportes') && activeTab !== 'Master')
-    ? 'Compras'
-    : (activeTab === 'Master' && !isMasterUnlocked ? 'Compras' : activeTab);
+  // Derive actual current tab based on employee shift status and role permissions
+  let currentTab: string = activeTab;
+  
+  if (!currentEmployee) {
+    // Default unauthenticated / App restarted state: only Compras and Mant. are allowed
+    if (activeTab !== 'Compras' && activeTab !== 'Mant.') {
+      currentTab = 'Compras';
+    }
+  } else if (currentEmployee.role === 'cajero') {
+    // Empleado state: only Compras, Inventario, and Mant. are allowed
+    if (activeTab !== 'Compras' && activeTab !== 'Inventario' && activeTab !== 'Mant.') {
+      currentTab = 'Compras';
+    }
+  } else {
+    // Admin / Dueño / Developer state: all tabs allowed (with master gating if applicable)
+    if (activeTab === 'Master' && !isMasterUnlocked) {
+      currentTab = 'Mant.';
+    }
+  }
 
   // 4. Primary client layout canvas with persistent bottom nav
   return (
     <div className="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased text-body-md select-none">
       {/* Dynamic top bar */}
-      <Header config={config} />
+      <Header config={config} currentEmployee={currentEmployee} onLogout={handleLogout} />
 
       {/* Main viewport canvas */}
       <main className="flex-1 px-4 pt-4 pb-28 max-w-md w-full mx-auto">
+        {currentTab === 'InicioTurno' && (
+          <InicioTurno onLoginSuccess={handleLoginSuccess} tenantId={tenantId} />
+        )}
+
         {currentTab === 'Inventario' && (
           <InventarioTab
             products={products}
@@ -231,6 +391,7 @@ export default function App() {
             onEditProduct={handleEditProduct}
             onDeleteProduct={handleDeleteProduct}
             config={config}
+            userRole={currentEmployee?.role}
           />
         )}
 
@@ -272,6 +433,9 @@ export default function App() {
             onUnlock={setIsAdminUnlocked}
             isMasterUnlocked={isMasterUnlocked}
             onUnlockMaster={setIsMasterUnlocked}
+            currentEmployee={currentEmployee}
+            onLoginSuccess={handleLoginSuccess}
+            tenantId={tenantId}
           />
         )}
 
@@ -283,7 +447,7 @@ export default function App() {
             onUpdateConfig={handleUpdateConfig}
             onLockMaster={() => {
               setIsMasterUnlocked(false);
-              setActiveTab('Compras');
+              setActiveTab('Mant.');
             }}
           />
         )}
@@ -291,10 +455,11 @@ export default function App() {
 
       {/* Persistent Bottom Nav tab-selector */}
       <BottomNav 
-        activeTab={currentTab} 
+        activeTab={currentTab as ActiveTab} 
         setActiveTab={setActiveTab} 
-        isAdminUnlocked={isAdminUnlocked} 
+        currentEmployee={currentEmployee} 
         isMasterUnlocked={isMasterUnlocked}
+        isAdminUnlocked={isAdminUnlocked}
       />
     </div>
   );

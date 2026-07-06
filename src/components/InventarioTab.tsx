@@ -11,6 +11,7 @@ interface InventarioTabProps {
   onEditProduct: (item: Product) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
   config?: BusinessConfig;
+  userRole?: 'admin' | 'cajero';
 }
 
 const PRESET_IMAGES = [
@@ -97,7 +98,7 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
 }
 
 
-export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct, config }: InventarioTabProps) {
+export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct, config, userRole }: InventarioTabProps) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -629,22 +630,20 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         body: JSON.stringify({ name, barcode }),
       });
       
-      let data;
       const rawText = await res.text();
-      try {
-        if (!res.ok) {
-          let errData;
-          try {
-            errData = JSON.parse(rawText);
-          } catch (e: any) {
-            console.error("ERROR: No se pudo parsear la respuesta de error del servidor como JSON.", {
-              rawText,
-              parseError: e.message
-            });
-            errData = { error: `Respuesta no válida del servidor (no es JSON): ${rawText.substring(0, 100)}...` };
-          }
-          throw new Error(errData.error || "Error al obtener la sugerencia");
+      
+      if (!res.ok) {
+        let errData;
+        try {
+          errData = JSON.parse(rawText);
+        } catch (e: any) {
+          errData = { error: `Error del servidor (${res.status}): ${rawText.substring(0, 100)}` };
         }
+        throw new Error(errData.error || "Error al obtener la sugerencia");
+      }
+
+      let data;
+      try {
         data = JSON.parse(rawText);
       } catch (parseErr: any) {
         console.error("ERROR CRÍTICO: Falló la decodificación de la respuesta JSON del backend para la sugerencia de precio de Gemini.", {
@@ -660,11 +659,22 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       
       setGeminiSuggestion(data);
     } catch (err: any) {
-      console.error("Error en fetchGeminiPriceSuggestion:", err);
-      // Fallback final en caso de cualquier error
+      console.warn("Advertencia en fetchGeminiPriceSuggestion:", err.message);
+      
+      let friendlyMessage = err.message;
+      if (err.message.includes("RESOURCE_EXHAUSTED") || err.message.toLowerCase().includes("quota") || err.message.toLowerCase().includes("exceeded") || err.message.includes("429")) {
+        friendlyMessage = "Límite de cuota gratuita de la IA excedido (Gemini). Intenta de nuevo más tarde o usa precio manual.";
+      } else if (err.message.includes("API_KEY") || err.message.toLowerCase().includes("key")) {
+        friendlyMessage = "Servicio de IA no disponible (API Key no configurada o inválida).";
+      } else {
+        friendlyMessage = `Sugerencia temporalmente no disponible: ${err.message}`;
+      }
+      
+      setSuggestionError(friendlyMessage);
+      
       setGeminiSuggestion({
         precio_sugerido: 1200,
-        razon_sugerencia: "Precio de emergencia (error en red o servidor)."
+        razon_sugerencia: "Precio de emergencia por defecto debido a indisponibilidad de la IA."
       });
     } finally {
       setLoadingSuggestion(false);
@@ -806,24 +816,31 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
         let data;
         const rawText = await res.text();
-        try {
-          if (res.ok) {
-            data = JSON.parse(rawText);
-          } else {
-            throw new Error(`HTTP Status error: ${res.status}`);
-          }
-        } catch (jsonErr: any) {
-          console.error("ERROR CRÍTICO: Falló el parseo de la respuesta JSON de escaneo asistido en backend.", {
-            rawText,
-            errorMessage: jsonErr.message,
-            errorStack: jsonErr.stack
-          });
+        
+        if (!res.ok) {
+          console.warn("Advertencia de escaneo asistido por IA (el backend retornó error):", rawText);
           data = {
             nombre_estimado: `Producto nuevo (${barcode})`,
             categoria_estimada: "Abarrotes" as Product['category'],
             precio_sugerido: 1200,
-            razon_sugerencia: "Precio de emergencia (falló respuesta JSON de escaneo asistido)."
+            razon_sugerencia: "Escaneo asistido no disponible (límite de cuota o error temporal de IA)."
           };
+        } else {
+          try {
+            data = JSON.parse(rawText);
+          } catch (jsonErr: any) {
+            console.error("ERROR CRÍTICO: Falló el parseo de la respuesta JSON de escaneo asistido en backend.", {
+              rawText,
+              errorMessage: jsonErr.message,
+              errorStack: jsonErr.stack
+            });
+            data = {
+              nombre_estimado: `Producto nuevo (${barcode})`,
+              categoria_estimada: "Abarrotes" as Product['category'],
+              precio_sugerido: 1200,
+              razon_sugerencia: "Precio de emergencia (falló respuesta JSON de escaneo asistido)."
+            };
+          }
         }
 
         if (data && data.nombre_estimado) {
@@ -941,26 +958,35 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     );
 
     if (foundProduct) {
-      // Si existe: mostrar los datos del producto encontrado (abrir modal de edición)
-      handleOpenEdit(foundProduct);
+      if (userRole !== 'admin') {
+        // En modo cajero/lectura, solo filtramos y mostramos el producto en la lista
+        setSearch(foundProduct.sku);
+      } else {
+        // Si existe: mostrar los datos del producto encontrado (abrir modal de edición)
+        handleOpenEdit(foundProduct);
+      }
     } else {
-      // Si no existe: abrir formulario para agregar nuevo producto con el código pre-llenado
-      setEditingItem(null);
-      setProductFetchMsg('Buscando detalles del producto...');
-      setFormData({
-        sku: barcode,
-        name: '',
-        category: defaultCategory,
-        stock: 12,
-        price: '',
-        cost: '',
-        imageUrl: PRESET_IMAGES[0].url
-      });
-      setShowAddModal(true);
-      // Auto-buscar detalles desde bases de datos externas Open Food Facts / UPCitemdb
-      lookupBarcode(barcode);
+      if (userRole !== 'admin') {
+        alert(`El producto con código ${barcode} no se encuentra registrado en el sistema.`);
+      } else {
+        // Si no existe: abrir formulario para agregar nuevo producto con el código pre-llenado
+        setEditingItem(null);
+        setProductFetchMsg('Buscando detalles del producto...');
+        setFormData({
+          sku: barcode,
+          name: '',
+          category: defaultCategory,
+          stock: 12,
+          price: '',
+          cost: '',
+          imageUrl: PRESET_IMAGES[0].url
+        });
+        setShowAddModal(true);
+        // Auto-buscar detalles desde bases de datos externas Open Food Facts / UPCitemdb
+        lookupBarcode(barcode);
+      }
     }
-  }, [products, handleOpenEdit, lookupBarcode, defaultCategory]);
+  }, [products, handleOpenEdit, lookupBarcode, defaultCategory, userRole]);
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
@@ -1090,25 +1116,27 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       </section>
 
       {/* ── CARGA MASIVA BANNER ── */}
-      <button
-        type="button"
-        onClick={() => {
-          handleResetImport();
-          setShowImportModal(true);
-        }}
-        className="w-full flex items-center justify-between p-3.5 bg-emerald-50/55 hover:bg-emerald-50 border-2 border-dashed border-emerald-350 rounded-2xl transition-all hover:scale-[1.01] active:scale-99 cursor-pointer group text-left shadow-2xs"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-110 transition-transform">
-            <UploadCloud className="w-5.5 h-5.5 stroke-[2.5]" />
+      {userRole === 'admin' && (
+        <button
+          type="button"
+          onClick={() => {
+            handleResetImport();
+            setShowImportModal(true);
+          }}
+          className="w-full flex items-center justify-between p-3.5 bg-emerald-550/5 hover:bg-emerald-550/10 border-2 border-dashed border-emerald-300 rounded-2xl transition-all hover:scale-[1.01] active:scale-99 cursor-pointer group text-left shadow-2xs"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-110 transition-transform">
+              <UploadCloud className="w-5.5 h-5.5 stroke-[2.5]" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800">Carga Masiva de Productos</h4>
+              <p className="text-[10px] text-emerald-600 font-bold mt-0.5 leading-tight">Importa inventario desde archivos de Excel, PDF o texto plano.</p>
+            </div>
           </div>
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800">Carga Masiva de Productos</h4>
-            <p className="text-[10px] text-emerald-600 font-bold mt-0.5 leading-tight">Importa inventario desde archivos de Excel, PDF o texto plano.</p>
-          </div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-emerald-500 group-hover:translate-x-1 transition-transform" />
-      </button>
+          <ChevronRight className="w-5 h-5 text-emerald-500 group-hover:translate-x-1 transition-transform" />
+        </button>
+      )}
 
       {/* ── BÚSQUEDA CON BOTÓN DE ESCÁNER DE BARRAS DIRECTO (REGLA 6) ── */}
       <div className="flex gap-2">
@@ -1163,9 +1191,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           return (
             <div
               key={p.id}
-              onClick={() => handleOpenEdit(p)}
-              className={`bg-white rounded-2xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col shadow-sm ${
-                isOutOfStock ? 'border-slate-200 opacity-75 bg-slate-50' : isLowStock ? 'border-amber-400 ring-2 ring-amber-400/10' : 'border-slate-200 active:border-emerald-500 hover:shadow-md'
+              onClick={userRole === 'admin' ? () => handleOpenEdit(p) : undefined}
+              className={`bg-white rounded-2xl overflow-hidden border-2 transition-all flex flex-col shadow-sm ${
+                userRole !== 'admin' ? 'cursor-default' : 'cursor-pointer active:border-emerald-500 hover:shadow-md'
+              } ${
+                isOutOfStock ? 'border-slate-200 opacity-75 bg-slate-50' : isLowStock ? 'border-amber-400 ring-2 ring-amber-400/10' : 'border-slate-200'
               }`}
             >
               <div className="relative h-44 w-full bg-slate-100 shrink-0">
@@ -1189,9 +1219,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   <span className="text-xs font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-50 border border-emerald-150 px-2.5 py-1 rounded-lg">
                     {getCategoryIcon(p.category, config)} {p.category}
                   </span>
-                  <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-lg border ${marginPercent >= 30 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
-                    +{marginPercent}% margen
-                  </span>
+                  {userRole === 'admin' && (
+                    <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-lg border ${marginPercent >= 30 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                      +{marginPercent}% margen
+                    </span>
+                  )}
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-950 text-xl leading-tight truncate">
@@ -1208,14 +1240,16 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   </span>
                   <div className="text-right">
                     <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">Precio</span>
-                    <span className="text-2xl font-black text-emerald-600">${p.price.toFixed(2)}</span>
+                    <span className="text-2xl font-black text-emerald-600">${p.price.toLocaleString('es-CL')} CLP</span>
                   </div>
                 </div>
 
-                <div className="flex justify-between text-xs text-slate-800 font-extrabold bg-slate-100 p-3.5 rounded-2xl mt-1 border-2 border-slate-200">
-                  <span>Costo: ${p.cost.toFixed(2)}</span>
-                  <span className="text-emerald-750 font-black">Ganancia: ${(p.price - p.cost).toFixed(2)} / ud</span>
-                </div>
+                {userRole === 'admin' && (
+                  <div className="flex justify-between text-xs text-slate-800 font-extrabold bg-slate-100 p-3.5 rounded-2xl mt-1 border-2 border-slate-200">
+                    <span>Costo: ${p.cost.toFixed(2)}</span>
+                    <span className="text-emerald-750 font-black">Ganancia: ${(p.price - p.cost).toFixed(2)} / ud</span>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1229,13 +1263,15 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       </section>
 
       {/* ── FAB ── */}
-      <button
-        type="button"
-        onClick={handleOpenAdd}
-        className="fixed bottom-20 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-700 active:scale-95 hover:shadow-xl transition-all z-40 hover:rotate-90 duration-300 cursor-pointer"
-      >
-        <Plus className="w-7 h-7 stroke-[2.5]" />
-      </button>
+      {userRole === 'admin' && (
+        <button
+          type="button"
+          onClick={handleOpenAdd}
+          className="fixed bottom-20 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-700 active:scale-95 hover:shadow-xl transition-all z-40 hover:rotate-90 duration-300 cursor-pointer"
+        >
+          <Plus className="w-7 h-7 stroke-[2.5]" />
+        </button>
+      )}
 
       {/* ── MÁSCARA ESCÁNER CON PORTAL NATIVO ── */}
       {typeof document !== 'undefined' && createPortal(
