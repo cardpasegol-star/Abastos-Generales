@@ -32,6 +32,12 @@ export interface Transaction {
   method: 'Efectivo' | 'Tarjeta';
   createdAt: string;
   employeeName?: string;
+  documentType?: 'Boleta' | 'Factura';
+  rutEmpresa?: string;
+  razonSocial?: string;
+  giroComercial?: string;
+  direccionTributaria?: string;
+  siiPdfUrl?: string;
 }
 
 export interface Empleado {

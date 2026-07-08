@@ -15,27 +15,144 @@ const FOOD_PRESET_IMAGES = [
   { label: 'Bebida', url: 'https://images.unsplash.com/photo-1497534446932-c925b458314e?auto=format&fit=crop&q=80&w=200' }
 ];
 
-const PRESET_EMOJIS = [
-  '🛍️', '🛒', '🥤', '🧴', '🥛', '🍿', '🥩', '🍎', '🥦', '🍞', '🍬', 
-  '🧹', '🧼', '🍷', '🍺', '🐶', '💊', '📎', '🔋', '👕', '🍳', 
-  '🍲', '🍰', '🍕', '🍔', '🌮', '🍣', '☕', '📦', '🔑', '💍', '💐', '⚽'
+const PRESET_3D_ICONS = [
+  { label: 'Panqueques/Desayuno', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pancakes.png' },
+  { label: 'Café', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hot%20Beverage.png' },
+  { label: 'Sushi', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Sushi.png' },
+  { label: 'Sándwich', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Sandwich.png' },
+  { label: 'Medialuna/Pan', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Croissant.png' },
+  { label: 'Sopa/Ramen', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Steaming%20Bowl.png' },
+  { label: 'Pizza', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png' },
+  { label: 'Hamburguesa', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png' },
+  { label: 'Postres/Pastel', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png' },
+  { label: 'Botella/Bebidas', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beverage%20Box.png' },
+  { label: 'Caja de Leche/Lácteos', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Milk%20Carton.png' },
+  { label: 'Queso', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png' },
+  { label: 'Huevo', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png' },
+  { label: 'Manzana/Frutas', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png' },
+  { label: 'Brócoli/Verduras', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Broccoli.png' },
+  { label: 'Corte de Carne/Pollo', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cut%20of%20Meat.png' },
+  { label: 'Bolsa de Alimentos/Abarrotes', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png' },
+  { label: 'Papas Fritas/Snacks', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Potato%20Chips.png' },
+  { label: 'Jabón/Limpieza', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Soap.png' },
+  { label: 'Pan Blanco', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bread.png' },
+  { label: 'Carrito de Compras', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png' }
 ];
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
-  'Todos': '🛒',
-  'Todo': '🛒',
-  'Bebidas': '🥤',
-  'Abarrotes': '🧴',
-  'Lácteos': '🥛',
-  'Snacks': '🍿',
-  'Almuerzos': '🍳',
-  'Sopas': '🍲',
-  'Postres': '🍰',
+  'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
+  'Todo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
+  'Bebidas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beverage%20Box.png',
+  'Abarrotes': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png',
+  'Lácteos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Milk%20Carton.png',
+  'Snacks': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Potato%20Chips.png',
+  'Almuerzos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cooking.png',
+  'Sopas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Steaming%20Bowl.png',
+  'Postres': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png',
 };
 
 function getCategoryIcon(cat: string, customIcons?: Record<string, string>): string {
-  if (cat === 'Todos' || cat === 'Todo') return '🛒';
-  return customIcons?.[cat] || DEFAULT_CATEGORY_ICONS[cat] || '📦';
+  if (cat === 'Todos' || cat === 'Todo') return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png';
+  return customIcons?.[cat] || DEFAULT_CATEGORY_ICONS[cat] || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Cardboard%20Box.png';
+}
+
+function CategoryIcon({ cat, iconUrl, className = "w-8 h-8 object-contain" }: { cat: string; iconUrl: string; className?: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  const getFallbackEmoji = (category: string): string => {
+    const lower = category.toLowerCase();
+    if (lower.includes('bebida')) return '🥤';
+    if (lower.includes('almuerzo') || lower.includes('cocina') || lower.includes('comida') || lower.includes('hamburguesa') || lower.includes('sándwich')) return '🍔';
+    if (lower.includes('sopa') || lower.includes('ramen')) return '🍲';
+    if (lower.includes('postre') || lower.includes('dulce') || lower.includes('torta') || lower.includes('pastel') || lower.includes('shortcake')) return '🍰';
+    if (lower.includes('lácteo') || lower.includes('leche') || lower.includes('queso')) return '🥛';
+    if (lower.includes('snack') || lower.includes('papas') || lower.includes('papas fritas')) return '🍿';
+    if (lower.includes('abarrote') || lower.includes('limpieza') || lower.includes('jabón')) return '🧴';
+    if (lower.includes('pan') || lower.includes('medialuna') || lower.includes('factura') || lower.includes('croissant')) return '🍞';
+    if (lower.includes('sushi')) return '🍣';
+    if (lower.includes('fruta') || lower.includes('manzana')) return '🍎';
+    if (lower.includes('verdura') || lower.includes('brócoli')) return '🥦';
+    if (lower.includes('carne') || lower.includes('corte')) return '🥩';
+    if (lower.includes('todos') || lower.includes('todo') || lower.includes('carrito')) return '🛒';
+    return '📦';
+  };
+
+  if (!iconUrl) {
+    return <span className="select-none text-2xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)] leading-none inline-block">{getFallbackEmoji(cat)}</span>;
+  }
+
+  if (iconUrl.startsWith('http') && !hasError) {
+    return (
+      <img
+        src={iconUrl}
+        className={`${className} filter drop-shadow-[0_3px_5px_rgba(0,0,0,0.20)]`}
+        alt={cat}
+        referrerPolicy="no-referrer"
+        onError={() => setHasError(true)}
+      />
+    );
+  }
+
+  return (
+    <span className="select-none text-2xl filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)] leading-none inline-block">
+      {iconUrl.startsWith('http') ? getFallbackEmoji(cat) : iconUrl}
+    </span>
+  );
+}
+
+function SelectorStickerItem({ item, selected, onClick }: { item: typeof PRESET_3D_ICONS[0]; selected: boolean; onClick: () => void; key?: any }) {
+  const [hasError, setHasError] = useState(false);
+
+  const getNativeEmoji = (label: string): string => {
+    const l = label.toLowerCase();
+    if (l.includes('panqueque') || l.includes('desayuno')) return '🥞';
+    if (l.includes('café') || l.includes('cafe')) return '☕';
+    if (l.includes('sushi')) return '🍣';
+    if (l.includes('sándwich') || l.includes('sandwich')) return '🥪';
+    if (l.includes('medialuna') || l.includes('pan')) return '🥐';
+    if (l.includes('sopa') || l.includes('ramen')) return '🍲';
+    if (l.includes('pizza')) return '🍕';
+    if (l.includes('hamburguesa')) return '🍔';
+    if (l.includes('postre') || l.includes('pastel')) return '🍰';
+    if (l.includes('botella') || l.includes('bebida')) return '🥤';
+    if (l.includes('leche') || l.includes('lácteo')) return '🥛';
+    if (l.includes('queso')) return '🧀';
+    if (l.includes('huevo')) return '🥚';
+    if (l.includes('manzana') || l.includes('fruta')) return '🍎';
+    if (l.includes('brócoli') || l.includes('verdura')) return '🥦';
+    if (l.includes('carne') || l.includes('corte')) return '🥩';
+    if (l.includes('bolsa') || l.includes('abarrote')) return '🛍️';
+    if (l.includes('papas') || l.includes('snack')) return '🍿';
+    if (l.includes('jabón') || l.includes('limpieza')) return '🧼';
+    if (l.includes('pan blanco')) return '🍞';
+    if (l.includes('carrito')) return '🛒';
+    return '📦';
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 transition-all border cursor-pointer select-none p-2 bg-white shadow-2xs ${
+        selected
+          ? 'bg-indigo-50/50 border-indigo-600 ring-4 ring-indigo-500/15 scale-110 shadow-md'
+          : 'bg-white border-slate-200/80 hover:bg-slate-50 opacity-90 hover:scale-105 hover:opacity-100 hover:shadow-xs'
+      }`}
+      title={item.label}
+    >
+      {!hasError ? (
+        <img
+          src={item.url}
+          className="w-10 h-10 object-contain animate-fade-in filter drop-shadow-[0_3px_6px_rgba(0,0,0,0.18)]"
+          alt={item.label}
+          referrerPolicy="no-referrer"
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <span className="text-2xl select-none filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)] leading-none inline-block">{getNativeEmoji(item.label)}</span>
+      )}
+    </button>
+  );
 }
 
 interface MantTabProps {
@@ -100,8 +217,8 @@ export default function MantTab({
   const [foodItemCategoriesList, setFoodItemCategoriesList] = useState<string[]>([]);
   const [newProductCat, setNewProductCat] = useState('');
   const [newFoodCat, setNewFoodCat] = useState('');
-  const [productSelectedEmoji, setProductSelectedEmoji] = useState('🛍️');
-  const [foodSelectedEmoji, setFoodSelectedEmoji] = useState('🍳');
+  const [productSelectedEmoji, setProductSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png');
+  const [foodSelectedEmoji, setFoodSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pancakes.png');
   const [categoryIconsList, setCategoryIconsList] = useState<Record<string, string>>({});
 
   // Kitchen dish builder form state
@@ -956,17 +1073,19 @@ export default function MantTab({
               <label className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">
                 🛍️ Categorías de Productos (La Bodega)
               </label>
-              <div className="flex flex-wrap gap-2 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+              <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
                 {productCategoriesList.map(cat => (
-                  <span key={cat} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-200 shadow-3xs">
-                    <span className="text-sm select-none">{getCategoryIcon(cat, categoryIconsList)}</span>
-                    {cat}
+                  <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-800 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
+                    <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
+                      <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                    </span>
+                    <span className="font-bold">{cat}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveProductCat(cat)}
-                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer"
+                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
                     >
-                      <X className="w-3 h-3 stroke-[2.5]" />
+                      <X className="w-3.5 h-3.5 stroke-[2.5]" />
                     </button>
                   </span>
                 ))}
@@ -991,25 +1110,19 @@ export default function MantTab({
                   Agregar
                 </button>
               </div>
-              {/* Product Emoji Selector */}
+              {/* Product Sticker Selector */}
               <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
-                  🎨 Escoge un emoji para asociarlo al rubro nuevo que va a agregar:
+                  🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
                 </span>
-                <div className="flex gap-1 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
-                  {PRESET_EMOJIS.map(em => (
-                    <button
-                      key={em}
-                      type="button"
-                      onClick={() => setProductSelectedEmoji(em)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-base transition-all border cursor-pointer select-none ${
-                        productSelectedEmoji === em
-                          ? 'bg-indigo-50 border-indigo-600 ring-2 ring-indigo-500/10 scale-110'
-                          : 'bg-white border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {em}
-                    </button>
+                <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
+                  {PRESET_3D_ICONS.map(item => (
+                    <SelectorStickerItem
+                      key={item.url}
+                      item={item}
+                      selected={productSelectedEmoji === item.url}
+                      onClick={() => setProductSelectedEmoji(item.url)}
+                    />
                   ))}
                 </div>
               </div>
@@ -1020,17 +1133,19 @@ export default function MantTab({
               <label className="text-[9.5px] font-black text-emerald-700 uppercase tracking-widest block">
                 🍳 Categorías del Menú (Alimentos y Cocina)
               </label>
-              <div className="flex flex-wrap gap-2 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+              <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
                 {foodItemCategoriesList.map(cat => (
-                  <span key={cat} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-850 text-[11px] font-bold px-2.5 py-1 rounded-full border border-slate-200 shadow-3xs">
-                    <span className="text-sm select-none">{getCategoryIcon(cat, categoryIconsList)}</span>
-                    {cat}
+                  <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-850 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
+                    <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
+                      <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                    </span>
+                    <span className="font-bold">{cat}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveFoodCat(cat)}
-                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer"
+                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
                     >
-                      <X className="w-3 h-3 stroke-[2.5]" />
+                      <X className="w-3.5 h-3.5 stroke-[2.5]" />
                     </button>
                   </span>
                 ))}
@@ -1059,25 +1174,19 @@ export default function MantTab({
                   Agregar
                 </button>
               </div>
-              {/* Food Emoji Selector */}
+              {/* Food Sticker Selector */}
               <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
-                  🎨 Escoge un emoji para asociarlo al rubro nuevo que va a agregar:
+                  🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
                 </span>
-                <div className="flex gap-1 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
-                  {PRESET_EMOJIS.map(em => (
-                    <button
-                      key={em}
-                      type="button"
-                      onClick={() => setFoodSelectedEmoji(em)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-base transition-all border cursor-pointer select-none ${
-                        foodSelectedEmoji === em
-                          ? 'bg-emerald-5 border-emerald-600 ring-2 ring-emerald-500/10 scale-110'
-                          : 'bg-white border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {em}
-                    </button>
+                <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
+                  {PRESET_3D_ICONS.map(item => (
+                    <SelectorStickerItem
+                      key={item.url}
+                      item={item}
+                      selected={foodSelectedEmoji === item.url}
+                      onClick={() => setFoodSelectedEmoji(item.url)}
+                    />
                   ))}
                 </div>
               </div>

@@ -361,9 +361,9 @@ export default function App() {
       currentTab = 'Compras';
     }
   } else if (currentEmployee.role === 'cajero') {
-    // Empleado state: only Compras, Inventario, and Mant. are allowed
-    if (activeTab !== 'Compras' && activeTab !== 'Inventario' && activeTab !== 'Mant.') {
-      currentTab = 'Compras';
+    // Empleado state: can access Compras, Inventario, Caja, and Reportes. Cannot access Mant. or Master
+    if (activeTab === 'Mant.' || activeTab === 'Master') {
+      currentTab = 'Inventario';
     }
   } else {
     // Admin / Dueño / Developer state: all tabs allowed (with master gating if applicable)

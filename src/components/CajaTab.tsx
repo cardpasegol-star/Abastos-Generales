@@ -4,15 +4,30 @@ import { Product, CartItem, Transaction, BusinessConfig } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
 const CATEGORY_ICONS: Record<string, string> = {
-  'Bebidas': '🥤',
-  'Abarrotes': '🧴',
-  'Lácteos': '🥛',
-  'Snacks': '🍿',
+  'Bebidas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beverage%20Box.png',
+  'Abarrotes': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png',
+  'Lácteos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Milk%20Carton.png',
+  'Snacks': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Potato%20Chips.png',
 };
 
 function getCategoryIcon(cat: string, config?: BusinessConfig): string {
-  if (cat === 'Todos' || cat === 'Todo') return '🛒';
-  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || '📦';
+  if (cat === 'Todos' || cat === 'Todo') return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png';
+  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Cardboard%20Box.png';
+}
+
+function getCategoryIconEmoji(cat: string, config?: BusinessConfig): string {
+  const icon = getCategoryIcon(cat, config);
+  if (icon.startsWith('http')) {
+    if (cat.includes('Bebida')) return '🥤';
+    if (cat.includes('Abarrotes')) return '🧴';
+    if (cat.includes('Lácteos')) return '🥛';
+    if (cat.includes('Snacks')) return '🍿';
+    if (cat.includes('Almuerzo')) return '🍳';
+    if (cat.includes('Sopa')) return '🍲';
+    if (cat.includes('Postre')) return '🍰';
+    return '📦';
+  }
+  return icon;
 }
 
 interface CajaTabProps {
@@ -757,7 +772,7 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
                   >
                     {(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']).map(cat => (
                       <option key={cat} value={cat}>
-                        {getCategoryIcon(cat, config)} {cat}
+                        {getCategoryIconEmoji(cat, config)} {cat}
                       </option>
                     ))}
                   </select>

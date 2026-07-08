@@ -46,18 +46,27 @@ export default function BottomNav({
       );
     }
 
-    // 3. Empleado (Cajero) sees: 'Compras', 'Inventario', 'Mant.'
+    // 3. Empleado (Cajero) sees: 'Inventario', 'Caja', 'Reportes', 'Compras' (MANT is completely hidden)
     if (currentEmployee && currentEmployee.role === 'cajero') {
       return (
-        item.id === 'Compras' ||
         item.id === 'Inventario' ||
-        item.id === 'Mant.'
+        item.id === 'Caja' ||
+        item.id === 'Reportes' ||
+        item.id === 'Compras'
       );
     }
 
     // 4. Default / Cliente Público (Not authenticated) sees: 'Compras', 'Mant.'
     return item.id === 'Compras' || item.id === 'Mant.';
   });
+
+  const handleTabClick = (tabId: ActiveTab) => {
+    if (currentEmployee && currentEmployee.role === 'cajero' && tabId === 'Mant.') {
+      alert('Acceso restringido: Solo para el Dueño/Administrador');
+      return;
+    }
+    setActiveTab(tabId);
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 flex justify-around items-center h-16 px-2 pb-safe shadow-lg rounded-t-2xl max-w-md mx-auto">
@@ -69,7 +78,7 @@ export default function BottomNav({
           <button
             key={item.id}
             id={`nav-tab-${item.id}`}
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => handleTabClick(item.id)}
             className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all duration-200 outline-none cursor-pointer ${
               isActive 
                 ? 'text-emerald-700 scale-102 font-black' 

@@ -25,16 +25,69 @@ const PRESET_IMAGES = [
 ];
 
 const CATEGORY_ICONS: Record<string, string> = {
-  'Todos': '🛒',
-  'Bebidas': '🥤',
-  'Abarrotes': '🧴',
-  'Lácteos': '🥛',
-  'Snacks': '🍿',
+  'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
+  'Bebidas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beverage%20Box.png',
+  'Abarrotes': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png',
+  'Lácteos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Milk%20Carton.png',
+  'Snacks': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Potato%20Chips.png',
 };
 
 export function getCategoryIcon(cat: string, config?: BusinessConfig): string {
-  if (cat === 'Todos' || cat === 'Todo') return '🛒';
-  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || '📦';
+  if (cat === 'Todos' || cat === 'Todo') return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png';
+  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Cardboard%20Box.png';
+}
+
+export function getCategoryIconEmoji(cat: string, config?: BusinessConfig): string {
+  const icon = getCategoryIcon(cat, config);
+  if (icon.startsWith('http')) {
+    if (cat.includes('Bebida')) return '🥤';
+    if (cat.includes('Abarrotes')) return '🧴';
+    if (cat.includes('Lácteos')) return '🥛';
+    if (cat.includes('Snacks')) return '🍿';
+    if (cat.includes('Almuerzo')) return '🍳';
+    if (cat.includes('Sopa')) return '🍲';
+    if (cat.includes('Postre')) return '🍰';
+    return '📦';
+  }
+  return icon;
+}
+
+export function CategoryIcon({ cat, config, className = "w-12 h-12 object-contain" }: { cat: string; config?: BusinessConfig; className?: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  const getFallbackEmoji = (category: string): string => {
+    const lower = category.toLowerCase();
+    if (lower.includes('bebida')) return '🥤';
+    if (lower.includes('almuerzo') || lower.includes('cocina') || lower.includes('comida') || lower.includes('hamburguesa') || lower.includes('sándwich')) return '🍔';
+    if (lower.includes('sopa') || lower.includes('ramen')) return '🍲';
+    if (lower.includes('postre') || lower.includes('dulce') || lower.includes('torta') || lower.includes('pastel') || lower.includes('shortcake')) return '🍰';
+    if (lower.includes('lácteo') || lower.includes('leche') || lower.includes('queso')) return '🥛';
+    if (lower.includes('snack') || lower.includes('papas') || lower.includes('papas fritas')) return '🍿';
+    if (lower.includes('abarrote') || lower.includes('limpieza') || lower.includes('jabón')) return '🧴';
+    if (lower.includes('pan') || lower.includes('medialuna') || lower.includes('factura') || lower.includes('croissant')) return '🍞';
+    if (lower.includes('sushi')) return '🍣';
+    if (lower.includes('fruta') || lower.includes('manzana')) return '🍎';
+    if (lower.includes('verdura') || lower.includes('brócoli')) return '🥦';
+    if (lower.includes('carne') || lower.includes('corte')) return '🥩';
+    if (lower.includes('todos') || lower.includes('todo') || lower.includes('carrito')) return '🛒';
+    return '📦';
+  };
+
+  const icon = getCategoryIcon(cat, config);
+
+  if (icon && icon.startsWith('http') && !hasError) {
+    return (
+      <img
+        src={icon}
+        className={className}
+        alt={cat}
+        referrerPolicy="no-referrer"
+        onError={() => setHasError(true)}
+      />
+    );
+  }
+
+  return <span className="select-none">{icon && icon.startsWith('http') ? getFallbackEmoji(cat) : (icon || '📦')}</span>;
 }
 
 function detectCategory(tags: string[]): Product['category'] {
@@ -1176,7 +1229,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 : 'bg-white text-slate-800 shadow-sm border-2 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            <span className="text-3xl">{getCategoryIcon(cat, config)}</span>
+            <span className="text-3xl flex items-center justify-center w-12 h-12">
+              <CategoryIcon cat={cat} config={config} className="w-12 h-12 object-contain" />
+            </span>
             <span className="font-black">{cat}</span>
           </button>
         ))}
@@ -1217,7 +1272,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <div className="p-4 flex flex-col space-y-2.5">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-50 border border-emerald-150 px-2.5 py-1 rounded-lg">
-                    {getCategoryIcon(p.category, config)} {p.category}
+                    <span className="inline-flex items-center gap-1">
+                      <CategoryIcon cat={p.category} config={config} className="w-5 h-5 object-contain" />
+                    </span> {p.category}
                   </span>
                   {userRole === 'admin' && (
                     <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-lg border ${marginPercent >= 30 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
@@ -1420,7 +1477,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
                 {productCats.map(cat => (
                   <option key={cat} value={cat}>
-                    {getCategoryIcon(cat, config)} {cat}
+                    {getCategoryIconEmoji(cat, config)} {cat}
                   </option>
                 ))}
               </select>
