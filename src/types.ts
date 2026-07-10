@@ -38,6 +38,10 @@ export interface Transaction {
   giroComercial?: string;
   direccionTributaria?: string;
   siiPdfUrl?: string;
+  shippingMethod?: 'Domicilio' | 'Retiro';
+  deliveryAddress?: string;
+  deliveryComuna?: string;
+  deliveryFee?: number;
 }
 
 export interface Empleado {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig, Transaction } from '../types';
 import { jsPDF } from 'jspdf';
@@ -123,6 +123,30 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const [notes, setNotes] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // Delivery quote states
+  const [isQuotingDelivery, setIsQuotingDelivery] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState(0);
+
+  useEffect(() => {
+    if (shippingMethod === 'Domicilio' && street.trim() && comuna) {
+      setIsQuotingDelivery(true);
+      const timer = setTimeout(() => {
+        setIsQuotingDelivery(false);
+        let km = 3; // default for La Florida
+        if (comuna === 'La Pintana') km = 6;
+        else if (comuna === 'Puente Alto') km = 8;
+        else if (comuna === 'San Ramón') km = 5;
+        
+        const fee = 1500 + 500 * km;
+        setDeliveryFee(fee);
+      }, 1500);
+      return () => clearTimeout(timer);
+    } else {
+      setDeliveryFee(0);
+      setIsQuotingDelivery(false);
+    }
+  }, [shippingMethod, street, comuna]);
+
   // 2-Step Checkout states
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'ready'>('form');
   const [waUrl, setWaUrl] = useState('');
@@ -229,14 +253,14 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     return sum + price * item.quantity;
   }, 0);
   const taxVal = subtotalVal * (ivaPercentage / 100);
-  const totalCartCost = subtotalVal + taxVal;
+  const totalCartCost = subtotalVal + taxVal + (shippingMethod === 'Domicilio' ? deliveryFee : 0);
 
   // PDF Ticket Downloader for Clients
   const downloadReceiptPDF = (tx: Transaction) => {
     const paddingBottom = 25;
     const headerHeight = 55;
     const itemsHeight = tx.items.length * 7;
-    const totalsHeight = 30;
+    const totalsHeight = tx.shippingMethod === 'Domicilio' ? 42 : 30;
     const pdfHeight = headerHeight + itemsHeight + totalsHeight + paddingBottom;
 
     const doc = new jsPDF({
@@ -276,7 +300,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     currentY += 3.5;
     doc.text(`FECHA EMISION: ${new Date(tx.createdAt).toLocaleString()}`, 5, currentY);
     currentY += 3.5;
-    doc.text(`TIPO OPERACION: VENTA (PEDIDO ON)', 5, currentY);`, 5, currentY);
+    doc.text('TIPO OPERACION: VENTA (PEDIDO ON)', 5, currentY);
     currentY += 4.5;
 
     doc.line(5, currentY, 75, currentY);
@@ -323,6 +347,20 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     doc.text(`IVA (${calculatedIvaRate}%):`, 45, currentY);
     doc.text(`$${tx.tax.toFixed(2)}`, 75, currentY, { align: 'right' });
     currentY += 4.5;
+
+    if (tx.shippingMethod === 'Domicilio' && tx.deliveryFee) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('ENVIO (DELIVERY):', 45, currentY);
+      doc.text(`$${tx.deliveryFee.toFixed(2)}`, 75, currentY, { align: 'right' });
+      currentY += 4;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.text(`DESPACHO: ${tx.deliveryAddress || ''}, ${tx.deliveryComuna || ''}`, 5, currentY);
+      currentY += 4.5;
+    } else {
+      currentY += 1;
+    }
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -393,6 +431,10 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       }
       if (!comuna.trim()) {
         setValidationError('Por favor, ingresa la comuna.');
+        return;
+      }
+      if (isQuotingDelivery) {
+        setValidationError('Por favor, espera a que finalice la cotización de despacho.');
         return;
       }
     }
@@ -544,7 +586,13 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           giroComercial: giroComercial.trim(),
           direccionTributaria: direccionTributaria.trim(),
         } : {}),
-        siiPdfUrl: simulatedPdfUrl || undefined
+        siiPdfUrl: simulatedPdfUrl || undefined,
+        shippingMethod,
+        ...(shippingMethod === 'Domicilio' ? {
+          deliveryAddress: `${street.trim()} # ${number.trim()}`,
+          deliveryComuna: comuna,
+          deliveryFee: deliveryFee
+        } : {})
       };
 
 
@@ -581,7 +629,12 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       if (finalMethod === 'Tarjeta') {
         const docText = documentType === 'Factura' ? 'Factura' : 'Boleta';
         const docUrl = simulatedPdfUrl || `https://www.sii.cl/facturacion_electronica/ejemplo_dte_${documentType === 'Factura' ? 33 : 39}.pdf`;
-        msg = `¡Hola! Tienes una nueva venta pagada mediante la app. Documento solicitado: ${docText}. Total: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n\n`;
+        
+        if (shippingMethod === 'Domicilio') {
+          msg = `¡Hola! Nuevo pedido pagado. Método: Delivery. Dirección de entrega: ${street.trim()} # ${number.trim()}, ${comuna}. Total con envío: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n\n`;
+        } else {
+          msg = `¡Hola! Nuevo pedido pagado. Método: Retiro en Local. Total: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n\n`;
+        }
         
         msg += `📦 *DETALLE DE PRODUCTOS:* \n`;
         cart.forEach((item) => {
@@ -595,6 +648,11 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
             : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
           msg += `• *${item.quantity}x* _${name}_ | Precio c/u: $${price.toFixed(2)}\n`;
         });
+        
+        if (shippingMethod === 'Domicilio') {
+          msg += `🚚 *Costo de Envío (Delivery):* $${deliveryFee.toFixed(2)}\n`;
+        }
+        
         msg += `\n_¡Muchas gracias! Comprobante emitido y venta confirmada._`;
       } else {
         msg += `📝 *NUEVO PEDIDO CON PAGO EN EFECTIVO* 🏪\n`;
@@ -1203,24 +1261,24 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                           <button
                             type="button"
                             onClick={() => setShippingMethod('Retiro')}
-                            className={`py-3 rounded-2xl text-xs font-black border-2 transition-all cursor-pointer ${
+                            className={`py-3 px-2 rounded-2xl text-[11px] font-black border-2 transition-all cursor-pointer ${
                               shippingMethod === 'Retiro'
                                 ? 'bg-slate-950 text-white border-slate-950 shadow-md'
                                 : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
                             }`}
                           >
-                            Retiro en local
+                            Retiro en Local ($0)
                           </button>
                           <button
                             type="button"
                             onClick={() => setShippingMethod('Domicilio')}
-                            className={`py-3 rounded-2xl text-xs font-black border-2 transition-all cursor-pointer ${
+                            className={`py-3 px-2 rounded-2xl text-[11px] font-black border-2 transition-all cursor-pointer ${
                               shippingMethod === 'Domicilio'
                                 ? 'bg-slate-950 text-white border-slate-950 shadow-md'
                                 : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
                             }`}
                           >
-                            A Domicilio 🚀
+                            Envío a Domicilio (Simulador Delivery Sandbox)
                           </button>
                         </div>
                       </div>
@@ -1259,14 +1317,33 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                             <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
                               Comuna *
                             </label>
-                            <input
-                              type="text"
-                              placeholder="Ej. La Florida"
+                            <select
                               value={comuna}
                               onChange={(e) => setComuna(e.target.value)}
-                              className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
-                            />
+                              className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950 cursor-pointer"
+                            >
+                              <option value="La Florida">La Florida</option>
+                              <option value="La Pintana">La Pintana</option>
+                              <option value="Puente Alto">Puente Alto</option>
+                              <option value="San Ramón">San Ramón</option>
+                            </select>
                           </div>
+
+                          {/* Delivery Quotation Loader & Result */}
+                          {isQuotingDelivery ? (
+                            <div className="flex items-center gap-2.5 bg-blue-50 border-2 border-blue-200 text-blue-900 p-3.5 rounded-2xl animate-pulse text-xs font-bold font-sans">
+                              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                              <span>Cotizando ruta con repartidores disponibles...</span>
+                            </div>
+                          ) : deliveryFee > 0 ? (
+                            <div className="bg-emerald-50 border-2 border-emerald-250 p-4 rounded-2xl text-emerald-950 flex justify-between items-center font-sans animate-in fade-in duration-200">
+                              <div>
+                                <p className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider">Tarifa de Despacho Cotizada</p>
+                                <p className="text-xs font-black">Sandbox Uber Direct / PedidosYa ({comuna})</p>
+                              </div>
+                              <span className="text-xs font-black text-emerald-950 bg-white border-2 border-emerald-350 px-3 py-1.5 rounded-xl font-mono">${deliveryFee.toFixed(0)}</span>
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
 
@@ -1718,6 +1795,17 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                     <span>IVA ({ivaPercentage}%):</span>
                     <span className="font-mono">${successTx.tax.toFixed(2)}</span>
                   </div>
+                  {successTx.shippingMethod === 'Domicilio' && successTx.deliveryFee && (
+                    <div className="space-y-0.5 pt-0.5 border-t border-dashed border-slate-100 font-sans">
+                      <div className="flex justify-between">
+                        <span>DELIVERY (ENVIO):</span>
+                        <span className="font-mono">${successTx.deliveryFee.toFixed(2)}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 italic font-sans text-left">
+                        📍 Despacho: {successTx.deliveryAddress}, {successTx.deliveryComuna}
+                      </p>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-1.5 border-t border-slate-100 items-baseline font-sans">
                     <span className="font-black text-xs text-slate-950 uppercase font-sans">
                       {successTx.method === 'Tarjeta' ? 'TOTAL PAGADO:' : 'TOTAL A PAGAR:'}
