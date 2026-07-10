@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig, Transaction } from '../types';
 import { jsPDF } from 'jspdf';
 
@@ -62,12 +62,84 @@ function CategoryIcon({ cat, config, sizeClass = "w-5 h-5 object-contain inline-
   return <span className="select-none">{icon && icon.startsWith('http') ? getFallbackEmoji(cat) : (icon || '📦')}</span>;
 }
 
+const RM_COMUNAS = [
+  "La Florida",
+  "La Pintana",
+  "Puente Alto",
+  "San Ramón",
+  "La Granja",
+  "Macul",
+  "Peñalolén",
+  "San Joaquín",
+  "Santiago Centro",
+  "Las Condes",
+  "Providencia",
+  "Ñuñoa",
+  "Maipú",
+  "San Bernardo",
+  "Pudahuel",
+  "Quilicura",
+  "Recoleta",
+  "Estación Central",
+  "San Miguel",
+  "Pedro Aguirre Cerda",
+  "Cerrillos",
+  "Lo Espejo",
+  "El Bosque",
+  "La Cisterna",
+  "Independencia",
+  "Quinta Normal",
+  "Renca",
+  "Cerro Navia",
+  "Lo Prado",
+  "Conchalí",
+  "Huechuraba",
+  "Vitacura",
+  "Lo Barnechea"
+];
+
+function getStoreOriginComuna(): string {
+  try {
+    const activeTenant = localStorage.getItem('tenant_tienda_id') || '';
+    if (activeTenant.includes('turco')) return 'La Pintana';
+    if (activeTenant.includes('buencorte')) return 'La Florida';
+    if (activeTenant.includes('barrioseguro')) return 'Santiago Centro';
+  } catch (e) {
+    console.error(e);
+  }
+  return 'La Florida';
+}
+
+function getDeliveryFeeForComuna(targetComuna: string, originComuna: string): number {
+  const targetNorm = targetComuna.trim().toLowerCase();
+  const originNorm = originComuna.trim().toLowerCase();
+  
+  if (targetNorm === originNorm) {
+    return 3000;
+  }
+  
+  // Aledañas/vecinas mapping based on origin
+  const vecinasMap: Record<string, string[]> = {
+    "la florida": ["la pintana", "puente alto", "san ramón", "san ramon", "macul", "peñalolén", "peñalolen", "san joaquín", "san joaquin", "la granja", "ñuñoa", "nunoa", "providencia", "las condes"],
+    "la pintana": ["la florida", "puente alto", "san ramón", "san ramon", "la granja", "el bosque", "san bernardo"],
+    "santiago centro": ["providencia", "ñuñoa", "nunoa", "recoleta", "independencia", "quinta normal", "estación central", "estacion central", "san miguel", "san joaquín", "san joaquin", "pedro aguirre cerda", "macul"]
+  };
+  
+  const vecinas = vecinasMap[originNorm] || vecinasMap["la florida"];
+  if (vecinas.includes(targetNorm)) {
+    return 4500;
+  }
+  
+  return 7000;
+}
+
 interface ComprasTabProps {
   products: Product[];
   foodItems?: FoodItem[];
   config: BusinessConfig;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
+  onBackToMarketplace?: () => void;
 }
 
 interface CartItem {
@@ -78,7 +150,7 @@ interface CartItem {
   quantity: number;
 }
 
-export default function ComprasTab({ products, foodItems = [], config, onAddTransaction, onUpdateProductStock }: ComprasTabProps) {
+export default function ComprasTab({ products, foodItems = [], config, onAddTransaction, onUpdateProductStock, onBackToMarketplace }: ComprasTabProps) {
   // Search state (unified across both lists)
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -97,7 +169,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const [customerPhone, setCustomerPhone] = useState('');
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
-  const [comuna, setComuna] = useState('La Florida');
+  const [comuna, setComuna] = useState(() => localStorage.getItem('cliente_comuna') || 'La Florida');
   const [paymentMethod, setPaymentMethod] = useState<'MercadoPago' | 'Efectivo'>('MercadoPago');
 
   // Document selection states
@@ -132,12 +204,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       setIsQuotingDelivery(true);
       const timer = setTimeout(() => {
         setIsQuotingDelivery(false);
-        let km = 3; // default for La Florida
-        if (comuna === 'La Pintana') km = 6;
-        else if (comuna === 'Puente Alto') km = 8;
-        else if (comuna === 'San Ramón') km = 5;
-        
-        const fee = 1500 + 500 * km;
+        const fee = getDeliveryFeeForComuna(comuna, getStoreOriginComuna());
         setDeliveryFee(fee);
       }, 1500);
       return () => clearTimeout(timer);
@@ -350,9 +417,10 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
 
     if (tx.shippingMethod === 'Domicilio' && tx.deliveryFee) {
       doc.setFont('helvetica', 'bold');
-      doc.text('ENVIO (DELIVERY):', 45, currentY);
+      doc.setFontSize(7);
+      doc.text('ENVIO (DELIVERY)', 45, currentY);
       doc.text(`$${tx.deliveryFee.toFixed(2)}`, 75, currentY, { align: 'right' });
-      currentY += 4;
+      currentY += 4.5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
@@ -601,13 +669,15 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       try {
         txId = await onAddTransaction(transactionPayload);
 
-        // 2. Adjust inventories stocks sequentially for products ONLY
-        for (const item of cart) {
-          if (item.type === 'product' && item.product) {
-            const targetProduct = products.find(p => p.id === item.product?.id);
-            if (targetProduct) {
-              const newStock = Math.max(0, targetProduct.stock - item.quantity);
-              await onUpdateProductStock(targetProduct.id, newStock);
+        // 2. Adjust inventories stocks sequentially for products ONLY (if not delivery)
+        if (shippingMethod !== 'Domicilio') {
+          for (const item of cart) {
+            if (item.type === 'product' && item.product) {
+              const targetProduct = products.find(p => p.id === item.product?.id);
+              if (targetProduct) {
+                const newStock = Math.max(0, targetProduct.stock - item.quantity);
+                await onUpdateProductStock(targetProduct.id, newStock);
+              }
             }
           }
         }
@@ -615,11 +685,54 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         console.warn("DB operation failed or offline in sandbox environment, bypassing safely...", dbError);
       }
 
-      // 3. Keep standard transaction representation for displaying physical-grade ticket overlay on-screen
-      setSuccessTx({
+      const txObj = {
         id: txId,
         ...transactionPayload
-      });
+      };
+
+      // 3. Keep standard transaction representation for displaying physical-grade ticket overlay on-screen
+      setSuccessTx(txObj);
+
+      // Save to "Pedidos Pendientes" in LocalStorage if it is delivery
+      if (shippingMethod === 'Domicilio') {
+        try {
+          const existing = localStorage.getItem('pedidos_pendientes');
+          const list = existing ? JSON.parse(existing) : [];
+          const orderItems = cart.map(item => {
+            const liveProduct = item.type === 'product' ? products.find(p => p.id === item.id) : null;
+            const liveFoodItem = item.type === 'meal' ? foodItems.find(f => f.id === item.id) : null;
+            const name = item.type === 'product'
+              ? (liveProduct?.name || item.product?.name || '')
+              : (liveFoodItem?.name || item.foodItem?.name || '');
+            const price = item.type === 'product'
+              ? (liveProduct?.price ?? item.product?.price ?? 0)
+              : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
+            return {
+              productId: item.id,
+              name,
+              qty: item.quantity,
+              price,
+              type: item.type
+            };
+          });
+
+          list.push({
+            id: txId,
+            items: orderItems,
+            subtotal: parseFloat(subtotalVal.toFixed(2)),
+            tax: parseFloat(taxVal.toFixed(2)),
+            total: parseFloat(totalCartCost.toFixed(2)),
+            createdAt: new Date().toISOString(),
+            deliveryAddress: `${street.trim()} # ${number.trim()}`,
+            deliveryComuna: comuna,
+            deliveryFee: deliveryFee,
+            status: 'pending'
+          });
+          localStorage.setItem('pedidos_pendientes', JSON.stringify(list));
+        } catch (e) {
+          console.error("Error saving pending order to LocalStorage:", e);
+        }
+      }
 
       // 4. Generate beautiful structured WhatsApp Message
       const cartProducts = cart.filter(item => item.type === 'product');
@@ -759,6 +872,15 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
 
   return (
     <div id="compras-container" className="space-y-6 pb-36 animate-in fade-in duration-300">
+      {onBackToMarketplace && (
+        <button
+          onClick={onBackToMarketplace}
+          className="flex items-center gap-2 text-xs font-black text-slate-700 hover:text-emerald-700 bg-white border-2 border-slate-200 px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-3xs active:scale-95"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Volver al Marketplace</span>
+        </button>
+      )}
       {/* Visual Header Banner */}
       <div className="relative rounded-2xl overflow-hidden shadow-md h-36 bg-slate-900 text-white flex items-center p-5 border-2 border-slate-900">
         <div className="absolute inset-0 z-0">
@@ -1322,10 +1444,11 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                               onChange={(e) => setComuna(e.target.value)}
                               className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950 cursor-pointer"
                             >
-                              <option value="La Florida">La Florida</option>
-                              <option value="La Pintana">La Pintana</option>
-                              <option value="Puente Alto">Puente Alto</option>
-                              <option value="San Ramón">San Ramón</option>
+                              {RM_COMUNAS.map((c) => (
+                                <option key={c} value={c}>
+                                  {c}
+                                </option>
+                              ))}
                             </select>
                           </div>
 
@@ -1798,7 +1921,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                   {successTx.shippingMethod === 'Domicilio' && successTx.deliveryFee && (
                     <div className="space-y-0.5 pt-0.5 border-t border-dashed border-slate-100 font-sans">
                       <div className="flex justify-between">
-                        <span>DELIVERY (ENVIO):</span>
+                        <span>ENVIO (DELIVERY):</span>
                         <span className="font-mono">${successTx.deliveryFee.toFixed(2)}</span>
                       </div>
                       <p className="text-[10px] text-slate-500 italic font-sans text-left">

@@ -15,6 +15,7 @@ import MasterTab from './components/MasterTab';
 import LicenseBlockScreen from './components/LicenseBlockScreen';
 import InicioTurno from './components/InicioTurno';
 import WelcomeScreen from './components/WelcomeScreen';
+import AdminDeliveryPanel from './components/AdminDeliveryPanel';
 
 export default function App() {
   const [tenantId, setTenantId] = useState<string | null>(() => {
@@ -59,6 +60,31 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [config, setConfig] = useState<BusinessConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+
+  // States for Delivery Simulation
+  const [adminDeliveryActive, setAdminDeliveryActive] = useState(false);
+  const [pendingDeliveryCount, setPendingDeliveryCount] = useState(0);
+
+  // Poll LocalStorage to update pending counts in the switcher buttons
+  useEffect(() => {
+    const checkCount = () => {
+      try {
+        const saved = localStorage.getItem('pedidos_pendientes');
+        if (saved) {
+          const list = JSON.parse(saved);
+          const active = list.filter((o: any) => o.status === 'pending');
+          setPendingDeliveryCount(active.length);
+        } else {
+          setPendingDeliveryCount(0);
+        }
+      } catch {
+        setPendingDeliveryCount(0);
+      }
+    };
+    checkCount();
+    const timer = setInterval(checkCount, 1500);
+    return () => clearInterval(timer);
+  }, []);
 
   // Sync unlock states when currentEmployee is set/restored
   useEffect(() => {
@@ -236,9 +262,22 @@ export default function App() {
     const id = 'tx-' + Math.floor(100 + Math.random() * 900);
     const newTx: Transaction = {
       ...tx,
-      employeeName: tx.employeeName || currentEmployee?.name || undefined,
       id
     };
+
+    const empName = tx.employeeName || currentEmployee?.name;
+    if (empName) {
+      newTx.employeeName = empName;
+    } else {
+      delete newTx.employeeName;
+    }
+
+    // Cleanse any other undefined fields for Firestore compatibility
+    Object.keys(newTx).forEach(key => {
+      if ((newTx as any)[key] === undefined) {
+        delete (newTx as any)[key];
+      }
+    });
 
     try {
       const docRef = tenantId
@@ -378,85 +417,138 @@ export default function App() {
       {/* Dynamic top bar */}
       <Header config={config} currentEmployee={currentEmployee} onLogout={handleLogout} />
 
+      {/* Visual Dual System Mode Selector */}
+      <div className="max-w-md w-full mx-auto px-4 pt-4">
+        <div className="bg-white border-2 border-slate-200 p-1 rounded-2xl flex shadow-sm">
+          <button
+            onClick={() => {
+              setAdminDeliveryActive(false);
+              setActiveTab('Compras');
+            }}
+            className={`flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              !adminDeliveryActive
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <span>Modo Cliente 🛒</span>
+          </button>
+          <button
+            onClick={() => {
+              setAdminDeliveryActive(true);
+            }}
+            className={`flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              adminDeliveryActive
+                ? 'bg-slate-950 text-white shadow-md'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <span>Modo Admin ⚙️ (Delivery)</span>
+            {pendingDeliveryCount > 0 && (
+              <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-bounce font-mono">
+                {pendingDeliveryCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Main viewport canvas */}
       <main className="flex-1 px-4 pt-4 pb-28 max-w-md w-full mx-auto">
-        {currentTab === 'InicioTurno' && (
-          <InicioTurno onLoginSuccess={handleLoginSuccess} tenantId={tenantId} />
-        )}
-
-        {currentTab === 'Inventario' && (
-          <InventarioTab
+        {adminDeliveryActive ? (
+          <AdminDeliveryPanel
             products={products}
-            onAddProduct={handleAddProduct}
-            onEditProduct={handleEditProduct}
-            onDeleteProduct={handleDeleteProduct}
-            config={config}
-            userRole={currentEmployee?.role}
-          />
-        )}
-
-        {currentTab === 'Caja' && (
-          <CajaTab
-            products={products}
-            onAddProduct={handleAddProduct}
-            onAddTransaction={handleAddTransaction}
             onUpdateProductStock={handleUpdateProductStock}
-            config={config}
-          />
-        )}
-
-        {currentTab === 'Reportes' && (
-          <ReportesTab transactions={transactions} config={config} />
-        )}
-
-        {currentTab === 'Compras' && (
-          <ComprasTab
-            products={products}
-            foodItems={foodItems}
-            config={config}
             onAddTransaction={handleAddTransaction}
-            onUpdateProductStock={handleUpdateProductStock}
           />
-        )}
+        ) : (
+          <>
+            {currentTab === 'InicioTurno' && (
+              <InicioTurno onLoginSuccess={handleLoginSuccess} tenantId={tenantId} />
+            )}
 
-        {currentTab === 'Mant.' && (
-          <MantTab
-            products={products}
-            foodItems={foodItems}
-            config={config}
-            onUpdateConfig={handleUpdateConfig}
-            onEditProduct={handleEditProduct}
-            onDeleteProduct={handleDeleteProduct}
-            onAddFoodItem={handleAddFoodItem}
-            onDeleteFoodItem={handleDeleteFoodItem}
-            isUnlocked={isAdminUnlocked}
-            onUnlock={setIsAdminUnlocked}
-            isMasterUnlocked={isMasterUnlocked}
-            onUnlockMaster={setIsMasterUnlocked}
-            currentEmployee={currentEmployee}
-            onLoginSuccess={handleLoginSuccess}
-            tenantId={tenantId}
-          />
-        )}
+            {currentTab === 'Inventario' && (
+              <InventarioTab
+                products={products}
+                onAddProduct={handleAddProduct}
+                onEditProduct={handleEditProduct}
+                onDeleteProduct={handleDeleteProduct}
+                config={config}
+                userRole={currentEmployee?.role}
+              />
+            )}
 
-        {currentTab === 'Master' && (
-          <MasterTab
-            config={config}
-            products={products}
-            transactions={transactions}
-            onUpdateConfig={handleUpdateConfig}
-            onLockMaster={() => {
-              setIsMasterUnlocked(false);
-              setActiveTab('Mant.');
-            }}
-          />
+            {currentTab === 'Caja' && (
+              <CajaTab
+                products={products}
+                onAddProduct={handleAddProduct}
+                onAddTransaction={handleAddTransaction}
+                onUpdateProductStock={handleUpdateProductStock}
+                config={config}
+              />
+            )}
+
+            {currentTab === 'Reportes' && (
+              <ReportesTab transactions={transactions} config={config} />
+            )}
+
+            {currentTab === 'Compras' && (
+              <ComprasTab
+                products={products}
+                foodItems={foodItems}
+                config={config}
+                onAddTransaction={handleAddTransaction}
+                onUpdateProductStock={handleUpdateProductStock}
+                onBackToMarketplace={() => {
+                  setTenantId(null);
+                  localStorage.removeItem('tenant_tienda_id');
+                }}
+              />
+            )}
+
+            {currentTab === 'Mant.' && (
+              <MantTab
+                products={products}
+                foodItems={foodItems}
+                config={config}
+                onUpdateConfig={handleUpdateConfig}
+                onEditProduct={handleEditProduct}
+                onDeleteProduct={handleDeleteProduct}
+                onAddFoodItem={handleAddFoodItem}
+                onDeleteFoodItem={handleDeleteFoodItem}
+                isUnlocked={isAdminUnlocked}
+                onUnlock={setIsAdminUnlocked}
+                isMasterUnlocked={isMasterUnlocked}
+                onUnlockMaster={setIsMasterUnlocked}
+                currentEmployee={currentEmployee}
+                onLoginSuccess={handleLoginSuccess}
+                tenantId={tenantId}
+              />
+            )}
+
+            {currentTab === 'Master' && (
+              <MasterTab
+                config={config}
+                products={products}
+                transactions={transactions}
+                onUpdateConfig={handleUpdateConfig}
+                onLockMaster={() => {
+                  setIsMasterUnlocked(false);
+                  setActiveTab('Mant.');
+                }}
+              />
+            )}
+          </>
         )}
       </main>
 
       {/* Persistent Bottom Nav tab-selector */}
       <BottomNav 
         activeTab={currentTab as ActiveTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={(tab) => {
+          setAdminDeliveryActive(false);
+          setActiveTab(tab);
+        }} 
         currentEmployee={currentEmployee} 
         isMasterUnlocked={isMasterUnlocked}
         isAdminUnlocked={isAdminUnlocked}
