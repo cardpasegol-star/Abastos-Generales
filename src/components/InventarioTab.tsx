@@ -70,6 +70,37 @@ export function CategoryIcon({ cat, config, className = "w-12 h-12 object-contai
     if (lower.includes('verdura') || lower.includes('brócoli')) return '🥦';
     if (lower.includes('carne') || lower.includes('corte')) return '🥩';
     if (lower.includes('todos') || lower.includes('todo') || lower.includes('carrito')) return '🛒';
+    
+    // Expanded ones
+    if (lower.includes('farmacia') || lower.includes('salud') || lower.includes('píldora') || lower.includes('medicamento')) return '💊';
+    if (lower.includes('champaña') || lower.includes('vino') || lower.includes('licor') || lower.includes('botillería')) return '🍷';
+    if (lower.includes('computador') || lower.includes('laptop') || lower.includes('tecnología')) return '💻';
+    if (lower.includes('celular') || lower.includes('teléfono')) return '📱';
+    if (lower.includes('balón') || lower.includes('fútbol') || lower.includes('deporte')) return '⚽';
+    if (lower.includes('mancuerna') || lower.includes('gimnasio') || lower.includes('fitness')) return '🏋️';
+    if (lower.includes('tocino') || lower.includes('fiambrería') || lower.includes('cecina')) return '🥓';
+    if (lower.includes('conserva') || lower.includes('enlatado')) return '🥫';
+    if (lower.includes('pescado') || lower.includes('pescadería')) return '🐟';
+    if (lower.includes('camarón') || lower.includes('marisco') || lower.includes('marisquería')) return '🍤';
+    if (lower.includes('condimento') || lower.includes('especias') || lower.includes('hierbas')) return '🌿';
+    if (lower.includes('caliente') || lower.includes('olla')) return '🍲';
+    if (lower.includes('escoba') || lower.includes('aseo')) return '🧹';
+    if (lower.includes('cupcake')) return '🧁';
+    if (lower.includes('cosmética') || lower.includes('belleza') || lower.includes('labial')) return '💄';
+    if (lower.includes('perfumería') || lower.includes('perfume') || lower.includes('loción')) return '🧴';
+    if (lower.includes('mochila') || lower.includes('útiles')) return '🎒';
+    if (lower.includes('lápiz') || lower.includes('pencil')) return '✏️';
+    if (lower.includes('oso') || lower.includes('juguete') || lower.includes('peluche')) return '🧸';
+    if (lower.includes('rompecabezas') || lower.includes('puzzle')) return '🧩';
+    if (lower.includes('dado') || lower.includes('azar') || lower.includes('juego')) return '🎲';
+    if (lower.includes('caramelo') || lower.includes('dulce') || lower.includes('candy')) return '🍬';
+    if (lower.includes('chocolate')) return '🍫';
+    if (lower.includes('baguette')) return '🥖';
+    if (lower.includes('congelado') || lower.includes('hielo')) return '🧊';
+    if (lower.includes('mascota') || lower.includes('huella')) return '🐾';
+    if (lower.includes('ferretería') || lower.includes('llave') || lower.includes('herramienta')) return '🔧';
+    if (lower.includes('ropa') || lower.includes('polera') || lower.includes('vestuario')) return '👕';
+    if (lower.includes('hogar') || lower.includes('casa')) return '🏠';
     return '📦';
   };
 

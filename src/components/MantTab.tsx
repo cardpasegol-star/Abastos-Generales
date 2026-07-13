@@ -36,7 +36,38 @@ const PRESET_3D_ICONS = [
   { label: 'Papas Fritas/Snacks', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Potato%20Chips.png' },
   { label: 'Jabón/Limpieza', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Soap.png' },
   { label: 'Pan Blanco', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bread.png' },
-  { label: 'Carrito de Compras', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png' }
+  { label: 'Carrito de Compras', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png' },
+  
+  // Novedades expandidas para completar exactamente 50 opciones
+  { label: 'Farmacia/Salud/Medicamentos 💊', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png' },
+  { label: 'Botillería/Vino/Licores 🍷', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Wine%20Glass.png' },
+  { label: 'Botillería/Champaña/Licores 🍾', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bottle%20with%20Popping%20Cork.png' },
+  { label: 'Tecnología/Computador 💻', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Laptop.png' },
+  { label: 'Tecnología/Celular 📱', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Mobile%20Phone.png' },
+  { label: 'Deportes/Balón ⚽', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Soccer%20Ball.png' },
+  { label: 'Deportes/Mancuerna 🏋️', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Dumbbell.png' },
+  { label: 'Fiambrería/Tocino/Cecinas 🥓', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bacon.png' },
+  { label: 'Conservas/Enlatados 🥫', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Canned%20Food.png' },
+  { label: 'Pescadería/Pescado 🐟', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Fish.png' },
+  { label: 'Marisquería/Camarón/Mariscos 🍤', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Fried%20Shrimp.png' },
+  { label: 'Condimentos/Hierbas/Especias 🌿', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Herb.png' },
+  { label: 'Cocina Caliente/Sopa/Olla 🍲', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pot%20of%20Food.png' },
+  { label: 'Aseo/Escoba/Productos de Limpieza 🧹', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Broom.png' },
+  { label: 'Repostería/Cupcake/Dulces 🧁', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cupcake.png' },
+  { label: 'Cosmética/Labial/Belleza 💄', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lipstick.png' },
+  { label: 'Perfumería/Loción/Perfumes 🧴', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png' },
+  { label: 'Librería/Mochila/Escolares 🎒', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Backpack.png' },
+  { label: 'Librería/Lápiz ✏️', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pencil.png' },
+  { label: 'Juguetería/Oso/Juegos 🧸', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Teddy%20Bear.png' },
+  { label: 'Juguetería/Rompecabezas 🧩', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Puzzle%20Piece.png' },
+  { label: 'Entretenimiento/Dado/Juegos 🎲', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Game%20Die.png' },
+  { label: 'Confitería/Caramelo/Snacks 🍬', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Candy.png' },
+  { label: 'Confitería/Chocolate/Snacks 🍫', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Chocolate%20Bar.png' },
+  { label: 'Panadería/Baguette 🥖', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png' },
+  { label: 'Congelados/Hielo 🧊', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Ice.png' },
+  { label: 'Mascotas/Huellas 🐾', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Paw%20Prints.png' },
+  { label: 'Ferretería/Llave/Herramientas 🔧', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Wrench.png' },
+  { label: 'Ropa/Vestuario/Polera 👕', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/T-Shirt.png' }
 ];
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
@@ -74,6 +105,38 @@ function CategoryIcon({ cat, iconUrl, className = "w-8 h-8 object-contain" }: { 
     if (lower.includes('verdura') || lower.includes('brócoli')) return '🥦';
     if (lower.includes('carne') || lower.includes('corte')) return '🥩';
     if (lower.includes('todos') || lower.includes('todo') || lower.includes('carrito')) return '🛒';
+    
+    // Fallbacks for the expanded categories
+    if (lower.includes('farmacia') || lower.includes('salud') || lower.includes('píldora') || lower.includes('medicamento')) return '💊';
+    if (lower.includes('champaña') || lower.includes('vino') || lower.includes('licor') || lower.includes('botillería')) return '🍷';
+    if (lower.includes('computador') || lower.includes('laptop') || lower.includes('tecnología')) return '💻';
+    if (lower.includes('celular') || lower.includes('teléfono')) return '📱';
+    if (lower.includes('balón') || lower.includes('fútbol') || lower.includes('deporte')) return '⚽';
+    if (lower.includes('mancuerna') || lower.includes('gimnasio') || lower.includes('fitness')) return '🏋️';
+    if (lower.includes('tocino') || lower.includes('fiambrería') || lower.includes('cecina')) return '🥓';
+    if (lower.includes('conserva') || lower.includes('enlatado')) return '🥫';
+    if (lower.includes('pescado') || lower.includes('pescadería')) return '🐟';
+    if (lower.includes('camarón') || lower.includes('marisco') || lower.includes('marisquería')) return '🍤';
+    if (lower.includes('condimento') || lower.includes('especias') || lower.includes('hierbas')) return '🌿';
+    if (lower.includes('caliente') || lower.includes('olla')) return '🍲';
+    if (lower.includes('escoba') || lower.includes('aseo')) return '🧹';
+    if (lower.includes('cupcake')) return '🧁';
+    if (lower.includes('cosmética') || lower.includes('belleza') || lower.includes('labial')) return '💄';
+    if (lower.includes('perfumería') || lower.includes('perfume') || lower.includes('loción')) return '🧴';
+    if (lower.includes('mochila') || lower.includes('útiles')) return '🎒';
+    if (lower.includes('lápiz') || lower.includes('pencil')) return '✏️';
+    if (lower.includes('oso') || lower.includes('juguete') || lower.includes('peluche')) return '🧸';
+    if (lower.includes('rompecabezas') || lower.includes('puzzle')) return '🧩';
+    if (lower.includes('dado') || lower.includes('azar') || lower.includes('juego')) return '🎲';
+    if (lower.includes('caramelo') || lower.includes('dulce') || lower.includes('candy')) return '🍬';
+    if (lower.includes('chocolate')) return '🍫';
+    if (lower.includes('baguette')) return '🥖';
+    if (lower.includes('congelado') || lower.includes('hielo')) return '🧊';
+    if (lower.includes('mascota') || lower.includes('huella')) return '🐾';
+    if (lower.includes('ferretería') || lower.includes('llave') || lower.includes('herramienta')) return '🔧';
+    if (lower.includes('ropa') || lower.includes('polera') || lower.includes('vestuario')) return '👕';
+    if (lower.includes('hogar') || lower.includes('casa')) return '🏠';
+    
     return '📦';
   };
 
@@ -126,6 +189,37 @@ function SelectorStickerItem({ item, selected, onClick }: { item: typeof PRESET_
     if (l.includes('jabón') || l.includes('limpieza')) return '🧼';
     if (l.includes('pan blanco')) return '🍞';
     if (l.includes('carrito')) return '🛒';
+    
+    // Expanded ones
+    if (l.includes('farmacia') || l.includes('salud') || l.includes('píldora') || l.includes('medicamento')) return '💊';
+    if (l.includes('champaña') || l.includes('vino') || l.includes('licor') || l.includes('botillería')) return '🍷';
+    if (l.includes('computador') || l.includes('laptop') || l.includes('tecnología')) return '💻';
+    if (l.includes('celular') || l.includes('teléfono')) return '📱';
+    if (l.includes('balón') || l.includes('fútbol') || l.includes('deporte')) return '⚽';
+    if (l.includes('mancuerna') || l.includes('gimnasio') || l.includes('fitness')) return '🏋️';
+    if (l.includes('tocino') || l.includes('fiambrería') || l.includes('cecina')) return '🥓';
+    if (l.includes('conserva') || l.includes('enlatado')) return '🥫';
+    if (l.includes('pescado') || l.includes('pescadería')) return '🐟';
+    if (l.includes('camarón') || l.includes('marisco') || l.includes('marisquería')) return '🍤';
+    if (l.includes('condimento') || l.includes('especias') || l.includes('hierbas')) return '🌿';
+    if (l.includes('caliente') || l.includes('olla')) return '🍲';
+    if (l.includes('escoba') || l.includes('aseo')) return '🧹';
+    if (l.includes('cupcake')) return '🧁';
+    if (l.includes('cosmética') || l.includes('belleza') || l.includes('labial')) return '💄';
+    if (l.includes('perfumería') || l.includes('perfume') || l.includes('loción')) return '🧴';
+    if (l.includes('mochila') || l.includes('útiles')) return '🎒';
+    if (l.includes('lápiz') || l.includes('pencil')) return '✏️';
+    if (l.includes('oso') || l.includes('juguete') || l.includes('peluche')) return '🧸';
+    if (l.includes('rompecabezas') || l.includes('puzzle')) return '🧩';
+    if (l.includes('dado') || l.includes('azar') || l.includes('juego')) return '🎲';
+    if (l.includes('caramelo') || l.includes('dulce') || l.includes('candy')) return '🍬';
+    if (l.includes('chocolate')) return '🍫';
+    if (l.includes('baguette')) return '🥖';
+    if (l.includes('congelado') || l.includes('hielo')) return '🧊';
+    if (l.includes('mascota') || l.includes('huella')) return '🐾';
+    if (l.includes('ferretería') || l.includes('llave') || l.includes('herramienta')) return '🔧';
+    if (l.includes('ropa') || l.includes('polera') || l.includes('vestuario')) return '👕';
+    if (l.includes('hogar') || l.includes('casa')) return '🏠';
     return '📦';
   };
 
@@ -163,6 +257,7 @@ interface MantTabProps {
   onEditProduct: (p: Product) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
   onAddFoodItem: (f: Omit<FoodItem, 'id'>) => Promise<void>;
+  onEditFoodItem?: (f: FoodItem) => Promise<void>;
   onDeleteFoodItem: (id: string) => Promise<void>;
   isUnlocked: boolean;
   onUnlock: (unlocked: boolean) => void;
@@ -181,6 +276,7 @@ export default function MantTab({
   onEditProduct,
   onDeleteProduct,
   onAddFoodItem,
+  onEditFoodItem,
   onDeleteFoodItem,
   isUnlocked,
   onUnlock,
@@ -212,6 +308,12 @@ export default function MantTab({
   const [ivaPercentInput, setIvaPercentInput] = useState(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
   const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
   
+  // SII Integration states
+  const [siiEnabled, setSiiEnabled] = useState(config.siiEnabled || false);
+  const [siiRut, setSiiRut] = useState(config.siiRut || '');
+  const [siiDigitalCert, setSiiDigitalCert] = useState(config.siiDigitalCert || '');
+  const [siiApiKey, setSiiApiKey] = useState(config.siiApiKey || '');
+  
   // Dynamic categories management state
   const [productCategoriesList, setProductCategoriesList] = useState<string[]>([]);
   const [foodItemCategoriesList, setFoodItemCategoriesList] = useState<string[]>([]);
@@ -223,6 +325,7 @@ export default function MantTab({
 
   // Kitchen dish builder form state
   const [showDishModal, setShowDishModal] = useState(false);
+  const [editingDish, setEditingDish] = useState<FoodItem | null>(null);
   const [dishName, setDishName] = useState('');
   const [dishDesc, setDishDesc] = useState('');
   const [dishPrice, setDishPrice] = useState<string>('');
@@ -311,6 +414,10 @@ export default function MantTab({
     setProductCategoriesList(config.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']);
     setFoodItemCategoriesList(config.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']);
     setCategoryIconsList(config.categoryIcons || {});
+    setSiiEnabled(config.siiEnabled || false);
+    setSiiRut(config.siiRut || '');
+    setSiiDigitalCert(config.siiDigitalCert || '');
+    setSiiApiKey(config.siiApiKey || '');
   }, [config]);
 
   // Fetch employees list from config/business_info/empleados subcollection
@@ -588,7 +695,11 @@ export default function MantTab({
         ivaPercentage: Number(ivaPercentInput),
         productCategories: productCategoriesList,
         foodItemCategories: foodItemCategoriesList,
-        categoryIcons: categoryIconsList
+        categoryIcons: categoryIconsList,
+        siiEnabled,
+        siiRut: siiRut.trim(),
+        siiDigitalCert: siiDigitalCert.trim(),
+        siiApiKey: siiApiKey.trim()
       });
 
       // Save each employee slot to the config/business_info/empleados subcollection
@@ -648,18 +759,32 @@ export default function MantTab({
 
     setLoading(true);
     try {
-      await onAddFoodItem({
-        name: dishName.trim(),
-        description: dishDesc.trim(),
-        price: parseFloat(dishPrice) || 0,
-        category: dishCategory,
-        isPopular: false,
-        imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
-      });
+      if (editingDish) {
+        if (onEditFoodItem) {
+          await onEditFoodItem({
+            ...editingDish,
+            name: dishName.trim(),
+            description: dishDesc.trim(),
+            price: parseFloat(dishPrice) || 0,
+            category: dishCategory,
+            imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
+          });
+        }
+      } else {
+        await onAddFoodItem({
+          name: dishName.trim(),
+          description: dishDesc.trim(),
+          price: parseFloat(dishPrice) || 0,
+          category: dishCategory,
+          isPopular: false,
+          imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
+        });
+      }
       setDishName('');
       setDishDesc('');
       setDishPrice('');
       setDishImageUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
+      setEditingDish(null);
       setShowDishModal(false);
     } catch (err) {
       console.error(err);
@@ -1116,7 +1241,7 @@ export default function MantTab({
                   🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
                 </span>
                 <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
-                  {PRESET_3D_ICONS.map(item => (
+                  {Array.from(new Map(PRESET_3D_ICONS.map(item => [item.url, item])).values()).map(item => (
                     <SelectorStickerItem
                       key={item.url}
                       item={item}
@@ -1180,7 +1305,7 @@ export default function MantTab({
                   🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
                 </span>
                 <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
-                  {PRESET_3D_ICONS.map(item => (
+                  {Array.from(new Map(PRESET_3D_ICONS.map(item => [item.url, item])).values()).map(item => (
                     <SelectorStickerItem
                       key={item.url}
                       item={item}
@@ -1270,6 +1395,79 @@ export default function MantTab({
             </div>
           </div>
 
+          {/* Panel de Configuración Tributaria */}
+          <div className="space-y-3.5 border-t border-gray-100 pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider">
+                  Integración Oficial con el SII (Chile)
+                </h4>
+                <p className="text-[10px] text-gray-400">
+                  Active la emisión de boletas y facturas electrónicas directamente conectadas con impuestos de Chile.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSiiEnabled(!siiEnabled)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  siiEnabled ? 'bg-indigo-600' : 'bg-slate-200'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    siiEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <p className="text-[10px] text-gray-500 leading-normal bg-slate-50 p-3 rounded-xl border border-slate-100 font-semibold">
+              💡 <strong className="text-gray-700">Nota aclaratoria:</strong> Si está desactivado, el sistema operará en <strong className="text-indigo-600">"Modo Control Interno"</strong>, emitiendo tickets de inventario y despacho (válido si sus clientes pagan con tarjeta/Mercado Pago, cuyo comprobante actúa como boleta legal en Chile).
+            </p>
+
+            {siiEnabled && (
+              <div className="bg-slate-50/50 p-3.5 rounded-2xl border border-indigo-100/60 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                <span className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">
+                  Credenciales del Facturador Electrónico
+                </span>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-450 uppercase tracking-widest block">RUT de la Empresa</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. 76.123.456-K"
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-none font-semibold"
+                        value={siiRut}
+                        onChange={(e) => setSiiRut(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9.5px] font-bold text-gray-450 uppercase tracking-widest block">Certificado Digital (Simulado)</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. certificado_felipe.pfx"
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-none font-semibold"
+                        value={siiDigitalCert}
+                        onChange={(e) => setSiiDigitalCert(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9.5px] font-bold text-gray-450 uppercase tracking-widest block">API Key del Facturador</label>
+                    <input
+                      type="password"
+                      placeholder="Ingrese la API Key provista por el PSE/Facturador"
+                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-none font-mono"
+                      value={siiApiKey}
+                      onChange={(e) => setSiiApiKey(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleSaveConfig}
             disabled={loading}
@@ -1294,6 +1492,7 @@ export default function MantTab({
 
         <button
           onClick={() => {
+            setEditingDish(null);
             setDishName('');
             setDishDesc('');
             setDishPrice('');
@@ -1326,13 +1525,31 @@ export default function MantTab({
                   }}
                   referrerPolicy="no-referrer" 
                 />
-                <button
-                  type="button"
-                  onClick={() => handleDeleteDishItem(dish.id, dish.name)}
-                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 hover:bg-rose-50 hover:text-rose-600 shadow-md flex items-center justify-center text-rose-500 transition-colors cursor-pointer shrink-0 border border-slate-100 select-none active:scale-90"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="absolute top-3 right-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingDish(dish);
+                      setDishName(dish.name);
+                      setDishDesc(dish.description);
+                      setDishPrice(String(dish.price));
+                      setDishCategory(dish.category);
+                      setDishImageUrl(dish.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
+                      setDishImageError(false);
+                      setShowDishModal(true);
+                    }}
+                    className="w-9 h-9 rounded-full bg-white/95 hover:bg-indigo-50 hover:text-indigo-600 shadow-md flex items-center justify-center text-indigo-500 transition-colors cursor-pointer shrink-0 border border-slate-100 select-none active:scale-90"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDishItem(dish.id, dish.name)}
+                    className="w-9 h-9 rounded-full bg-white/95 hover:bg-rose-50 hover:text-rose-600 shadow-md flex items-center justify-center text-rose-500 transition-colors cursor-pointer shrink-0 border border-slate-100 select-none active:scale-90"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <div className="p-4 flex flex-col space-y-2">
                 <div className="flex justify-between items-center">
@@ -1379,7 +1596,7 @@ export default function MantTab({
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]">
             <div className="flex justify-between items-center bg-gray-50/50 px-5 py-4 border-b border-gray-100">
-              <h3 className="text-sm font-extrabold text-gray-950">Nuevo Plato</h3>
+              <h3 className="text-sm font-extrabold text-gray-950">{editingDish ? 'Editar Plato' : 'Nuevo Plato'}</h3>
               <button 
                 onClick={() => setShowDishModal(false)}
                 className="w-8 h-8 rounded-full bg-gray-100 text-gray-550 flex items-center justify-center cursor-pointer"
@@ -1526,7 +1743,7 @@ export default function MantTab({
                 disabled={loading}
                 className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl text-xs hover:bg-indigo-700 active:scale-[0.98] transition-all outline-none"
               >
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Crear Plato'}
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : (editingDish ? 'Guardar Cambios' : 'Crear Plato')}
               </button>
             </form>
           </div>

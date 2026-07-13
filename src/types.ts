@@ -75,6 +75,10 @@ export interface BusinessConfig {
   licenseExpirationDate?: string; // YYYY-MM-DD
   licenseStatus?: 'active' | 'suspended'; // 'active' | 'suspended'
   licenseMessage?: string; // Custom block screen message
+  siiEnabled?: boolean;
+  siiRut?: string;
+  siiDigitalCert?: string;
+  siiApiKey?: string;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';

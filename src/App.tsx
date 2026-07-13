@@ -329,6 +329,17 @@ export default function App() {
     }
   };
 
+  const handleEditFoodItem = async (f: FoodItem) => {
+    try {
+      const docRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'foodItems', f.id)
+        : doc(db, 'foodItems', f.id);
+      await setDoc(docRef, f);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/foodItems/${f.id}` : `foodItems/${f.id}`);
+    }
+  };
+
   const handleDeleteFoodItem = async (id: string) => {
     try {
       const docRef = tenantId
@@ -515,6 +526,7 @@ export default function App() {
                 onEditProduct={handleEditProduct}
                 onDeleteProduct={handleDeleteProduct}
                 onAddFoodItem={handleAddFoodItem}
+                onEditFoodItem={handleEditFoodItem}
                 onDeleteFoodItem={handleDeleteFoodItem}
                 isUnlocked={isAdminUnlocked}
                 onUnlock={setIsAdminUnlocked}
