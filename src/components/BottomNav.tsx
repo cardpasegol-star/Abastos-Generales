@@ -22,7 +22,6 @@ export default function BottomNav({
     { id: 'Caja' as ActiveTab, label: 'Caja', icon: Receipt },
     { id: 'Reportes' as ActiveTab, label: 'Reportes', icon: BarChart3 },
     { id: 'Compras' as ActiveTab, label: 'Compras', icon: ShoppingCart },
-    { id: 'Mant.' as ActiveTab, label: 'Mant.', icon: Settings },
   ];
 
   if (isMasterUnlocked) {
@@ -30,23 +29,22 @@ export default function BottomNav({
   }
 
   const visibleNavItems = navItems.filter((item) => {
-    // 1. Desarrollador (Master) sees everything: 'Compras', 'Caja', 'Inventario', 'Reportes', 'Mant.', 'Master'
+    // 1. Desarrollador (Master) sees everything: 'Compras', 'Caja', 'Inventario', 'Reportes', 'Master'
     if (isMasterUnlocked) {
       return true;
     }
 
-    // 2. Dueño (Admin) sees: 'Inventario', 'Caja', 'Reportes', 'Compras', 'Mant.'
+    // 2. Dueño (Admin) sees: 'Inventario', 'Caja', 'Reportes', 'Compras'
     if (isAdminUnlocked) {
       return (
         item.id === 'Inventario' ||
         item.id === 'Caja' ||
         item.id === 'Reportes' ||
-        item.id === 'Compras' ||
-        item.id === 'Mant.'
+        item.id === 'Compras'
       );
     }
 
-    // 3. Empleado (Cajero) sees: 'Inventario', 'Caja', 'Reportes', 'Compras' (MANT is completely hidden)
+    // 3. Empleado (Cajero) sees: 'Inventario', 'Caja', 'Reportes', 'Compras'
     if (currentEmployee && currentEmployee.role === 'cajero') {
       return (
         item.id === 'Inventario' ||
@@ -56,15 +54,11 @@ export default function BottomNav({
       );
     }
 
-    // 4. Default / Cliente Público (Not authenticated) sees: 'Compras', 'Mant.'
-    return item.id === 'Compras' || item.id === 'Mant.';
+    // 4. Default / Cliente Público (Not authenticated) sees only 'Compras'
+    return item.id === 'Compras';
   });
 
   const handleTabClick = (tabId: ActiveTab) => {
-    if (currentEmployee && currentEmployee.role === 'cajero' && tabId === 'Mant.') {
-      alert('Acceso restringido: Solo para el Dueño/Administrador');
-      return;
-    }
     setActiveTab(tabId);
   };
 

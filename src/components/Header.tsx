@@ -6,9 +6,10 @@ interface HeaderProps {
   config: BusinessConfig;
   currentEmployee?: Empleado | null;
   onLogout?: () => void;
+  onOpenAdmin?: () => void;
 }
 
-export default function Header({ config, currentEmployee, onLogout }: HeaderProps) {
+export default function Header({ config, currentEmployee, onLogout, onOpenAdmin }: HeaderProps) {
   const bannerImage = config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800';
 
   return (
@@ -65,6 +66,17 @@ export default function Header({ config, currentEmployee, onLogout }: HeaderProp
               >
                 <Phone className="w-4 h-4" />
               </a>
+            )}
+
+            {onOpenAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="w-9 h-9 rounded-xl bg-slate-900/60 hover:bg-slate-800 border border-slate-700/50 flex items-center justify-center text-slate-300 hover:text-white shadow-md active:scale-95 transition-transform cursor-pointer"
+                title="Acceso Personal"
+              >
+                <span className="text-base select-none">⚙️</span>
+              </button>
             )}
           </div>
         </div>

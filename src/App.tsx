@@ -72,7 +72,11 @@ export default function App() {
         const saved = localStorage.getItem('pedidos_pendientes');
         if (saved) {
           const list = JSON.parse(saved);
-          const active = list.filter((o: any) => o.status === 'pending');
+          const storeName = config?.name || 'Donde el Goyo';
+          const active = list.filter((o: any) => {
+            const orderStore = o.comercioAsociado || 'Donde el Goyo';
+            return o.status === 'pending' && orderStore.toLowerCase().trim() === storeName.toLowerCase().trim();
+          });
           setPendingDeliveryCount(active.length);
         } else {
           setPendingDeliveryCount(0);
@@ -84,7 +88,7 @@ export default function App() {
     checkCount();
     const timer = setInterval(checkCount, 1500);
     return () => clearInterval(timer);
-  }, []);
+  }, [config?.name]);
 
   // Sync unlock states when currentEmployee is set/restored
   useEffect(() => {
@@ -411,8 +415,8 @@ export default function App() {
       currentTab = 'Compras';
     }
   } else if (currentEmployee.role === 'cajero') {
-    // Empleado state: can access Compras, Inventario, Caja, and Reportes. Cannot access Mant. or Master
-    if (activeTab === 'Mant.' || activeTab === 'Master') {
+    // Empleado state: can access Compras, Inventario, Caja, Reportes, and Mant. (for PIN verification/logout)
+    if (activeTab === 'Master') {
       currentTab = 'Inventario';
     }
   } else {
@@ -426,51 +430,62 @@ export default function App() {
   return (
     <div className="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased text-body-md select-none">
       {/* Dynamic top bar */}
-      <Header config={config} currentEmployee={currentEmployee} onLogout={handleLogout} />
+      <Header 
+        config={config} 
+        currentEmployee={currentEmployee} 
+        onLogout={handleLogout} 
+        onOpenAdmin={() => {
+          setAdminDeliveryActive(false);
+          setActiveTab('Mant.');
+        }}
+      />
 
       {/* Visual Dual System Mode Selector */}
-      <div className="max-w-md w-full mx-auto px-4 pt-4">
-        <div className="bg-white border-2 border-slate-200 p-1 rounded-2xl flex shadow-sm">
-          <button
-            onClick={() => {
-              setAdminDeliveryActive(false);
-              setActiveTab('Compras');
-            }}
-            className={`flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              !adminDeliveryActive
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <span>Modo Cliente 🛒</span>
-          </button>
-          <button
-            onClick={() => {
-              setAdminDeliveryActive(true);
-            }}
-            className={`flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              adminDeliveryActive
-                ? 'bg-slate-950 text-white shadow-md'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <span>Modo Admin ⚙️ (Delivery)</span>
-            {pendingDeliveryCount > 0 && (
-              <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-bounce font-mono">
-                {pendingDeliveryCount}
-              </span>
-            )}
-          </button>
+      {currentEmployee && (
+        <div className="max-w-md w-full mx-auto px-4 pt-4">
+          <div className="bg-white border-2 border-slate-200 p-1 rounded-2xl flex shadow-sm">
+            <button
+              onClick={() => {
+                setAdminDeliveryActive(false);
+                setActiveTab('Compras');
+              }}
+              className={`flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                !adminDeliveryActive
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <span>Modo Cliente 🛒</span>
+            </button>
+            <button
+              onClick={() => {
+                setAdminDeliveryActive(true);
+              }}
+              className={`flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                adminDeliveryActive
+                  ? 'bg-slate-950 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <span>Modo Admin ⚙️ (Delivery)</span>
+              {pendingDeliveryCount > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-bounce font-mono">
+                  {pendingDeliveryCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main viewport canvas */}
       <main className="flex-1 px-4 pt-4 pb-28 max-w-md w-full mx-auto">
-        {adminDeliveryActive ? (
+        {adminDeliveryActive && currentEmployee ? (
           <AdminDeliveryPanel
             products={products}
             onUpdateProductStock={handleUpdateProductStock}
             onAddTransaction={handleAddTransaction}
+            config={config}
           />
         ) : (
           <>

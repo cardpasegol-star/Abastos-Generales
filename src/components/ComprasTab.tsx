@@ -757,7 +757,8 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
             deliveryAddress: `${street.trim()} # ${number.trim()}`,
             deliveryComuna: comuna,
             deliveryFee: deliveryFee,
-            status: 'pending'
+            status: 'pending',
+            comercioAsociado: config?.name || 'Donde el Goyo'
           });
           localStorage.setItem('pedidos_pendientes', JSON.stringify(list));
         } catch (e) {
@@ -906,9 +907,9 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       {onBackToMarketplace && (
         <button
           onClick={onBackToMarketplace}
-          className="flex items-center gap-2 text-xs font-black text-slate-700 hover:text-emerald-700 bg-white border-2 border-slate-200 px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-3xs active:scale-95"
+          className="group flex items-center gap-2.5 text-xs font-extrabold text-white bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-800 hover:from-indigo-500 hover:to-blue-700 px-5 py-3 rounded-full shadow-md hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-[1.03] active:scale-95 border border-indigo-500/35 transition-all duration-300 ease-out cursor-pointer"
         >
-          <ArrowLeft className="w-3.5 h-3.5 stroke-[2.5]" />
+          <ArrowLeft className="w-4 h-4 stroke-[3] transition-transform duration-300 group-hover:-translate-x-1" />
           <span>Volver al Marketplace</span>
         </button>
       )}

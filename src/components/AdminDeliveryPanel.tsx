@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, MapPin, DollarSign, Calendar, RefreshCw, ShoppingBag } from 'lucide-react';
-import { Transaction, Product } from '../types';
+import { Transaction, Product, BusinessConfig } from '../types';
 
 interface AdminDeliveryPanelProps {
   products: Product[];
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
+  config?: BusinessConfig;
 }
 
 export default function AdminDeliveryPanel({
   products,
   onUpdateProductStock,
-  onAddTransaction
+  onAddTransaction,
+  config
 }: AdminDeliveryPanelProps) {
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
 
@@ -77,14 +79,25 @@ export default function AdminDeliveryPanel({
   };
 
   const clearHistory = () => {
-    if (confirm('¿Deseas vaciar la simulación de pedidos pendientes?')) {
-      localStorage.removeItem('pedidos_pendientes');
-      setPendingOrders([]);
+    if (confirm('¿Deseas vaciar la simulación de pedidos pendientes de esta tienda?')) {
+      const storeName = config?.name || 'Donde el Goyo';
+      const updated = pendingOrders.filter(o => {
+        const orderStore = o.comercioAsociado || 'Donde el Goyo';
+        return orderStore.toLowerCase().trim() !== storeName.toLowerCase().trim();
+      });
+      localStorage.setItem('pedidos_pendientes', JSON.stringify(updated));
+      setPendingOrders(updated);
     }
   };
 
-  const activePendings = pendingOrders.filter(o => o.status === 'pending');
-  const pastOrders = pendingOrders.filter(o => o.status !== 'pending');
+  const storeName = config?.name || 'Donde el Goyo';
+  const currentStoreOrders = pendingOrders.filter(o => {
+    const orderStore = o.comercioAsociado || 'Donde el Goyo';
+    return orderStore.toLowerCase().trim() === storeName.toLowerCase().trim();
+  });
+
+  const activePendings = currentStoreOrders.filter(o => o.status === 'pending');
+  const pastOrders = currentStoreOrders.filter(o => o.status !== 'pending');
 
   return (
     <div className="space-y-6 font-sans">
