@@ -380,41 +380,133 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
 
       {/* 5. Elegant Ticket Detail Modal Overlay */}
       {selectedSale && (
-        <div className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center z-[9999] px-4 animate-in fade-in duration-250">
+        <div id="sale-detail-modal" className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center z-[9999] px-4 animate-in fade-in duration-250">
           
           {/* Custom isolated @media print styling rules inside ReportesTab */}
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
-              body * {
-                visibility: hidden !important;
-                background-color: transparent !important;
-                background-image: none !important;
+              /* Hide absolutely everything on the web background */
+              body > *:not(#root) {
+                display: none !important;
+              }
+              #root > *:not(main) {
+                display: none !important;
+              }
+              main {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                height: auto !important;
+              }
+              main > *:not(#reportes-container) {
+                display: none !important;
+              }
+              #reportes-container {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                height: auto !important;
+              }
+              #reportes-container > *:not(#sale-detail-modal) {
+                display: none !important;
+              }
+              
+              /* Ensure only the success modal and its ancestors remain visible */
+              #sale-detail-modal {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                z-index: 99999 !important;
                 box-shadow: none !important;
               }
-              #ticket-impresion-fiscal, #ticket-impresion-fiscal * {
-                visibility: visible !important;
+              #sale-detail-modal > *:not(.modal-box) {
+                display: none !important;
               }
-              #ticket-impresion-fiscal {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
+              .modal-box {
+                display: block !important;
+                border: none !important;
+                box-shadow: none !important;
+                max-width: 100% !important;
                 width: 100% !important;
-                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                height: auto !important;
+              }
+              .modal-box > *:not(.modal-body) {
+                display: none !important;
+              }
+              .modal-body {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                max-height: none !important;
+                height: auto !important;
+              }
+              .modal-body > *:not(#ticket-impresion-fiscal) {
+                display: none !important;
+              }
+
+              /* Ticket styling - auto-adjusts to roll (80mm) or standard letter paper */
+              #ticket-impresion-fiscal {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 margin: 0 !important;
                 padding: 4mm !important;
                 border: none !important;
                 box-shadow: none !important;
                 background: #ffffff !important;
                 color: #000000 !important;
+                height: auto !important;
+              }
+
+              /* Remove height clipping or scrollable areas during printing to prevent clipped items */
+              #ticket-impresion-fiscal .max-h-48,
+              #ticket-impresion-fiscal .overflow-y-auto {
+                max-height: none !important;
+                overflow: visible !important;
+              }
+
+              /* Force crisp printable colors for thermal print reliability */
+              #ticket-impresion-fiscal * {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+                page-break-inside: avoid !important;
+              }
+
+              /* Ensure clean 1-page bounds with zero margins and no browser header/footer junk */
+              html, body {
+                height: auto !important;
+                overflow: visible !important;
+              }
+              body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
               }
               @page {
                 size: auto;
-                margin: 0mm;
+                margin: 4mm;
               }
             }
           `}} />
 
-          <div className="bg-white text-slate-900 rounded-3xl w-full max-w-sm border-2 border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] relative font-sans">
+          <div className="modal-box bg-white text-slate-900 rounded-3xl w-full max-w-sm border-2 border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] relative font-sans">
             
             {/* Modal Header */}
             <div className="bg-slate-50 border-b border-slate-100 p-4 shrink-0 flex justify-between items-center">
@@ -432,7 +524,7 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
             </div>
 
             {/* Modal Scrollable Body - Simulating receipt */}
-            <div className="flex-1 overflow-y-auto p-6 min-h-0 bg-slate-50/50">
+            <div className="modal-body flex-1 overflow-y-auto p-6 min-h-0 bg-slate-50/50">
               <div id="ticket-impresion-fiscal" className="bg-white border-2 border-slate-250 rounded-2xl p-5 shadow-sm space-y-4">
                 
                 {/* Store Branding Header */}

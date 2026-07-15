@@ -1,6 +1,6 @@
 {
   "name": "Donde el Goyo",
   "description": "Sistema centralizado de inventario, caja de venta/compra, reportes de flujos y pedidos de menú de cocina para la bodega Donde el Goyo.",
-  "requestFramePermissions": ["camera"],
+  "requestFramePermissions": ["camera", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

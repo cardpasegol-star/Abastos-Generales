@@ -164,6 +164,33 @@ function getDeliveryFeeForComuna(targetComuna: string, originComuna: string): nu
   return 7000;
 }
 
+function getStoreCoordinates(): { lat: number; lon: number } {
+  try {
+    const activeTenant = localStorage.getItem('tenant_tienda_id') || '';
+    if (activeTenant.includes('turco')) return { lat: -33.5857, lon: -70.6276 };
+    if (activeTenant.includes('buencorte')) return { lat: -33.5226, lon: -70.5987 };
+    if (activeTenant.includes('barrioseguro')) return { lat: -33.4489, lon: -70.6693 };
+  } catch (e) {
+    console.error(e);
+  }
+  return { lat: -33.5226, lon: -70.5987 };
+}
+
+function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // metres
+  const phi1 = lat1 * Math.PI / 180;
+  const phi2 = lat2 * Math.PI / 180;
+  const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+  const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+            Math.cos(phi1) * Math.cos(phi2) *
+            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in meters
+}
+
 interface ComprasTabProps {
   products: Product[];
   foodItems?: FoodItem[];
@@ -230,20 +257,82 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const [isQuotingDelivery, setIsQuotingDelivery] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
 
+  // Geolocation & Delivery Corto states
+  const [gpsLatitude, setGpsLatitude] = useState<number | null>(null);
+  const [gpsLongitude, setGpsLongitude] = useState<number | null>(null);
+  const [gpsDistance, setGpsDistance] = useState<number | null>(null); // in meters
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [isManualShortDistance, setIsManualShortDistance] = useState(false);
+
+  const handleUseMyGps = () => {
+    if (!navigator.geolocation) {
+      setGpsError('La geolocalización no está soportada por tu navegador.');
+      return;
+    }
+
+    setIsLocating(true);
+    setGpsError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const clientLat = position.coords.latitude;
+        const clientLon = position.coords.longitude;
+        setGpsLatitude(clientLat);
+        setGpsLongitude(clientLon);
+
+        const storeCoords = getStoreCoordinates();
+        const distanceM = getDistanceInMeters(storeCoords.lat, storeCoords.lon, clientLat, clientLon);
+        setGpsDistance(distanceM);
+        setIsLocating(false);
+
+        setStreet(`📍 Ubicación GPS (${clientLat.toFixed(5)}, ${clientLon.toFixed(5)})`);
+        setNumber('S/N');
+        
+        const storeComuna = getStoreOriginComuna();
+        setComuna(storeComuna);
+      },
+      (error) => {
+        console.error(error);
+        setIsLocating(false);
+        setGpsError('No pudimos acceder a tu ubicación. Por favor, ingresa tu dirección manualmente.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
   useEffect(() => {
-    if (shippingMethod === 'Domicilio' && street.trim() && comuna) {
+    if (shippingMethod === 'Domicilio') {
       setIsQuotingDelivery(true);
       const timer = setTimeout(() => {
         setIsQuotingDelivery(false);
-        const fee = getDeliveryFeeForComuna(comuna, getStoreOriginComuna());
-        setDeliveryFee(fee);
-      }, 1500);
+        
+        // Priority 1: Manual Short Distance
+        if (isManualShortDistance) {
+          setDeliveryFee(1000);
+          return;
+        }
+        
+        // Priority 2: GPS within 800m
+        if (gpsDistance !== null && gpsDistance <= 800) {
+          setDeliveryFee(1000);
+          return;
+        }
+        
+        // Priority 3: Fallback to Comuna
+        if (street.trim() && comuna) {
+          const fee = getDeliveryFeeForComuna(comuna, getStoreOriginComuna());
+          setDeliveryFee(fee);
+        } else {
+          setDeliveryFee(0);
+        }
+      }, 1200);
       return () => clearTimeout(timer);
     } else {
       setDeliveryFee(0);
       setIsQuotingDelivery(false);
     }
-  }, [shippingMethod, street, comuna]);
+  }, [shippingMethod, street, comuna, isManualShortDistance, gpsDistance]);
 
   // 2-Step Checkout states
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'ready'>('form');
@@ -1439,7 +1528,42 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
 
                       {/* Unified form fields */}
                       {shippingMethod === 'Domicilio' ? (
-                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                          {/* GPS Button and Error feedback */}
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={handleUseMyGps}
+                              disabled={isLocating}
+                              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100/80 active:bg-indigo-150 border-2 border-indigo-200 text-indigo-950 text-xs font-extrabold shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {isLocating ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
+                                  <span>Obteniendo ubicación satelital...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-sm">📍</span>
+                                  <span>Usar mi ubicación actual</span>
+                                </>
+                              )}
+                            </button>
+                            {gpsError && (
+                              <p className="text-[11px] font-semibold text-red-650 bg-red-50/50 border border-red-150 rounded-xl px-3 py-2">
+                                ⚠️ {gpsError}
+                              </p>
+                            )}
+                            {gpsDistance !== null && !isManualShortDistance && (
+                              <p className="text-[11px] font-black text-indigo-950 bg-indigo-50/50 border border-indigo-150 rounded-xl px-3 py-2 flex items-center justify-between">
+                                <span>Distancia aproximada al local:</span>
+                                <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-100">
+                                  {gpsDistance < 1000 ? `${gpsDistance.toFixed(0)}m` : `${(gpsDistance / 1000).toFixed(2)} km`}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
@@ -1469,7 +1593,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
 
                           <div>
                             <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
-                              Comuna *
+                                Comuna *
                             </label>
                             <select
                               value={comuna}
@@ -1484,6 +1608,21 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                             </select>
                           </div>
 
+                          {/* Manual Delivery Corto Selector */}
+                          <div className="bg-amber-50/60 border-2 border-amber-200 p-3.5 rounded-2xl flex items-start gap-3 transition-all duration-200">
+                            <input
+                              id="delivery-corto-checkbox"
+                              type="checkbox"
+                              checked={isManualShortDistance}
+                              onChange={(e) => setIsManualShortDistance(e.target.checked)}
+                              className="w-4.5 h-4.5 mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                            />
+                            <label htmlFor="delivery-corto-checkbox" className="text-xs font-bold text-amber-950 cursor-pointer leading-normal select-none">
+                              <span className="block font-black text-[11px] uppercase tracking-wide text-amber-900 mb-0.5">🚀 Despacho de Corta Distancia</span>
+                              Estoy a menos de 4 cuadras del local (ej. Hospital o alrededores) para tarifa fija preferencial de $1.000 CLP.
+                            </label>
+                          </div>
+
                           {/* Delivery Quotation Loader & Result */}
                           {isQuotingDelivery ? (
                             <div className="flex items-center gap-2.5 bg-blue-50 border-2 border-blue-200 text-blue-900 p-3.5 rounded-2xl animate-pulse text-xs font-bold font-sans">
@@ -1491,12 +1630,24 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                               <span>Cotizando ruta con repartidores disponibles...</span>
                             </div>
                           ) : deliveryFee > 0 ? (
-                            <div className="bg-emerald-50 border-2 border-emerald-250 p-4 rounded-2xl text-emerald-950 flex justify-between items-center font-sans animate-in fade-in duration-200">
+                            <div className={`p-4 rounded-2xl flex justify-between items-center font-sans animate-in fade-in duration-250 ${
+                              deliveryFee === 1000 
+                                ? 'bg-amber-50 border-2 border-amber-250 text-amber-950' 
+                                : 'bg-emerald-50 border-2 border-emerald-250 text-emerald-950'
+                            }`}>
                               <div>
-                                <p className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider">Tarifa de Despacho Cotizada</p>
-                                <p className="text-xs font-black">Sandbox Uber Direct / PedidosYa ({comuna})</p>
+                                <p className={`text-[10px] font-extrabold uppercase tracking-wider ${deliveryFee === 1000 ? 'text-amber-800' : 'text-emerald-800'}`}>
+                                  {deliveryFee === 1000 ? 'Tarifa Especial Preferencial' : 'Tarifa de Despacho Cotizada'}
+                                </p>
+                                <p className="text-xs font-black">
+                                  {deliveryFee === 1000 ? 'DELIVERY VECINAL (CORTA DISTANCIA)' : `Sandbox Uber Direct / PedidosYa (${comuna})`}
+                                </p>
                               </div>
-                              <span className="text-xs font-black text-emerald-950 bg-white border-2 border-emerald-350 px-3 py-1.5 rounded-xl font-mono">${deliveryFee.toFixed(0)}</span>
+                              <span className={`text-xs font-black bg-white border-2 px-3 py-1.5 rounded-xl font-mono ${
+                                deliveryFee === 1000 ? 'text-amber-950 border-amber-350' : 'text-emerald-950 border-emerald-350'
+                              }`}>
+                                ${deliveryFee.toFixed(0)}
+                              </span>
                             </div>
                           ) : null}
                         </div>
@@ -1824,40 +1975,132 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
 
       {/* 5. Success receipt overlay modal */}
       {successTx && (
-        <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-[99999] px-4 animate-in fade-in duration-300 font-sans">
+        <div id="success-receipt-modal" className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center z-[99999] px-4 animate-in fade-in duration-300 font-sans">
           {/* Custom isolated @media print styling rules inside ComprasTab */}
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
-              body * {
-                visibility: hidden !important;
-                background-color: transparent !important;
-                background-image: none !important;
+              /* Hide absolutely everything on the web background */
+              body > *:not(#root) {
+                display: none !important;
+              }
+              #root > *:not(main) {
+                display: none !important;
+              }
+              main {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                height: auto !important;
+              }
+              main > *:not(#compras-container) {
+                display: none !important;
+              }
+              #compras-container {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                height: auto !important;
+              }
+              #compras-container > *:not(#success-receipt-modal) {
+                display: none !important;
+              }
+              
+              /* Ensure only the success modal and its ancestors remain visible */
+              #success-receipt-modal {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                z-index: 99999 !important;
                 box-shadow: none !important;
               }
-              #ticket-impresion-fiscal-online, #ticket-impresion-fiscal-online * {
-                visibility: visible !important;
+              #success-receipt-modal > *:not(.modal-box) {
+                display: none !important;
               }
-              #ticket-impresion-fiscal-online {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
+              .modal-box {
+                display: block !important;
+                border: none !important;
+                box-shadow: none !important;
+                max-width: 100% !important;
                 width: 100% !important;
-                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                height: auto !important;
+              }
+              .modal-box > *:not(.modal-body) {
+                display: none !important;
+              }
+              .modal-body {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                max-height: none !important;
+                height: auto !important;
+              }
+              .modal-body > *:not(#ticket-impresion-fiscal-online) {
+                display: none !important;
+              }
+
+              /* Ticket styling - auto-adjusts to roll (80mm) or standard letter paper */
+              #ticket-impresion-fiscal-online {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 margin: 0 !important;
                 padding: 4mm !important;
                 border: none !important;
                 box-shadow: none !important;
                 background: #ffffff !important;
                 color: #000000 !important;
+                height: auto !important;
+              }
+
+              /* Remove height clipping or scrollable areas during printing to prevent clipped items */
+              #ticket-impresion-fiscal-online .max-h-48,
+              #ticket-impresion-fiscal-online .overflow-y-auto {
+                max-height: none !important;
+                overflow: visible !important;
+              }
+
+              /* Force crisp printable colors for thermal print reliability */
+              #ticket-impresion-fiscal-online * {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+                page-break-inside: avoid !important;
+              }
+
+              /* Ensure clean 1-page bounds with zero margins and no browser header/footer junk */
+              html, body {
+                height: auto !important;
+                overflow: visible !important;
+              }
+              body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
               }
               @page {
                 size: auto;
-                margin: 0mm;
+                margin: 4mm;
               }
             }
           `}} />
 
-          <div className="bg-white text-slate-900 rounded-3xl w-full max-w-sm border-2 border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] relative font-sans">
+          <div className="modal-box bg-white text-slate-900 rounded-3xl w-full max-w-sm border-2 border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] relative font-sans">
             
             {/* Modal Header */}
             <div className="bg-slate-50 border-b border-slate-100 p-4 shrink-0 flex justify-between items-center">
@@ -1875,7 +2118,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
             </div>
 
             {/* Modal Scrollable Body - Simulating receipt */}
-            <div className="flex-1 overflow-y-auto p-4 min-h-0 bg-slate-50/50">
+            <div className="modal-body flex-1 overflow-y-auto p-4 min-h-0 bg-slate-50/50">
               <p className="text-center text-xs text-emerald-800 font-extrabold leading-tight font-sans bg-emerald-50 rounded-xl p-3 border border-emerald-200 mb-4 shadow-3xs">
                 ¡Tu pedido se ha guardado en nuestro inventario y se abrió WhatsApp para coordinar tu entrega! Aquí está tu ticket oficial:
               </p>
