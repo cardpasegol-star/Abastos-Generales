@@ -1979,79 +1979,20 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           {/* Custom isolated @media print styling rules inside ComprasTab */}
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
-              /* Hide absolutely everything on the web background */
-              body > *:not(#root) {
-                display: none !important;
-              }
-              #root > *:not(main) {
-                display: none !important;
-              }
-              main {
-                display: block !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                max-width: 100% !important;
-                width: 100% !important;
-                height: auto !important;
-              }
-              main > *:not(#compras-container) {
-                display: none !important;
-              }
-              #compras-container {
-                display: block !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                height: auto !important;
-              }
-              #compras-container > *:not(#success-receipt-modal) {
-                display: none !important;
+              /* 1. Hide everything by default using visibility */
+              body * {
+                visibility: hidden !important;
               }
               
-              /* Ensure only the success modal and its ancestors remain visible */
-              #success-receipt-modal {
-                display: block !important;
-                position: absolute !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                height: auto !important;
-                background: #ffffff !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                z-index: 99999 !important;
-                box-shadow: none !important;
-              }
-              #success-receipt-modal > *:not(.modal-box) {
-                display: none !important;
-              }
-              .modal-box {
-                display: block !important;
-                border: none !important;
-                box-shadow: none !important;
-                max-width: 100% !important;
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #ffffff !important;
-                height: auto !important;
-              }
-              .modal-box > *:not(.modal-body) {
-                display: none !important;
-              }
-              .modal-body {
-                display: block !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                overflow: visible !important;
-                max-height: none !important;
-                height: auto !important;
-              }
-              .modal-body > *:not(#ticket-impresion-fiscal-online) {
-                display: none !important;
+              /* 2. Show only our target ticket container and its children */
+              #ticket-impresion-fiscal-online,
+              #ticket-impresion-fiscal-online * {
+                visibility: visible !important;
               }
 
-              /* Ticket styling - auto-adjusts to roll (80mm) or standard letter paper */
+              /* 3. Position the ticket at the top-left of the page so it prints beautifully */
               #ticket-impresion-fiscal-online {
+                visibility: visible !important;
                 display: block !important;
                 position: absolute !important;
                 top: 0 !important;
@@ -2059,7 +2000,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                 width: 100% !important;
                 max-width: 100% !important;
                 margin: 0 !important;
-                padding: 4mm !important;
+                padding: 10px !important;
                 border: none !important;
                 box-shadow: none !important;
                 background: #ffffff !important;
@@ -2067,32 +2008,35 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                 height: auto !important;
               }
 
-              /* Remove height clipping or scrollable areas during printing to prevent clipped items */
+              /* 4. Ensure no scrollbars or clipped contents are printed */
               #ticket-impresion-fiscal-online .max-h-48,
               #ticket-impresion-fiscal-online .overflow-y-auto {
                 max-height: none !important;
                 overflow: visible !important;
               }
 
-              /* Force crisp printable colors for thermal print reliability */
+              /* 5. Force background colors and exact colors to render */
               #ticket-impresion-fiscal-online * {
                 background-color: #ffffff !important;
                 color: #000000 !important;
                 box-shadow: none !important;
                 text-shadow: none !important;
                 page-break-inside: avoid !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
 
-              /* Ensure clean 1-page bounds with zero margins and no browser header/footer junk */
+              /* 6. Ensure HTML/Body take up automatic height and do not generate extra blank pages */
               html, body {
                 height: auto !important;
                 overflow: visible !important;
-              }
-              body {
                 margin: 0 !important;
                 padding: 0 !important;
                 background: #ffffff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
+
               @page {
                 size: auto;
                 margin: 4mm;
