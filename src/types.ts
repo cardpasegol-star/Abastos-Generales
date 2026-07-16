@@ -59,6 +59,7 @@ export interface FoodItem {
   category: string;
   isPopular: boolean;
   imageUrl: string;
+  stock?: number;
 }
 
 export interface BusinessConfig {

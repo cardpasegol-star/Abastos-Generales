@@ -288,6 +288,7 @@ export default function MantTab({
 }: MantTabProps) {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
+  const totalRaciones = foodItems.reduce((acc, curr) => acc + (curr.stock ?? 0), 0);
   
   // Role-based login and employee states
   const [employeesList, setEmployeesList] = useState<Empleado[]>([]);
@@ -329,6 +330,7 @@ export default function MantTab({
   const [dishName, setDishName] = useState('');
   const [dishDesc, setDishDesc] = useState('');
   const [dishPrice, setDishPrice] = useState<string>('');
+  const [dishStock, setDishStock] = useState<string>('0');
   const [dishCategory, setDishCategory] = useState<string>('Almuerzos');
   const [dishImageUrl, setDishImageUrl] = useState('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
   const [uploadingDishImage, setUploadingDishImage] = useState(false);
@@ -759,6 +761,7 @@ export default function MantTab({
 
     setLoading(true);
     try {
+      const parsedStock = Math.max(0, Math.floor(Number(dishStock)) || 0);
       if (editingDish) {
         if (onEditFoodItem) {
           await onEditFoodItem({
@@ -767,6 +770,7 @@ export default function MantTab({
             description: dishDesc.trim(),
             price: parseFloat(dishPrice) || 0,
             category: dishCategory,
+            stock: parsedStock,
             imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
           });
         }
@@ -777,12 +781,14 @@ export default function MantTab({
           price: parseFloat(dishPrice) || 0,
           category: dishCategory,
           isPopular: false,
+          stock: parsedStock,
           imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
         });
       }
       setDishName('');
       setDishDesc('');
       setDishPrice('');
+      setDishStock('0');
       setDishImageUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
       setEditingDish(null);
       setShowDishModal(false);
@@ -1485,8 +1491,8 @@ export default function MantTab({
           <h3 className="text-sm font-extrabold text-gray-950 uppercase tracking-wider">
             Gestión del Menú
           </h3>
-          <span className="text-[10.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md px-2 py-0.5">
-            {foodItems.length} platos
+          <span className="text-[10.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md px-2 py-0.5 animate-pulse">
+            {totalRaciones} porciones totales
           </span>
         </div>
 
@@ -1496,6 +1502,7 @@ export default function MantTab({
             setDishName('');
             setDishDesc('');
             setDishPrice('');
+            setDishStock('0');
             if (foodItemCategoriesList.length > 0) {
               setDishCategory(foodItemCategoriesList[0]);
             }
@@ -1517,13 +1524,13 @@ export default function MantTab({
             >
               <div className="relative h-44 w-full bg-gray-50 shrink-0">
                 <img 
-                  src={dish.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600'} 
-                  className="w-full h-full object-cover" 
-                  alt={dish.name} 
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600';
-                  }}
-                  referrerPolicy="no-referrer" 
+                   src={dish.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600'} 
+                   className="w-full h-full object-cover" 
+                   alt={dish.name} 
+                   onError={(e) => {
+                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600';
+                   }}
+                   referrerPolicy="no-referrer" 
                 />
                 <div className="absolute top-3 right-3 flex items-center gap-2">
                   <button
@@ -1533,6 +1540,7 @@ export default function MantTab({
                       setDishName(dish.name);
                       setDishDesc(dish.description);
                       setDishPrice(String(dish.price));
+                      setDishStock(String(dish.stock ?? 0));
                       setDishCategory(dish.category);
                       setDishImageUrl(dish.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
                       setDishImageError(false);
@@ -1564,6 +1572,18 @@ export default function MantTab({
                 <div>
                   <h4 className="font-extrabold text-gray-950 text-base leading-tight truncate">{dish.name}</h4>
                   <p className="text-xs text-gray-450 font-semibold leading-relaxed mt-1 line-clamp-2">{dish.description}</p>
+                </div>
+                <div className="pt-1 flex items-center justify-between border-t border-dashed border-slate-100 mt-2">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Disponibilidad</span>
+                  <span className={`text-[11px] font-black uppercase px-2.5 py-1 rounded-lg ${
+                    (dish.stock ?? 0) <= 0 
+                      ? 'bg-rose-100 text-rose-700 font-bold' 
+                      : (dish.stock ?? 0) <= 5 
+                        ? 'bg-amber-150 text-amber-900 font-black animate-pulse' 
+                        : 'bg-emerald-100 text-emerald-800 font-bold'
+                  }`}>
+                    {(dish.stock ?? 0) <= 0 ? 'Agotado ❌' : `${dish.stock ?? 0} porciones`}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1724,6 +1744,19 @@ export default function MantTab({
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Porciones Disponibles (Stock) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="Ej. 15"
+                  className="w-full bg-gray-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none font-bold"
+                  value={dishStock}
+                  onChange={(e) => setDishStock(e.target.value)}
+                />
               </div>
 
               <div className="space-y-1">

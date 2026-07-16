@@ -380,11 +380,14 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
       await onAddTransaction(transactionPayload);
 
       // 2. Adjust inventories stocks sequentially
+      // Convert the inventory list into an optimized Map indexed by ID for O(1) instant lookup
+      const inventarioMap = new Map(products.map(p => [p.id, p]));
+
       for (const item of cart) {
         const delta = transactionType === 'Venta' ? -item.quantity : item.quantity;
-        const targetProduct = products.find(p => p.id === item.product.id);
+        const targetProduct = item.product?.id ? inventarioMap.get(item.product.id) : null;
         if (targetProduct) {
-          const newStock = Math.max(0, targetProduct.stock + delta);
+          const newStock = Math.max(0, Number(targetProduct.stock) + delta);
           await onUpdateProductStock(targetProduct.id, newStock);
         }
       }

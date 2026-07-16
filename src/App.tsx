@@ -55,8 +55,30 @@ export default function App() {
     } catch {}
     return 'Compras';
   });
-  const [products, setProducts] = useState<Product[]>([]);
-  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const savedTenantId = localStorage.getItem('tenant_tienda_id');
+      if (savedTenantId) {
+        const cached = localStorage.getItem(`products_${savedTenantId}`);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      }
+    } catch {}
+    return [];
+  });
+  const [foodItems, setFoodItems] = useState<FoodItem[]>(() => {
+    try {
+      const savedTenantId = localStorage.getItem('tenant_tienda_id');
+      if (savedTenantId) {
+        const cached = localStorage.getItem(`foodItems_${savedTenantId}`);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      }
+    } catch {}
+    return [];
+  });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [config, setConfig] = useState<BusinessConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
@@ -154,6 +176,7 @@ export default function App() {
           prodList.push(d.data() as Product);
         });
         setProducts(prodList);
+        localStorage.setItem(`products_${tenantId}`, JSON.stringify(prodList));
         setLoading(false);
       }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/products`));
 
@@ -165,6 +188,7 @@ export default function App() {
           dishList.push(d.data() as FoodItem);
         });
         setFoodItems(dishList);
+        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(dishList));
       }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/foodItems`));
 
       // Listen to Transactions logs
@@ -191,11 +215,28 @@ export default function App() {
   // 2. Action Handlers mapping directly to Firestore
   const handleAddProduct = async (item: Omit<Product, 'id' | 'updatedAt'> & { id?: string }) => {
     const id = item.id || 'prod-' + Math.floor(1000 + Math.random() * 9000);
+    const sanitizedStock = Math.floor(Number(item.stock)) || 0;
+    const sanitizedPrice = Number(item.price) || 0;
+    const sanitizedCost = Number(item.cost) || 0;
+
     const newProduct: Product = {
       ...item,
       id,
+      stock: sanitizedStock,
+      price: sanitizedPrice,
+      cost: sanitizedCost,
       updatedAt: new Date().toISOString()
     };
+
+    // Immediate zero-latency local state & LocalStorage update
+    setProducts((prev) => {
+      const filtered = prev.filter((p) => p.id !== id);
+      const updated = [...filtered, newProduct];
+      if (tenantId) {
+        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
 
     try {
       const docRef = tenantId
@@ -208,17 +249,47 @@ export default function App() {
   };
 
   const handleEditProduct = async (item: Product) => {
+    const sanitizedStock = Math.floor(Number(item.stock)) || 0;
+    const sanitizedPrice = Number(item.price) || 0;
+    const sanitizedCost = Number(item.cost) || 0;
+
+    const sanitizedProduct: Product = {
+      ...item,
+      stock: sanitizedStock,
+      price: sanitizedPrice,
+      cost: sanitizedCost,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Immediate zero-latency local state & LocalStorage update
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === item.id ? sanitizedProduct : p));
+      if (tenantId) {
+        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
     try {
       const docRef = tenantId
         ? doc(db, 'tenants', tenantId, 'products', item.id)
         : doc(db, 'products', item.id);
-      await setDoc(docRef, item);
+      await setDoc(docRef, sanitizedProduct);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/products/${item.id}` : `products/${item.id}`);
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
+    // Immediate zero-latency local state & LocalStorage update
+    setProducts((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      if (tenantId) {
+        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
     try {
       const docRef = tenantId
         ? doc(db, 'tenants', tenantId, 'products', id)
@@ -295,13 +366,48 @@ export default function App() {
   };
 
   const handleUpdateProductStock = async (id: string, newStock: number) => {
+    const sanitizedStock = Math.max(0, Math.floor(Number(newStock)) || 0);
+
+    // 1. Immediately update local React state and LocalStorage for zero-latency UI updates
+    setProducts((prev) => {
+      const updated = prev.map((p) => p.id === id ? { ...p, stock: sanitizedStock, updatedAt: new Date().toISOString() } : p);
+      if (tenantId) {
+        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    // 2. Perform Firestore update in background
     try {
       const prodRef = tenantId
         ? doc(db, 'tenants', tenantId, 'products', id)
         : doc(db, 'products', id);
-      await updateDoc(prodRef, { stock: newStock, updatedAt: new Date().toISOString() });
+      await updateDoc(prodRef, { stock: sanitizedStock, updatedAt: new Date().toISOString() });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/products/${id}` : `products/${id}`);
+    }
+  };
+
+  const handleUpdateFoodItemStock = async (id: string, newStock: number) => {
+    const sanitizedStock = Math.max(0, Math.floor(Number(newStock)) || 0);
+
+    // 1. Immediately update local React state and LocalStorage for zero-latency UI updates
+    setFoodItems((prev) => {
+      const updated = prev.map((f) => f.id === id ? { ...f, stock: sanitizedStock } : f);
+      if (tenantId) {
+        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    // 2. Perform Firestore update in background
+    try {
+      const prodRef = tenantId
+        ? doc(db, 'tenants', tenantId, 'foodItems', id)
+        : doc(db, 'foodItems', id);
+      await updateDoc(prodRef, { stock: sanitizedStock });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/foodItems/${id}` : `foodItems/${id}`);
     }
   };
 
@@ -318,10 +424,22 @@ export default function App() {
 
   const handleAddFoodItem = async (f: Omit<FoodItem, 'id'>) => {
     const id = 'dish-' + Math.floor(100 + Math.random() * 900);
+    const sanitizedStock = Math.max(0, Math.floor(Number(f.stock)) || 0);
     const newDish: FoodItem = {
       ...f,
-      id
+      id,
+      stock: sanitizedStock
     };
+
+    // Immediate zero-latency local state & LocalStorage update
+    setFoodItems((prev) => {
+      const filtered = prev.filter((d) => d.id !== id);
+      const updated = [...filtered, newDish];
+      if (tenantId) {
+        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
 
     try {
       const docRef = tenantId
@@ -334,17 +452,41 @@ export default function App() {
   };
 
   const handleEditFoodItem = async (f: FoodItem) => {
+    const sanitizedStock = Math.max(0, Math.floor(Number(f.stock)) || 0);
+    const sanitizedDish: FoodItem = {
+      ...f,
+      stock: sanitizedStock
+    };
+
+    // Immediate zero-latency local state & LocalStorage update
+    setFoodItems((prev) => {
+      const updated = prev.map((d) => (d.id === f.id ? sanitizedDish : d));
+      if (tenantId) {
+        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
     try {
       const docRef = tenantId
         ? doc(db, 'tenants', tenantId, 'foodItems', f.id)
         : doc(db, 'foodItems', f.id);
-      await setDoc(docRef, f);
+      await setDoc(docRef, sanitizedDish);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/foodItems/${f.id}` : `foodItems/${f.id}`);
     }
   };
 
   const handleDeleteFoodItem = async (id: string) => {
+    // Immediate zero-latency local state & LocalStorage update
+    setFoodItems((prev) => {
+      const updated = prev.filter((d) => d.id !== id);
+      if (tenantId) {
+        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
     try {
       const docRef = tenantId
         ? doc(db, 'tenants', tenantId, 'foodItems', id)
@@ -525,6 +667,7 @@ export default function App() {
                 config={config}
                 onAddTransaction={handleAddTransaction}
                 onUpdateProductStock={handleUpdateProductStock}
+                onUpdateFoodItemStock={handleUpdateFoodItemStock}
                 onBackToMarketplace={() => {
                   setTenantId(null);
                   localStorage.removeItem('tenant_tienda_id');

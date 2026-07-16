@@ -197,6 +197,7 @@ interface ComprasTabProps {
   config: BusinessConfig;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
+  onUpdateFoodItemStock?: (id: string, newStock: number) => Promise<void>;
   onBackToMarketplace?: () => void;
 }
 
@@ -208,7 +209,7 @@ interface CartItem {
   quantity: number;
 }
 
-export default function ComprasTab({ products, foodItems = [], config, onAddTransaction, onUpdateProductStock, onBackToMarketplace }: ComprasTabProps) {
+export default function ComprasTab({ products, foodItems = [], config, onAddTransaction, onUpdateProductStock, onUpdateFoodItemStock, onBackToMarketplace }: ComprasTabProps) {
   // Search state (unified across both lists)
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -291,11 +292,20 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         
         const storeComuna = getStoreOriginComuna();
         setComuna(storeComuna);
+
+        // Validation rule: If distance <= 500 meters, automatically enable short distance delivery and check it.
+        if (distanceM <= 500) {
+          setIsManualShortDistance(true);
+        } else {
+          setIsManualShortDistance(false);
+        }
       },
       (error) => {
         console.error(error);
         setIsLocating(false);
-        setGpsError('No pudimos acceder a tu ubicación. Por favor, ingresa tu dirección manualmente.');
+        setGpsError('No pudimos acceder a tu ubicación o denegaste el permiso de GPS. Calculando según comuna elegida.');
+        setGpsDistance(null);
+        setIsManualShortDistance(false);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -307,19 +317,13 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       const timer = setTimeout(() => {
         setIsQuotingDelivery(false);
         
-        // Priority 1: Manual Short Distance
-        if (isManualShortDistance) {
+        // Priority 1: Short Distance by GPS ONLY. Must be <= 500m AND checked.
+        if (gpsDistance !== null && gpsDistance <= 500 && isManualShortDistance) {
           setDeliveryFee(1000);
           return;
         }
         
-        // Priority 2: GPS within 800m
-        if (gpsDistance !== null && gpsDistance <= 800) {
-          setDeliveryFee(1000);
-          return;
-        }
-        
-        // Priority 3: Fallback to Comuna
+        // Priority 2: Fallback to Comuna
         if (street.trim() && comuna) {
           const fee = getDeliveryFeeForComuna(comuna, getStoreOriginComuna());
           setDeliveryFee(fee);
@@ -385,8 +389,14 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   };
 
   const handleAddMeal = (dish: FoodItem) => {
+    const liveDish = foodItems.find(f => f.id === dish.id) || dish;
+    const stockLimit = liveDish.stock ?? 0;
     const existing = cart.find(item => item.id === dish.id && item.type === 'meal');
     if (existing) {
+      if (existing.quantity >= stockLimit) {
+        alert(`Lo sentimos, solo quedan ${stockLimit} porciones disponibles de este plato.`);
+        return;
+      }
       setCart(
         cart.map(item =>
           item.id === dish.id && item.type === 'meal'
@@ -395,6 +405,10 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         )
       );
     } else {
+      if (stockLimit <= 0) {
+        alert(`Lo sentimos, este plato está agotado.`);
+        return;
+      }
       setCart([...cart, { id: dish.id, type: 'meal', foodItem: dish, quantity: 1 }]);
     }
   };
@@ -413,6 +427,14 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       if (type === 'product' && item.product && amount > 0 && newQty > item.product.stock) {
         alert(`Lo sentimos, el stock límite para este producto es de ${item.product.stock} unidades.`);
         return;
+      }
+      if (type === 'meal' && amount > 0) {
+        const liveDish = foodItems.find(f => f.id === id) || item.foodItem;
+        const stockLimit = liveDish?.stock ?? 0;
+        if (newQty > stockLimit) {
+          alert(`Lo sentimos, solo quedan ${stockLimit} porciones disponibles de este plato.`);
+          return;
+        }
       }
       setCart(
         cart.map(item =>
@@ -789,14 +811,27 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       try {
         txId = await onAddTransaction(transactionPayload);
 
-        // 2. Adjust inventories stocks sequentially for products ONLY (if not delivery)
-        if (shippingMethod !== 'Domicilio') {
-          for (const item of cart) {
-            if (item.type === 'product' && item.product) {
-              const targetProduct = products.find(p => p.id === item.product?.id);
-              if (targetProduct) {
-                const newStock = Math.max(0, targetProduct.stock - item.quantity);
-                await onUpdateProductStock(targetProduct.id, newStock);
+        // 2. Adjust inventories stocks sequentially
+        const inventarioMap = new Map(products.map(p => [p.id, p]));
+        const foodMap = new Map(foodItems.map(f => [f.id, f]));
+
+        for (const item of cart) {
+          if (item.type === 'product' && shippingMethod !== 'Domicilio') {
+            const prodId = item.product?.id || item.id;
+            const targetProduct = inventarioMap.get(prodId);
+            if (targetProduct) {
+              const cantidadVendida = Number(item.quantity) || 0;
+              const stockActual = Math.max(0, Number(targetProduct.stock) - cantidadVendida);
+              await onUpdateProductStock(targetProduct.id, stockActual);
+            }
+          } else if (item.type === 'meal') {
+            const mealId = item.foodItem?.id || item.id;
+            const targetMeal = foodMap.get(mealId);
+            if (targetMeal) {
+              const cantidadVendida = Number(item.quantity) || 0;
+              const stockActual = Math.max(0, (targetMeal.stock ?? 0) - cantidadVendida);
+              if (onUpdateFoodItemStock) {
+                await onUpdateFoodItemStock(targetMeal.id, stockActual);
               }
             }
           }
@@ -1143,11 +1178,25 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                       {dish.description}
                     </p>
 
+                    {/* Stock Indicator */}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Porciones:</span>
+                      <span className={`text-[10.5px] font-black uppercase px-2 py-0.5 rounded-md ${
+                        (dish.stock ?? 0) <= 0 
+                          ? 'bg-slate-100 text-slate-400 border border-slate-200 font-bold' 
+                          : (dish.stock ?? 0) <= 5 
+                            ? 'bg-amber-100 text-amber-700 border border-amber-200 animate-pulse font-extrabold' 
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                      }`}>
+                        {(dish.stock ?? 0) <= 0 ? 'Agotado ❌' : `Platos disp: ${dish.stock ?? 0}`}
+                      </span>
+                    </div>
+
                     <div className="flex items-center justify-between pt-3 border-t border-slate-200 font-sans">
                       <span className="text-xs text-slate-950 font-black flex items-center gap-1">La Cocina 🍲</span>
 
                       {inCart ? (
-                        <div className="flex items-center bg-slate-100 border-2 border-slate-250 rounded-xl p-1 shadow-inner">
+                        <div className="flex items-center bg-slate-100 border-2 border-slate-250 rounded-xl p-1 shadow-inner font-sans">
                           <button
                             onClick={() => handleAdjustQty(dish.id, 'meal', -1)}
                             className="p-1.5 bg-white text-emerald-700 hover:bg-slate-100 rounded-lg shadow-3xs transition-colors cursor-pointer"
@@ -1159,11 +1208,20 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                           </span>
                           <button
                             onClick={() => handleAdjustQty(dish.id, 'meal', 1)}
-                            className="p-1.5 bg-white text-emerald-700 hover:bg-slate-100 rounded-lg shadow-3xs transition-colors cursor-pointer"
+                            disabled={cartItem.quantity >= (dish.stock ?? 0)}
+                            className={`p-1.5 bg-white rounded-lg shadow-3xs transition-all cursor-pointer ${
+                              cartItem.quantity >= (dish.stock ?? 0) 
+                                ? 'text-slate-350 opacity-40 cursor-not-allowed' 
+                                : 'text-emerald-700 hover:bg-slate-100'
+                            }`}
                           >
                             <Plus className="w-3.5 h-3.5 stroke-[3]" />
                           </button>
                         </div>
+                      ) : (dish.stock ?? 0) <= 0 ? (
+                        <span className="bg-slate-100 border border-slate-200 text-slate-400 font-black text-xs px-5 py-2 rounded-xl select-none uppercase tracking-wider">
+                          Agotado
+                        </span>
                       ) : (
                         <button
                           onClick={() => handleAddMeal(dish)}
@@ -1609,19 +1667,21 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                           </div>
 
                           {/* Manual Delivery Corto Selector */}
-                          <div className="bg-amber-50/60 border-2 border-amber-200 p-3.5 rounded-2xl flex items-start gap-3 transition-all duration-200">
-                            <input
-                              id="delivery-corto-checkbox"
-                              type="checkbox"
-                              checked={isManualShortDistance}
-                              onChange={(e) => setIsManualShortDistance(e.target.checked)}
-                              className="w-4.5 h-4.5 mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-                            />
-                            <label htmlFor="delivery-corto-checkbox" className="text-xs font-bold text-amber-950 cursor-pointer leading-normal select-none">
-                              <span className="block font-black text-[11px] uppercase tracking-wide text-amber-900 mb-0.5">🚀 Despacho de Corta Distancia</span>
-                              Estoy a menos de 4 cuadras del local (ej. Hospital o alrededores) para tarifa fija preferencial de $1.000 CLP.
-                            </label>
-                          </div>
+                          {gpsDistance !== null && gpsDistance <= 500 && (
+                            <div className="bg-amber-50/60 border-2 border-amber-200 p-3.5 rounded-2xl flex items-start gap-3 transition-all duration-200 animate-in fade-in duration-200">
+                              <input
+                                id="delivery-corto-checkbox"
+                                type="checkbox"
+                                checked={isManualShortDistance}
+                                onChange={(e) => setIsManualShortDistance(e.target.checked)}
+                                className="w-4.5 h-4.5 mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                              />
+                              <label htmlFor="delivery-corto-checkbox" className="text-xs font-bold text-amber-950 cursor-pointer leading-normal select-none">
+                                <span className="block font-black text-[11px] uppercase tracking-wide text-amber-900 mb-0.5">🚀 Despacho de Corta Distancia</span>
+                                ¡Verificado por GPS! Distancia al local de {gpsDistance.toFixed(0)} metros. Elegible para tarifa fija preferencial de $1.000 CLP.
+                              </label>
+                            </div>
+                          )}
 
                           {/* Delivery Quotation Loader & Result */}
                           {isQuotingDelivery ? (
