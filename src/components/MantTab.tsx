@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, FoodItem, BusinessConfig, Empleado } from '../types';
+import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
 
 const FOOD_PRESET_IMAGES = [
@@ -308,6 +308,19 @@ export default function MantTab({
   const [localBannerUrl, setLocalBannerUrl] = useState(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
   const [ivaPercentInput, setIvaPercentInput] = useState(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
   const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
+  const [modulosActivos, setModulosActivos] = useState<{
+    tiendaAbarrotes: boolean;
+    cocinaAlmuerzos: boolean;
+    bodega: boolean;
+    farmacia: boolean;
+    frutería: boolean;
+  }>({
+    tiendaAbarrotes: true,
+    cocinaAlmuerzos: true,
+    bodega: true,
+    farmacia: true,
+    frutería: true
+  });
   
   // SII Integration states
   const [siiEnabled, setSiiEnabled] = useState(config.siiEnabled || false);
@@ -335,6 +348,8 @@ export default function MantTab({
   const [dishImageUrl, setDishImageUrl] = useState('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
   const [uploadingDishImage, setUploadingDishImage] = useState(false);
   const [dishImageError, setDishImageError] = useState(false);
+  const [dishEnOferta, setDishEnOferta] = useState(false);
+  const [dishPrecioOferta, setDishPrecioOferta] = useState<string>('');
 
   useEffect(() => {
     setDishImageError(false);
@@ -420,6 +435,13 @@ export default function MantTab({
     setSiiRut(config.siiRut || '');
     setSiiDigitalCert(config.siiDigitalCert || '');
     setSiiApiKey(config.siiApiKey || '');
+    setModulosActivos(config.modulosActivos || {
+      tiendaAbarrotes: true,
+      cocinaAlmuerzos: true,
+      bodega: true,
+      farmacia: true,
+      frutería: true
+    });
   }, [config]);
 
   // Fetch employees list from config/business_info/empleados subcollection
@@ -701,7 +723,8 @@ export default function MantTab({
         siiEnabled,
         siiRut: siiRut.trim(),
         siiDigitalCert: siiDigitalCert.trim(),
-        siiApiKey: siiApiKey.trim()
+        siiApiKey: siiApiKey.trim(),
+        modulosActivos
       });
 
       // Save each employee slot to the config/business_info/empleados subcollection
@@ -762,6 +785,7 @@ export default function MantTab({
     setLoading(true);
     try {
       const parsedStock = Math.max(0, Math.floor(Number(dishStock)) || 0);
+      const parsedPrecioOferta = dishEnOferta ? (parseFloat(dishPrecioOferta) || 0) : null;
       if (editingDish) {
         if (onEditFoodItem) {
           await onEditFoodItem({
@@ -771,7 +795,9 @@ export default function MantTab({
             price: parseFloat(dishPrice) || 0,
             category: dishCategory,
             stock: parsedStock,
-            imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
+            imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200',
+            enOferta: dishEnOferta,
+            precioOferta: parsedPrecioOferta
           });
         }
       } else {
@@ -782,7 +808,9 @@ export default function MantTab({
           category: dishCategory,
           isPopular: false,
           stock: parsedStock,
-          imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200'
+          imageUrl: dishImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200',
+          enOferta: dishEnOferta,
+          precioOferta: parsedPrecioOferta
         });
       }
       setDishName('');
@@ -790,6 +818,8 @@ export default function MantTab({
       setDishPrice('');
       setDishStock('0');
       setDishImageUrl('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
+      setDishEnOferta(false);
+      setDishPrecioOferta('');
       setEditingDish(null);
       setShowDishModal(false);
     } catch (err) {
@@ -1190,6 +1220,55 @@ export default function MantTab({
             )}
           </div>
 
+          {/* Active Modules Toggles */}
+          <div className="space-y-3.5 border-t border-gray-100 pt-3.5">
+            <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider flex items-center gap-1">
+              ⚙️ Módulos Activos del Negocio
+            </h4>
+            <p className="text-[10px] text-gray-450 leading-normal font-sans">
+              Active o desactive los módulos del negocio según sus necesidades. Al apagar un módulo, se ocultará su sección correspondiente en la vitrina del cliente, se deshabilitarán sus filtros y categorías, y no se mostrarán sus productos en oferta.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { id: 'tiendaAbarrotes', label: '🏪 Tienda de Abarrotes', desc: 'Productos de abasto general' },
+                { id: 'cocinaAlmuerzos', label: '🍲 Cocina / Almuerzos', desc: 'Platos de comida preparados' },
+                { id: 'bodega', label: '🍷 Bodega', desc: 'Bebidas y licores' },
+                { id: 'farmacia', label: '💊 Farmacia', desc: 'Cuidado y medicamentos' },
+                { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' }
+              ].map((mod) => (
+                <div 
+                  key={mod.id} 
+                  className={`p-3 border-2 rounded-2xl flex items-center justify-between gap-2.5 transition-all ${
+                    modulosActivos[mod.id as keyof typeof modulosActivos] 
+                      ? 'bg-indigo-50/40 border-indigo-150 text-indigo-950 shadow-3xs' 
+                      : 'bg-gray-50/60 border-gray-150 text-gray-450'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] font-black uppercase tracking-wide block font-sans">
+                      {mod.label}
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-400 block font-sans">
+                      {mod.desc}
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={modulosActivos[mod.id as keyof typeof modulosActivos]}
+                      onChange={(e) => setModulosActivos({
+                        ...modulosActivos,
+                        [mod.id]: e.target.checked
+                      })}
+                    />
+                    <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Categories Management Panel */}
           <div className="space-y-4 border-t border-gray-100 pt-3.5">
             <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider">
@@ -1503,6 +1582,8 @@ export default function MantTab({
             setDishDesc('');
             setDishPrice('');
             setDishStock('0');
+            setDishEnOferta(false);
+            setDishPrecioOferta('');
             if (foodItemCategoriesList.length > 0) {
               setDishCategory(foodItemCategoriesList[0]);
             }
@@ -1543,6 +1624,8 @@ export default function MantTab({
                       setDishStock(String(dish.stock ?? 0));
                       setDishCategory(dish.category);
                       setDishImageUrl(dish.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200');
+                      setDishEnOferta(!!dish.enOferta);
+                      setDishPrecioOferta(dish.precioOferta !== null && dish.precioOferta !== undefined ? String(dish.precioOferta) : '');
                       setDishImageError(false);
                       setShowDishModal(true);
                     }}
@@ -1739,7 +1822,7 @@ export default function MantTab({
                     value={dishCategory}
                     onChange={(e) => setDishCategory(e.target.value)}
                   >
-                    {foodItemCategoriesList.map(cat => (
+                    {foodItemCategoriesList.filter(cat => isModuleActive(cat, config)).map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
@@ -1757,6 +1840,47 @@ export default function MantTab({
                   value={dishStock}
                   onChange={(e) => setDishStock(e.target.value)}
                 />
+              </div>
+
+              {/* Sección Ofertas / Remates */}
+              <div className="p-3.5 bg-rose-50/70 border-2 border-rose-200 rounded-2xl space-y-3 animate-in fade-in duration-200 font-sans">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-black text-rose-950 uppercase tracking-wide flex items-center gap-1.5">
+                      🔥 ¿Poner en oferta de tarde?
+                    </h4>
+                    <p className="text-[10px] font-bold text-rose-500 mt-0.5">
+                      Activa un precio de liquidación promocional para este plato.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={dishEnOferta}
+                      onChange={(e) => setDishEnOferta(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-rose-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                  </label>
+                </div>
+
+                {dishEnOferta && (
+                  <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-150">
+                    <label className="text-xs font-black text-rose-950 uppercase tracking-wider block">
+                      Precio de Oferta ($) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      placeholder="Ej. 3500"
+                      className="w-full bg-white border-2 border-rose-300 rounded-2xl px-3 py-3 text-sm outline-none font-bold text-rose-950 focus:ring-4 focus:ring-rose-500/15 focus:border-rose-500"
+                      value={dishPrecioOferta}
+                      onChange={(e) => setDishPrecioOferta(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">

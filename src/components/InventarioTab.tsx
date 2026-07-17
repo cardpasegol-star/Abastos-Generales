@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check, UploadCloud, ChevronRight, FileSpreadsheet, FileText, Clipboard, CheckCircle2, Trash2, ArrowRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Product, BusinessConfig } from '../types';
+import { Product, BusinessConfig, isModuleActive } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
@@ -188,7 +188,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
   
-  const productCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
+  const productCats = (config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']).filter(cat => isModuleActive(cat, config));
   const defaultCategory = productCats.length > 0 ? productCats[0] : 'Bebidas';
 
   const [formData, setFormData] = useState<{
@@ -199,9 +199,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     price: string | number;
     cost: string | number;
     imageUrl: string;
+    enOferta: boolean;
+    precioOferta: string | number;
   }>({
     sku: '', name: '', category: defaultCategory,
-    stock: 0, price: '', cost: '', imageUrl: PRESET_IMAGES[0].url
+    stock: 0, price: '', cost: '', imageUrl: PRESET_IMAGES[0].url,
+    enOferta: false, precioOferta: ''
   });
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -386,10 +389,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         if (matchedCat) {
           finalCategory = matchedCat;
         } else {
-          finalCategory = rawCategory;
+          finalCategory = defaultCategory;
         }
       } else {
-        finalCategory = detectCategory([finalName]);
+        const detected = detectCategory([finalName]);
+        const matchedDetected = productCats.find(c => c.toLowerCase() === detected.toLowerCase());
+        finalCategory = matchedDetected || defaultCategory;
       }
       
       const stock = isNaN(rawStock) ? 10 : rawStock;
@@ -1014,7 +1019,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setFormData({
       sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
       name: '', category: defaultCategory, stock: 12, price: '', cost: '',
-      imageUrl: PRESET_IMAGES[0].url
+      imageUrl: PRESET_IMAGES[0].url,
+      enOferta: false,
+      precioOferta: ''
     });
     setShowAddModal(true);
   }, [defaultCategory]);
@@ -1027,7 +1034,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setFormData({
       sku: product.sku, name: product.name, category: product.category,
       stock: product.stock, price: product.price, cost: product.cost,
-      imageUrl: product.imageUrl || PRESET_IMAGES[0].url
+      imageUrl: product.imageUrl || PRESET_IMAGES[0].url,
+      enOferta: product.enOferta || false,
+      precioOferta: product.precioOferta !== undefined && product.precioOferta !== null ? String(product.precioOferta) : ''
     });
     setShowAddModal(true);
   }, []);
@@ -1063,7 +1072,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           stock: 12,
           price: '',
           cost: '',
-          imageUrl: PRESET_IMAGES[0].url
+          imageUrl: PRESET_IMAGES[0].url,
+          enOferta: false,
+          precioOferta: ''
         });
         setShowAddModal(true);
         // Auto-buscar detalles desde bases de datos externas Open Food Facts / UPCitemdb
@@ -1077,6 +1088,13 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       alert('Por favor ingresa el nombre del producto.');
       return;
     }
+    if (formData.enOferta) {
+      const pOferta = parseFloat(String(formData.precioOferta));
+      if (isNaN(pOferta) || pOferta <= 0) {
+        alert('Por favor ingresa un precio de oferta válido y mayor a cero.');
+        return;
+      }
+    }
     setLoading(true);
     try {
       const parsedData = {
@@ -1086,7 +1104,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         stock: parseInt(String(formData.stock), 10) || 0,
         price: parseFloat(String(formData.price)) || 0,
         cost: parseFloat(String(formData.cost)) || 0,
-        imageUrl: formData.imageUrl || PRESET_IMAGES[0].url
+        imageUrl: formData.imageUrl || PRESET_IMAGES[0].url,
+        enOferta: formData.enOferta,
+        precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null
       };
       if (editingItem) {
         await onEditProduct({ ...editingItem, ...parsedData, updatedAt: new Date().toISOString() });
@@ -1529,6 +1549,47 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                      onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} />
                 </div>
               ))}
+            </div>
+
+            {/* Sección Ofertas / Remates */}
+            <div className="p-3.5 bg-rose-50/70 border-2 border-rose-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black text-rose-950 uppercase tracking-wide flex items-center gap-1.5">
+                    🔥 Oferta / Remate Especial
+                  </h4>
+                  <p className="text-[10px] font-bold text-rose-500 mt-0.5">
+                    Activa un precio de oferta promocional para este producto.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={formData.enOferta}
+                    onChange={(e) => setFormData({ ...formData, enOferta: e.target.checked })}
+                  />
+                  <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-rose-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                </label>
+              </div>
+
+              {formData.enOferta && (
+                <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-150">
+                  <label className="text-xs font-black text-rose-950 uppercase tracking-wider block">
+                    Precio de Oferta ($) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="Ej. 1490"
+                    className="w-full bg-white border-2 border-rose-300 rounded-2xl px-3 py-3 text-sm outline-none font-bold text-rose-950 focus:ring-4 focus:ring-rose-500/15 focus:border-rose-500"
+                    value={formData.precioOferta}
+                    onChange={(e) => setFormData({ ...formData, precioOferta: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Sugerencia de Precio Gemini */}

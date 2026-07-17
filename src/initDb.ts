@@ -175,7 +175,14 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   ivaPercentage: 15,
   licenseExpirationDate: '2026-12-31',
   licenseStatus: 'active',
-  licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.'
+  licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.',
+  modulosActivos: {
+    tiendaAbarrotes: true,
+    cocinaAlmuerzos: true,
+    bodega: true,
+    farmacia: true,
+    frutería: true
+  }
 };
 
 export async function bootstrapDatabaseIfEmpty(tenantId: string) {

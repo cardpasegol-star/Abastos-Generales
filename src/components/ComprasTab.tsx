@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
-import { Product, FoodItem, BusinessConfig, Transaction } from '../types';
+import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory } from '../types';
 import { jsPDF } from 'jspdf';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
@@ -254,6 +254,30 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const [notes, setNotes] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const getItemPrice = (item: CartItem): number => {
+    if (item.type === 'product') {
+      const liveProduct = products.find(p => p.id === item.id);
+      const prod = liveProduct || item.product;
+      if (prod) {
+        if (prod.enOferta && prod.precioOferta !== null && prod.precioOferta !== undefined) {
+          return Number(prod.precioOferta);
+        }
+        return prod.price;
+      }
+      return 0;
+    } else {
+      const liveFoodItem = foodItems.find(f => f.id === item.id);
+      const dish = liveFoodItem || item.foodItem;
+      if (dish) {
+        if (dish.enOferta && dish.precioOferta !== null && dish.precioOferta !== undefined) {
+          return Number(dish.precioOferta);
+        }
+        return dish.price;
+      }
+      return 0;
+    }
+  };
+
   // Delivery quote states
   const [isQuotingDelivery, setIsQuotingDelivery] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -348,18 +372,20 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   // Lists of categories
-  const productCategories = ['Todo', ...(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'])];
-  const foodItemCategories = ['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas'])];
+  const productCategories = ['Todo', ...(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']).filter(cat => isModuleActive(cat, config))];
+  const foodItemCategories = ['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']).filter(cat => isModuleActive(cat, config))];
 
   // Match items based on filters and search
   const filteredProducts = products.filter(product => {
+    if (!isModuleActive(product.category, config)) return false;
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (product.sku || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedProductCategory === 'Todo' || product.category === selectedProductCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const filteredFoodItems = foodItems.filter(dish => {
+  const filteredFoodItems = config?.modulosActivos?.cocinaAlmuerzos === false ? [] : foodItems.filter(dish => {
+    if (!isModuleActive(dish.category, config)) return false;
     const matchesSearch = dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           dish.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedFoodCategory === 'Todo' || dish.category === selectedFoodCategory;
@@ -454,12 +480,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   
   const ivaPercentage = config?.ivaPercentage !== undefined ? config.ivaPercentage : 15;
   const subtotalVal = cart.reduce((sum, item) => {
-    const liveProduct = item.type === 'product' ? products.find(p => p.id === item.id) : null;
-    const liveFoodItem = item.type === 'meal' ? foodItems.find(f => f.id === item.id) : null;
-    const price = item.type === 'product'
-      ? (liveProduct?.price ?? item.product?.price ?? 0)
-      : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
-    return sum + price * item.quantity;
+    return sum + getItemPrice(item) * item.quantity;
   }, 0);
   const taxVal = subtotalVal * (ivaPercentage / 100);
   const totalCartCost = subtotalVal + taxVal + (shippingMethod === 'Domicilio' ? deliveryFee : 0);
@@ -757,9 +778,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         const name = item.type === 'product'
           ? (liveProduct?.name || item.product?.name || '')
           : (liveFoodItem?.name || item.foodItem?.name || '');
-        const price = item.type === 'product'
-          ? (liveProduct?.price ?? item.product?.price ?? 0)
-          : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
+        const price = getItemPrice(item);
         return {
           productId,
           name,
@@ -859,9 +878,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
             const name = item.type === 'product'
               ? (liveProduct?.name || item.product?.name || '')
               : (liveFoodItem?.name || item.foodItem?.name || '');
-            const price = item.type === 'product'
-              ? (liveProduct?.price ?? item.product?.price ?? 0)
-              : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
+            const price = getItemPrice(item);
             return {
               productId: item.id,
               name,
@@ -912,9 +929,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           const name = item.type === 'product'
             ? (liveProduct?.name || item.product?.name || '')
             : (liveFoodItem?.name || item.foodItem?.name || '');
-          const price = item.type === 'product'
-            ? (liveProduct?.price ?? item.product?.price ?? 0)
-            : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
+          const price = getItemPrice(item);
           msg += `• *${item.quantity}x* _${name}_ | Precio c/u: $${price.toFixed(2)}\n`;
         });
         
@@ -976,9 +991,10 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           cartProducts.forEach((item) => {
             const liveProduct = products.find(p => p.id === item.id) || item.product;
             if (!liveProduct) return;
-            const itemSubtotal = liveProduct.price * item.quantity;
+            const price = getItemPrice(item);
+            const itemSubtotal = price * item.quantity;
             msg += `• *${item.quantity}x* _${liveProduct.name}_\n`;
-            msg += `  Precio cu: $${liveProduct.price.toFixed(2)} | Sub: $${itemSubtotal.toFixed(2)}\n`;
+            msg += `  Precio cu: $${price.toFixed(2)} | Sub: $${itemSubtotal.toFixed(2)}\n`;
           });
           msg += `------------------------------------\n`;
         }
@@ -1025,6 +1041,54 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     setCheckoutStep('form');
     setShowCartModal(false);
   };
+
+  // Unified offers list combining store products and food items
+  const offerItems: Array<{
+    id: string;
+    type: 'product' | 'meal';
+    name: string;
+    sku?: string;
+    category: string;
+    stock: number;
+    price: number;
+    precioOferta: number;
+    imageUrl: string;
+    rawItem: any;
+  }> = [];
+
+  products.forEach(p => {
+    if (p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined && isModuleActive(p.category, config)) {
+      offerItems.push({
+        id: p.id,
+        type: 'product',
+        name: p.name,
+        sku: p.sku,
+        category: p.category,
+        stock: p.stock,
+        price: p.price,
+        precioOferta: Number(p.precioOferta),
+        imageUrl: p.imageUrl,
+        rawItem: p,
+      });
+    }
+  });
+
+  foodItems.forEach(f => {
+    if (f.enOferta && f.precioOferta !== null && f.precioOferta !== undefined && isModuleActive(f.category, config)) {
+      offerItems.push({
+        id: f.id,
+        type: 'meal',
+        name: f.name,
+        sku: undefined,
+        category: f.category,
+        stock: f.stock ?? 0,
+        price: f.price,
+        precioOferta: Number(f.precioOferta),
+        imageUrl: f.imageUrl,
+        rawItem: f,
+      });
+    }
+  });
 
   return (
     <div id="compras-container" className="space-y-6 pb-36 animate-in fade-in duration-300">
@@ -1081,8 +1145,134 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         )}
       </div>
 
+      {/* SECCIÓN: OFERTAS DEL DÍA */}
+      {offerItems.length > 0 && (
+        <div className="bg-gradient-to-br from-rose-50 to-orange-50 rounded-3xl border-2 border-rose-150 p-5 shadow-sm space-y-4">
+          <div className="flex justify-between items-center pb-2 border-b border-rose-100">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-rose-600 text-white rounded-xl shadow-sm animate-pulse">
+                  <Sparkles className="w-4 h-4 stroke-[2.5]" />
+                </span>
+                <h3 className="font-black text-rose-950 text-lg font-sans tracking-tight">
+                  ⚡ ¡Ofertas del Día!
+                </h3>
+              </div>
+              <p className="text-xs text-rose-800 font-extrabold font-sans">
+                ¡Remates especiales con stock limitado, aprovecha antes de que se agoten!
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-rose-200">
+            {offerItems.map((itemOffer) => {
+              const inCart = cart.find(item => item.id === itemOffer.id && item.type === itemOffer.type);
+              const cartQty = inCart ? inCart.quantity : 0;
+              const isOutofStock = itemOffer.stock <= 0;
+
+              return (
+                <div 
+                  key={`oferta-${itemOffer.type}-${itemOffer.id}`}
+                  className="w-64 flex-shrink-0 bg-white rounded-2xl border-2 border-rose-200 overflow-hidden flex flex-col justify-between hover:border-rose-450 hover:shadow-md transition-all relative"
+                >
+                  {/* Category Type Badge */}
+                  <span className={`absolute top-2.5 right-2.5 text-[9px] font-black px-2 py-0.5 rounded-md z-10 text-white ${
+                    itemOffer.type === 'product' ? 'bg-indigo-650' : 'bg-emerald-600'
+                  }`}>
+                    {itemOffer.type === 'product' ? 'Tienda 🏪' : 'Cocina 🍲'}
+                  </span>
+
+                  {/* Discount Percentage Badge */}
+                  {itemOffer.price > 0 && (
+                    <div className="absolute top-2.5 left-2.5 bg-rose-600 text-white text-[10px] font-black px-2 py-1 rounded-lg z-10 shadow-sm uppercase tracking-wider">
+                      -{Math.round(((itemOffer.price - itemOffer.precioOferta) / itemOffer.price) * 100)}% DCTO
+                    </div>
+                  )}
+
+                  {/* Stock counter */}
+                  <div className="absolute top-10 right-2.5 bg-slate-900/90 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-md z-10">
+                    Stock: {itemOffer.stock}
+                  </div>
+
+                  <div className="h-32 bg-slate-50 relative flex items-center justify-center p-4 mt-6">
+                    <img
+                      src={itemOffer.imageUrl || (itemOffer.type === 'product' 
+                        ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=100'
+                        : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=100'
+                      )}
+                      alt={itemOffer.name}
+                      referrerPolicy="no-referrer"
+                      className="max-h-full max-w-full object-contain filter hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+
+                  <div className="p-3.5 flex-grow flex flex-col justify-between space-y-2">
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-950 line-clamp-1 leading-snug">
+                        {itemOffer.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 font-bold font-mono">
+                        {itemOffer.type === 'product' ? `SKU: ${itemOffer.sku || itemOffer.id}` : `Cocina | ${itemOffer.category}`}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[11px] text-slate-400 line-through font-bold leading-none">
+                          ${itemOffer.price.toFixed(2)}
+                        </span>
+                        <span className="text-base font-black text-rose-600 leading-none mt-0.5">
+                          ${itemOffer.precioOferta.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {isOutofStock ? (
+                        <span className="text-[10px] text-rose-600 font-black bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-200">Agotado</span>
+                      ) : cartQty > 0 ? (
+                        <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 rounded-lg p-0.5">
+                          <button
+                            onClick={() => handleAdjustQty(itemOffer.id, itemOffer.type, -1)}
+                            className="w-5 h-5 bg-white rounded flex items-center justify-center text-xs text-rose-600 font-black hover:bg-rose-100 transition-colors cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <span className="text-xs font-black text-rose-950 px-1 w-4 text-center">
+                            {cartQty}
+                          </span>
+                          <button
+                            onClick={() => handleAdjustQty(itemOffer.id, itemOffer.type, 1)}
+                            className="w-5 h-5 bg-white rounded flex items-center justify-center text-xs text-rose-600 font-black hover:bg-rose-100 transition-colors cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (itemOffer.type === 'product') {
+                              handleAddProduct(itemOffer.rawItem);
+                            } else {
+                              handleAddMeal(itemOffer.rawItem);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-black transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Agregar</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* SECTION 1: MENÚ DEL DÍA (Warm dishes) */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
+      {config?.modulosActivos?.cocinaAlmuerzos !== false && (
+        <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -1168,9 +1358,23 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                       </h4>
                       <div className="text-right shrink-0">
                         <span className="text-[10px] text-slate-550 font-black uppercase tracking-wide block">Precio</span>
-                        <span className="font-black text-emerald-600 text-lg leading-none">
-                          ${dish.price.toFixed(2)}
-                        </span>
+                        {dish.enOferta && dish.precioOferta !== null && dish.precioOferta !== undefined ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-[11px] text-slate-400 line-through font-bold leading-none">
+                              ${dish.price.toFixed(2)}
+                            </span>
+                            <span className="font-black text-rose-600 text-lg leading-none mt-0.5">
+                              ${Number(dish.precioOferta).toFixed(2)}
+                            </span>
+                            <span className="text-[8px] bg-rose-100 text-rose-800 px-1 py-0.2 rounded font-extrabold uppercase tracking-wide mt-0.5 inline-block">
+                              ¡Remate!
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-black text-emerald-600 text-lg leading-none">
+                            ${dish.price.toFixed(2)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1239,9 +1443,14 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           </div>
         )}
       </div>
+      )}
 
       {/* SECTION 2: PRODUCTOS DE LA TIENDA (Víveres y Abarrotes) */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
+      {(config?.modulosActivos?.tiendaAbarrotes !== false ||
+        config?.modulosActivos?.bodega !== false ||
+        config?.modulosActivos?.farmacia !== false ||
+        config?.modulosActivos?.frutería !== false) && (
+        <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -1320,6 +1529,12 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                       <span>{p.category}</span>
                     </span>
 
+                    {p.enOferta && (
+                      <span className="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-lg shadow-md uppercase tracking-widest flex items-center gap-1 animate-pulse z-10">
+                        🔥 ¡OFERTA!
+                      </span>
+                    )}
+
                     {isOutofStock ? (
                       <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[1.5px] flex items-center justify-center">
                         <span className="bg-red-500 text-white font-extrabold text-xs px-4 py-2 rounded-full uppercase tracking-widest shadow-md">
@@ -1349,9 +1564,20 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-[10px] text-slate-550 font-black uppercase tracking-wide block">Precio</span>
-                        <span className="text-lg font-black text-slate-950">
-                          ${p.price.toFixed(2)}
-                        </span>
+                        {p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-xs text-slate-400 line-through font-extrabold leading-none mb-0.5">
+                              ${p.price.toFixed(2)}
+                            </span>
+                            <span className="text-lg font-black text-rose-600 leading-none">
+                              ${Number(p.precioOferta).toFixed(2)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-lg font-black text-slate-950">
+                            ${p.price.toFixed(2)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1395,6 +1621,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           </div>
         )}
       </div>
+      )}
 
       {/* Persistent Shopping Cart Sticky Floating Action Button at bottom */}
       {totalItemsCount > 0 && (
@@ -1464,9 +1691,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                         const img = item.type === 'product'
                           ? (liveProduct?.imageUrl || item.product?.imageUrl)
                           : (liveFoodItem?.imageUrl || item.foodItem?.imageUrl);
-                        const price = item.type === 'product'
-                          ? (liveProduct?.price ?? item.product?.price ?? 0)
-                          : (liveFoodItem?.price ?? item.foodItem?.price ?? 0);
+                        const price = getItemPrice(item);
                         const fallbackImg = item.type === 'product' 
                           ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=100'
                           : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=100';
@@ -1493,9 +1718,27 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                                 }`}>
                                   {item.type === 'product' ? 'Tienda' : 'Cocina 🍲'}
                                 </span>
-                                <span className="text-xs text-slate-800 font-black font-sans">
-                                  ${price.toFixed(2)} c/u
-                                </span>
+                                {((item.type === 'product' && (liveProduct?.enOferta || item.product?.enOferta)) || 
+                                  (item.type === 'meal' && (liveFoodItem?.enOferta || item.foodItem?.enOferta))) ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-400 line-through font-bold">
+                                      ${(item.type === 'product' 
+                                        ? (liveProduct?.price ?? item.product?.price ?? 0) 
+                                        : (liveFoodItem?.price ?? item.foodItem?.price ?? 0)
+                                      ).toFixed(2)}
+                                    </span>
+                                    <span className="text-xs text-rose-600 font-black font-sans">
+                                      ${price.toFixed(2)}
+                                    </span>
+                                    <span className="text-[9px] bg-rose-100 text-rose-700 px-1 rounded font-black uppercase tracking-wider">
+                                      %
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-800 font-black font-sans">
+                                    ${price.toFixed(2)} c/u
+                                  </span>
+                                )}
                               </div>
                             </div>
 

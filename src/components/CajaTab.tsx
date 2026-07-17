@@ -327,11 +327,18 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
     );
   };
 
+  const getProductPrice = (p: Product): number => {
+    if (p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined) {
+      return Number(p.precioOferta);
+    }
+    return p.price;
+  };
+
   // Calculations
   const ivaPercentage = config?.ivaPercentage !== undefined ? config.ivaPercentage : 15;
   const subtotal = cart.reduce((acc, item) => {
     const liveProd = products.find(p => p.id === item.product.id) || item.product;
-    return acc + liveProd.price * item.quantity;
+    return acc + getProductPrice(liveProd) * item.quantity;
   }, 0);
   const tax = subtotal * (ivaPercentage / 100);
   const total = subtotal + tax;
@@ -362,7 +369,7 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
           productId: liveProd.id,
           name: liveProd.name,
           qty: item.quantity,
-          price: liveProd.price,
+          price: getProductPrice(liveProd),
         };
       });
 
@@ -516,8 +523,11 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
                 <div className="flex-grow min-w-0">
                   <p className="font-extrabold text-base text-slate-1000 truncate">{liveProd.name}</p>
                   <div className="flex items-center justify-between mt-1 text-sm">
-                    <span className="text-slate-500 font-extrabold">{item.quantity} x ${liveProd.price.toFixed(2)}</span>
-                    <span className="font-black text-emerald-600 text-base">${(liveProd.price * item.quantity).toFixed(2)}</span>
+                    <span className="text-slate-500 font-extrabold">
+                      {item.quantity} x ${getProductPrice(liveProd).toFixed(2)}
+                      {liveProd.enOferta && <span className="text-rose-500 text-[10px] font-black uppercase ml-1.5">🔥 Oferta</span>}
+                    </span>
+                    <span className="font-black text-emerald-600 text-base">${(getProductPrice(liveProd) * item.quantity).toFixed(2)}</span>
                   </div>
                 </div>
 

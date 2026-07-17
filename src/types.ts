@@ -8,6 +8,8 @@ export interface Product {
   cost: number;
   imageUrl: string;
   updatedAt: string;
+  enOferta?: boolean;
+  precioOferta?: number | null;
 }
 
 export interface CartItem {
@@ -60,6 +62,16 @@ export interface FoodItem {
   isPopular: boolean;
   imageUrl: string;
   stock?: number;
+  enOferta?: boolean;
+  precioOferta?: number | null;
+}
+
+export interface ModulosActivos {
+  tiendaAbarrotes: boolean;
+  cocinaAlmuerzos: boolean;
+  bodega: boolean;
+  farmacia: boolean;
+  frutería: boolean;
 }
 
 export interface BusinessConfig {
@@ -80,6 +92,37 @@ export interface BusinessConfig {
   siiRut?: string;
   siiDigitalCert?: string;
   siiApiKey?: string;
+  modulosActivos?: ModulosActivos;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';
+
+export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bodega' | 'farmacia' | 'frutería' | 'cocinaAlmuerzos' {
+  const cat = category.toLowerCase();
+  if (cat.includes('bodega') || cat.includes('licor') || cat.includes('alcohol') || cat.includes('vino') || cat.includes('cerveza') || cat.includes('trago') || cat.includes('coctel') || cat.includes('destilado')) {
+    return 'bodega';
+  }
+  if (cat.includes('farmacia') || cat.includes('medicamento') || cat.includes('remedio') || cat.includes('salud') || cat.includes('cuidado') || cat.includes('higiene') || cat.includes('farmaceut') || cat.includes('dental')) {
+    return 'farmacia';
+  }
+  if (cat.includes('frut') || cat.includes('verdur') || cat.includes('vegetal') || cat.includes('campo') || cat.includes('frutas') || cat.includes('verduras') || cat.includes('hortaliza')) {
+    return 'frutería';
+  }
+  if (cat.includes('almuerzo') || cat.includes('sopa') || cat.includes('postre') || cat.includes('cocina') || cat.includes('comida') || cat.includes('plato') || cat.includes('ración') || cat.includes('guiso') || cat.includes('ensalada')) {
+    return 'cocinaAlmuerzos';
+  }
+  return 'tiendaAbarrotes';
+}
+
+export function isModuleActive(category: string, config?: BusinessConfig): boolean {
+  if (!config) return true;
+  const modulos = config.modulosActivos || {
+    tiendaAbarrotes: true,
+    cocinaAlmuerzos: true,
+    bodega: true,
+    farmacia: true,
+    frutería: true
+  };
+  const moduleKey = getModuleForCategory(category);
+  return modulos[moduleKey] !== false;
+}
