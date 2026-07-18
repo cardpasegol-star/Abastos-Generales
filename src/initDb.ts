@@ -182,8 +182,186 @@ export const DEFAULT_CONFIG: BusinessConfig = {
     bodega: true,
     farmacia: true,
     frutería: true
+  },
+  modulosPermitidos: {
+    tiendaAbarrotes: true,
+    cocinaAlmuerzos: true,
+    bodega: false,
+    farmacia: false,
+    frutería: false
   }
 };
+
+const INITIAL_FRUIT_PRODUCTS: Product[] = [
+  {
+    id: 'gales-manzana-roja',
+    sku: 'FR-001',
+    name: 'Manzana Roja Royal Gala',
+    category: 'Frutas Frescas',
+    stock: 120,
+    price: 1890,
+    cost: 950,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'gales-platano',
+    sku: 'FR-002',
+    name: 'Plátano Cavendish',
+    category: 'Frutas',
+    stock: 95,
+    price: 1490,
+    cost: 700,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'gales-tomate',
+    sku: 'VD-001',
+    name: 'Tomate Larga Vida',
+    category: 'Verduras',
+    stock: 80,
+    price: 1990,
+    cost: 1100,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'gales-palta-hass',
+    sku: 'VD-002',
+    name: 'Palta Hass Premium',
+    category: 'Verduras',
+    stock: 60,
+    price: 4990,
+    cost: 3200,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString(),
+    enOferta: true,
+    precioOferta: 3990
+  },
+  {
+    id: 'gales-frutilla',
+    sku: 'FR-003',
+    name: 'Frutilla Seleccionada',
+    category: 'Frutas',
+    stock: 50,
+    price: 2500,
+    cost: 1500,
+    unidadMedida: 'g',
+    imageUrl: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'gales-papas',
+    sku: 'VD-003',
+    name: 'Papa Patagonia',
+    category: 'Verduras',
+    stock: 250,
+    price: 1200,
+    cost: 600,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'gales-cebolla',
+    sku: 'VD-004',
+    name: 'Cebolla Guarda',
+    category: 'Verduras',
+    stock: 150,
+    price: 990,
+    cost: 450,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'gales-zanahoria',
+    sku: 'VD-005',
+    name: 'Zanahoria',
+    category: 'Verduras',
+    stock: 110,
+    price: 1100,
+    cost: 500,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'gales-limon',
+    sku: 'FR-004',
+    name: 'Limón Sutil',
+    category: 'Frutas',
+    stock: 130,
+    price: 1690,
+    cost: 800,
+    unidadMedida: 'kg',
+    imageUrl: 'https://images.unsplash.com/photo-1590502593747-42a996133562?auto=format&fit=crop&q=80&w=300',
+    updatedAt: new Date().toISOString()
+  }
+];
+
+export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
+  const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
+  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales';
+
+  if (isPrincipeGales) {
+    return {
+      ...DEFAULT_CONFIG,
+      id: 'business_info',
+      name: 'Frutería Príncipe de Gales',
+      adminPin: '2026',
+      gps: 'Av. Príncipe de Gales #5800, Ñuñoa',
+      bannerUrl: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800',
+      whatsapp: '+56920262026',
+      modulosPermitidos: {
+        tiendaAbarrotes: true,
+        cocinaAlmuerzos: false,
+        bodega: false,
+        farmacia: false,
+        frutería: true
+      },
+      modulosActivos: {
+        tiendaAbarrotes: false,
+        cocinaAlmuerzos: false,
+        bodega: false,
+        farmacia: false,
+        frutería: true
+      }
+    };
+  }
+
+  const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
+  return {
+    ...DEFAULT_CONFIG,
+    name: isTurco ? 'Minimarket Virtual "DondeElTurco"' : `Minimarket "${formattedName}"`,
+    bannerUrl: isTurco 
+      ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800'
+      : DEFAULT_CONFIG.bannerUrl,
+    gps: isTurco ? 'Av. Holanda #123' : DEFAULT_CONFIG.gps,
+  };
+}
+
+export function getTenantEmployees(tenantId: string) {
+  const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
+  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales';
+
+  if (isPrincipeGales) {
+    return [
+      { id: 'emp-admin', name: 'Admin Príncipe de Gales', pin: '2026', role: 'admin' },
+      { id: 'emp-cajero', name: 'Cajero Príncipe de Gales', pin: '4321', role: 'cajero' }
+    ];
+  }
+
+  return [
+    { id: 'emp-admin', name: isTurco ? 'Don Elías' : 'Don Goyo', pin: '1234', role: 'admin' },
+    { id: 'emp-cajero', name: 'Empleado Cajero', pin: '4321', role: 'cajero' }
+  ];
+}
 
 export async function bootstrapDatabaseIfEmpty(tenantId: string) {
   try {
@@ -193,33 +371,30 @@ export async function bootstrapDatabaseIfEmpty(tenantId: string) {
       console.log(`Database empty for tenant "${tenantId}". Bootstrapping assets...`);
       const batch = writeBatch(db);
 
-      const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
-      const tenantConfig: BusinessConfig = {
-        ...DEFAULT_CONFIG,
-        name: tenantId.toLowerCase() === 'turco' ? 'Minimarket Virtual "DondeElTurco"' : `Minimarket "${formattedName}"`,
-        bannerUrl: tenantId.toLowerCase() === 'turco' 
-          ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800' // slightly different banner for turco
-          : DEFAULT_CONFIG.bannerUrl,
-        gps: tenantId.toLowerCase() === 'turco' ? 'Av. Holanda #123' : DEFAULT_CONFIG.gps,
-      };
+      const tenantConfig = getTenantSpecificConfig(tenantId);
 
       // Write config
       batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
       // Write products
-      INITIAL_PRODUCTS.forEach(p => {
+      const productsToSeed = tenantId.toLowerCase() === 'fruteria_principe_gales' ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+      productsToSeed.forEach(p => {
         batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
       });
 
       // Write food items
-      INITIAL_FOOD_ITEMS.forEach(f => {
-        batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
-      });
+      if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+        INITIAL_FOOD_ITEMS.forEach(f => {
+          batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
+        });
+      }
 
       // Write transactions
-      INITIAL_TRANSACTIONS.forEach(t => {
-        batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
-      });
+      if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+        INITIAL_TRANSACTIONS.forEach(t => {
+          batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
+        });
+      }
 
       await batch.commit();
       console.log(`Booster successfully committed for tenant "${tenantId}".`);
@@ -231,10 +406,7 @@ export async function bootstrapDatabaseIfEmpty(tenantId: string) {
     if (empleadosSnap.empty) {
       console.log(`Bootstrapping default employees in tenants/${tenantId}/config/business_info/empleados...`);
       const batch = writeBatch(db);
-      const defaultEmployees = [
-        { id: 'emp-admin', name: tenantId.toLowerCase() === 'turco' ? 'Don Elías' : 'Don Goyo', pin: '1234', role: 'admin' },
-        { id: 'emp-cajero', name: 'Empleado Cajero', pin: '4321', role: 'cajero' }
-      ];
+      const defaultEmployees = getTenantEmployees(tenantId);
       defaultEmployees.forEach(emp => {
         batch.set(doc(db, 'tenants', tenantId, 'config', 'business_info', 'empleados', emp.id), emp);
       });
@@ -267,34 +439,28 @@ export async function resetDatabaseToDefault(tenantId: string) {
     });
 
     // Set defaults
-    const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
-    const tenantConfig: BusinessConfig = {
-      ...DEFAULT_CONFIG,
-      name: tenantId.toLowerCase() === 'turco' ? 'Minimarket Virtual "DondeElTurco"' : `Minimarket "${formattedName}"`,
-      bannerUrl: tenantId.toLowerCase() === 'turco' 
-        ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800'
-        : DEFAULT_CONFIG.bannerUrl,
-      gps: tenantId.toLowerCase() === 'turco' ? 'Av. Holanda #123' : DEFAULT_CONFIG.gps,
-    };
+    const tenantConfig = getTenantSpecificConfig(tenantId);
     batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
-    INITIAL_PRODUCTS.forEach(p => {
+    const productsToSeed = tenantId.toLowerCase() === 'fruteria_principe_gales' ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+    productsToSeed.forEach(p => {
       batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
     });
 
-    INITIAL_FOOD_ITEMS.forEach(f => {
-      batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
-    });
+    if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+      INITIAL_FOOD_ITEMS.forEach(f => {
+        batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
+      });
+    }
 
-    INITIAL_TRANSACTIONS.forEach(t => {
-      batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
-    });
+    if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+      INITIAL_TRANSACTIONS.forEach(t => {
+        batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
+      });
+    }
 
     // Seed default employees on reset
-    const defaultEmployees = [
-      { id: 'emp-admin', name: tenantId.toLowerCase() === 'turco' ? 'Don Elías' : 'Don Goyo', pin: '1234', role: 'admin' },
-      { id: 'emp-cajero', name: 'Empleado Cajero', pin: '4321', role: 'cajero' }
-    ];
+    const defaultEmployees = getTenantEmployees(tenantId);
     defaultEmployees.forEach(emp => {
       batch.set(doc(db, 'tenants', tenantId, 'config', 'business_info', 'empleados', emp.id), emp);
     });

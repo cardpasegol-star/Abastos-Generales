@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
-import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory } from '../types';
+import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory, SectorConfig } from '../types';
 import { jsPDF } from 'jspdf';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
@@ -129,9 +129,64 @@ const RM_COMUNAS = [
   "Lo Barnechea"
 ];
 
+const DEFAULT_RUTAS_CAMION: Record<string, SectorConfig> = {
+  sur: {
+    name: "Sector Sur",
+    comunas: ["la florida", "la pintana", "san bernardo", "puente alto", "el bosque", "san miguel", "pedro aguirre cerda", "cisterna", "la cisterna", "san ramón", "san ramon", "lo espejo", "buin"],
+    days: ["Martes", "Viernes"],
+    fee: 3400
+  },
+  oriente: {
+    name: "Sector Oriente",
+    comunas: ["macul", "peñalolén", "peñalolen", "la reina", "ñuñoa", "nunoa", "providencia", "las condes", "vitacura", "lo barnechea"],
+    days: ["Miércoles", "Sábado"],
+    fee: 3400
+  },
+  norte: {
+    name: "Sector Norte",
+    comunas: ["lampa", "quilicura", "renca", "conchalí", "conchali", "huechuraba", "recoleta", "independencia"],
+    days: ["Lunes", "Jueves"],
+    fee: 3400
+  },
+  poniente: {
+    name: "Sector Poniente",
+    comunas: ["maipú", "maipu", "pudahuel", "cerrillos", "estación central", "estacion central", "quinta normal", "cerro navia", "lo prado"],
+    days: ["Lunes", "Jueves"],
+    fee: 3400
+  },
+  centro: {
+    name: "Eje Central",
+    comunas: ["santiago centro", "santiago"],
+    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+    fee: 3400
+  }
+};
+
+function getSectorForComuna(comunaName: string, configRutas?: Record<string, SectorConfig>): SectorConfig | null {
+  const normalized = comunaName.trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // strip accents
+  
+  const rutas = configRutas || DEFAULT_RUTAS_CAMION;
+  
+  for (const [key, sector] of Object.entries(rutas)) {
+    const matched = sector.comunas.some((com: string) => {
+      const comNorm = com.trim().toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return comNorm === normalized || normalized.includes(comNorm) || comNorm.includes(normalized);
+    });
+    if (matched) {
+      return sector;
+    }
+  }
+  
+  // Return center as absolute fallback
+  return rutas.centro || DEFAULT_RUTAS_CAMION.centro;
+}
+
 function getStoreOriginComuna(): string {
   try {
     const activeTenant = localStorage.getItem('tenant_tienda_id') || '';
+    if (activeTenant.includes('fruteria_principe_gales') || activeTenant.includes('principe_gales')) return 'Ñuñoa';
     if (activeTenant.includes('turco')) return 'La Pintana';
     if (activeTenant.includes('buencorte')) return 'La Florida';
     if (activeTenant.includes('barrioseguro')) return 'Santiago Centro';
@@ -153,7 +208,8 @@ function getDeliveryFeeForComuna(targetComuna: string, originComuna: string): nu
   const vecinasMap: Record<string, string[]> = {
     "la florida": ["la pintana", "puente alto", "san ramón", "san ramon", "macul", "peñalolén", "peñalolen", "san joaquín", "san joaquin", "la granja", "ñuñoa", "nunoa", "providencia", "las condes"],
     "la pintana": ["la florida", "puente alto", "san ramón", "san ramon", "la granja", "el bosque", "san bernardo"],
-    "santiago centro": ["providencia", "ñuñoa", "nunoa", "recoleta", "independencia", "quinta normal", "estación central", "estacion central", "san miguel", "san joaquín", "san joaquin", "pedro aguirre cerda", "macul"]
+    "santiago centro": ["providencia", "ñuñoa", "nunoa", "recoleta", "independencia", "quinta normal", "estación central", "estacion central", "san miguel", "san joaquín", "san joaquin", "pedro aguirre cerda", "macul"],
+    "ñuñoa": ["providencia", "macul", "peñalolén", "peñalolen", "las condes", "santiago centro", "san joaquín", "san joaquin", "la reina"]
   };
   
   const vecinas = vecinasMap[originNorm] || vecinasMap["la florida"];
@@ -167,6 +223,7 @@ function getDeliveryFeeForComuna(targetComuna: string, originComuna: string): nu
 function getStoreCoordinates(): { lat: number; lon: number } {
   try {
     const activeTenant = localStorage.getItem('tenant_tienda_id') || '';
+    if (activeTenant.includes('fruteria_principe_gales') || activeTenant.includes('principe_gales')) return { lat: -33.4332, lon: -70.5694 };
     if (activeTenant.includes('turco')) return { lat: -33.5857, lon: -70.6276 };
     if (activeTenant.includes('buencorte')) return { lat: -33.5226, lon: -70.5987 };
     if (activeTenant.includes('barrioseguro')) return { lat: -33.4489, lon: -70.6693 };
@@ -215,10 +272,43 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   
   // Category states for each segment
   const [selectedProductCategory, setSelectedProductCategory] = useState<string>('Todo');
+  const [selectedFruteriaCategory, setSelectedFruteriaCategory] = useState<string>('Todo');
   const [selectedFoodCategory, setSelectedFoodCategory] = useState<string>('Todo');
   
   // Cart, Drawer and Form states
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedWeights, setSelectedWeights] = useState<Record<string, number>>({});
+
+  const KG_OPTIONS = [
+    { value: 0.25, label: "0.25 kg (250g)" },
+    { value: 0.50, label: "0.50 kg (500g)" },
+    { value: 0.75, label: "0.75 kg (750g)" },
+    { value: 1.00, label: "1.00 kg" },
+    { value: 1.50, label: "1.50 kg" },
+    { value: 2.00, label: "2.00 kg" },
+    { value: 3.00, label: "3.00 kg" },
+    { value: 5.00, label: "5.00 kg" }
+  ];
+
+  const G_OPTIONS = [
+    { value: 100, label: "100g" },
+    { value: 200, label: "200g" },
+    { value: 250, label: "250g" },
+    { value: 300, label: "300g" },
+    { value: 500, label: "500g" },
+    { value: 750, label: "750g" },
+    { value: 1000, label: "1000g (1 Kg)" },
+    { value: 1500, label: "1500g" },
+    { value: 2000, label: "2000g" }
+  ];
+
+  const getSelectedWeight = (p: Product): number => {
+    if (selectedWeights[p.id] !== undefined) {
+      return selectedWeights[p.id];
+    }
+    return p.unidadMedida === 'kg' ? 0.25 : p.unidadMedida === 'g' ? 100 : 1;
+  };
+
   const [showCartModal, setShowCartModal] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -341,6 +431,17 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       const timer = setTimeout(() => {
         setIsQuotingDelivery(false);
         
+        // MÓDULO FRUTERÍA: omit GPS ring fee calculation entirely!
+        if (config?.modulosActivos?.frutería === true) {
+          const matchedSector = getSectorForComuna(comuna, config?.rutasCamion);
+          if (matchedSector) {
+            setDeliveryFee(matchedSector.fee);
+          } else {
+            setDeliveryFee(3400); // base fallback
+          }
+          return;
+        }
+
         // Priority 1: Short Distance by GPS ONLY. Must be <= 500m AND checked.
         if (gpsDistance !== null && gpsDistance <= 500 && isManualShortDistance) {
           setDeliveryFee(1000);
@@ -360,7 +461,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       setDeliveryFee(0);
       setIsQuotingDelivery(false);
     }
-  }, [shippingMethod, street, comuna, isManualShortDistance, gpsDistance]);
+  }, [shippingMethod, street, comuna, isManualShortDistance, gpsDistance, config?.modulosActivos?.frutería, config?.rutasCamion]);
 
   // 2-Step Checkout states
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'ready'>('form');
@@ -371,12 +472,29 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const [successTx, setSuccessTx] = useState<Transaction | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+  useEffect(() => {
+    setCart([]);
+    setSearchTerm('');
+    setSelectedProductCategory('Todo');
+    setSelectedFruteriaCategory('Todo');
+    setSelectedFoodCategory('Todo');
+    setSelectedWeights({});
+    setSuccessTx(null);
+    setIsCheckingOut(false);
+  }, [config?.id]);
+
   // Lists of categories
-  const productCategories = ['Todo', ...(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']).filter(cat => isModuleActive(cat, config))];
+  const rawProductCategories = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks', 'Frutas', 'Verduras', 'Frutas Frescas'];
+  const activeProductCategories = rawProductCategories.filter(cat => isModuleActive(cat, config));
+
+  const tiendaCategories = ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')];
+  const fruteriaCategories = ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) === 'frutería')];
+
   const foodItemCategories = ['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']).filter(cat => isModuleActive(cat, config))];
 
   // Match items based on filters and search
-  const filteredProducts = products.filter(product => {
+  const filteredTiendaProducts = config?.modulosActivos?.tiendaAbarrotes !== true ? [] : products.filter(product => {
+    if (getModuleForCategory(product.category) === 'frutería') return false;
     if (!isModuleActive(product.category, config)) return false;
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (product.sku || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -384,7 +502,16 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     return matchesSearch && matchesCategory;
   });
 
-  const filteredFoodItems = config?.modulosActivos?.cocinaAlmuerzos === false ? [] : foodItems.filter(dish => {
+  const filteredFruteriaProducts = config?.modulosActivos?.frutería !== true ? [] : products.filter(product => {
+    if (getModuleForCategory(product.category) !== 'frutería') return false;
+    if (!isModuleActive(product.category, config)) return false;
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (product.sku || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedFruteriaCategory === 'Todo' || product.category === selectedFruteriaCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const filteredFoodItems = config?.modulosActivos?.cocinaAlmuerzos !== true ? [] : foodItems.filter(dish => {
     if (!isModuleActive(dish.category, config)) return false;
     const matchesSearch = dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           dish.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -392,25 +519,213 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     return matchesSearch && matchesCategory;
   });
 
+  const renderProductCard = (p: Product, inCart: boolean, cartItem: any, isOutofStock: boolean) => {
+    return (
+      <div 
+        key={p.id}
+        className={`bg-white rounded-2xl border-2 transition-all duration-305 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md ${
+          isOutofStock 
+            ? 'opacity-65 border-slate-200 bg-slate-50' 
+            : inCart 
+              ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/5' 
+              : 'border-slate-200 bg-white'
+        }`}
+      >
+        <div className="relative h-44 w-full bg-slate-50 overflow-hidden shrink-0">
+          <img
+            src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
+            alt={p.name}
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-contain p-2.5 bg-white transition-transform duration-305 ease-out hover:scale-101"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
+            }}
+          />
+          
+          <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-black px-3.5 py-1 rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1.5">
+            {renderCategoryIcon(p.category, config, "w-4 h-4 object-contain inline-block")}
+            <span>{p.category}</span>
+          </span>
+
+          {p.enOferta && (
+            <span className="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-lg shadow-md uppercase tracking-widest flex items-center gap-1 animate-pulse z-10">
+              🔥 ¡OFERTA!
+            </span>
+          )}
+
+          {isOutofStock ? (
+            <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[1.5px] flex items-center justify-center">
+              <span className="bg-red-500 text-white font-extrabold text-xs px-4 py-2 rounded-full uppercase tracking-widest shadow-md">
+                Agotado / Sin Stock
+              </span>
+            </div>
+          ) : p.stock <= 5 ? (
+            <span className="absolute bottom-3 right-3 bg-amber-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-xs">
+              ¡Solo quedan {p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'u.'}!
+            </span>
+          ) : (
+            <span className="absolute bottom-3 right-3 bg-slate-950/90 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg">
+              S. Disp: {p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'uds'}
+            </span>
+          )}
+        </div>
+
+        <div className="p-4 flex-1 flex flex-col justify-between space-y-3 font-sans">
+          <div className="flex justify-between items-start gap-2">
+            <div className="space-y-1">
+              <p className="text-slate-950 font-black text-base leading-tight">
+                {p.name}
+              </p>
+              <p className="text-xs text-slate-600 font-extrabold font-mono">
+                SKU: {p.sku || p.id}
+              </p>
+              {p.unidadMedida && p.unidadMedida !== 'unidad' && (
+                <div className="text-[11px] font-extrabold text-indigo-700 mt-1 uppercase tracking-wide">
+                  Precio base: {p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined ? (
+                    <span>
+                      <span className="line-through text-slate-400 mr-1">${p.price.toLocaleString('es-CL')}</span>
+                      <span className="text-rose-600">${Number(p.precioOferta).toLocaleString('es-CL')}</span> / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}
+                    </span>
+                  ) : (
+                    <span>${p.price.toLocaleString('es-CL')} / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[10px] text-slate-550 font-black uppercase tracking-wide block">Precio</span>
+              {p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined ? (
+                <div className="flex flex-col items-end">
+                  <span className="text-xs text-slate-400 line-through font-extrabold leading-none mb-0.5">
+                    ${p.price.toFixed(2)}
+                  </span>
+                  <span className="text-lg font-black text-rose-600 leading-none">
+                    ${Number(p.precioOferta).toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-lg font-black text-slate-950">
+                  ${p.price.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-slate-205 font-sans">
+            <span className="text-xs text-slate-950 font-black">
+              {getModuleForCategory(p.category) === 'frutería' ? 'Frutería 🍎' : 'Tienda 📦'}
+            </span>
+
+            {isOutofStock ? (
+              <span className="text-xs text-rose-600 font-black bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">No disponible</span>
+            ) : (p.unidadMedida === 'kg' || p.unidadMedida === 'g') ? (
+              /* Weight Based Selector */
+              inCart ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={cartItem.quantity}
+                    onChange={(e) => {
+                      const newW = parseFloat(e.target.value);
+                      setCart(cart.map(item => item.id === p.id && item.type === 'product' ? { ...item, quantity: newW } : item));
+                    }}
+                    className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white"
+                  >
+                    {(p.unidadMedida === 'kg' ? KG_OPTIONS : G_OPTIONS).map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleRemoveItem(p.id, 'product')}
+                    className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-200 transition-colors cursor-pointer"
+                    title="Eliminar del carrito"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={getSelectedWeight(p)}
+                    onChange={(e) => setSelectedWeights(prev => ({ ...prev, [p.id]: parseFloat(e.target.value) }))}
+                    className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white"
+                  >
+                    {(p.unidadMedida === 'kg' ? KG_OPTIONS : G_OPTIONS).map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleAddProduct(p)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1 shadow-md border border-emerald-500 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3 stroke-[3]" />
+                    <span>Llevar</span>
+                  </button>
+                </div>
+              )
+            ) : inCart ? (
+              <div className="flex items-center bg-slate-100 border-2 border-slate-250 rounded-xl p-1 shadow-inner font-sans">
+                <button
+                  onClick={() => handleAdjustQty(p.id, 'product', -1)}
+                  className="p-1.5 bg-white text-emerald-700 hover:bg-slate-100 rounded-lg shadow-3xs transition-colors cursor-pointer"
+                >
+                  <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
+                <span className="px-3 text-xs font-black text-slate-950">
+                  {cartItem.quantity}
+                </span>
+                <button
+                  onClick={() => handleAdjustQty(p.id, 'product', 1)}
+                  disabled={cartItem.quantity >= p.stock}
+                  className={`p-1.5 bg-white rounded-lg shadow-3xs transition-all cursor-pointer ${
+                    cartItem.quantity >= p.stock 
+                      ? 'text-slate-350 opacity-40 cursor-not-allowed' 
+                      : 'text-emerald-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleAddProduct(p)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-2.5 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                Agregar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Unified add item logic
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = (product: Product, customQty?: number) => {
     if (product.stock <= 0) return;
+
+    const isWeightBased = product.unidadMedida === 'kg' || product.unidadMedida === 'g';
+    const qtyToAdd = customQty !== undefined ? customQty : (isWeightBased ? getSelectedWeight(product) : 1);
 
     const existing = cart.find(item => item.id === product.id && item.type === 'product');
     if (existing) {
-      if (existing.quantity >= product.stock) {
-        alert(`Lo sentimos, solo quedan ${product.stock} unidades disponibles de este producto.`);
+      if (existing.quantity + qtyToAdd > product.stock) {
+        alert(`Lo sentimos, solo quedan ${product.stock} ${product.unidadMedida === 'kg' ? 'Kg' : product.unidadMedida === 'g' ? 'g' : 'unidades'} disponibles de este producto.`);
         return;
       }
       setCart(
         cart.map(item =>
           item.id === product.id && item.type === 'product'
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: parseFloat((item.quantity + qtyToAdd).toFixed(3)) }
             : item
         )
       );
     } else {
-      setCart([...cart, { id: product.id, type: 'product', product, quantity: 1 }]);
+      if (qtyToAdd > product.stock) {
+        alert(`Lo sentimos, solo quedan ${product.stock} ${product.unidadMedida === 'kg' ? 'Kg' : product.unidadMedida === 'g' ? 'g' : 'unidades'} disponibles de este producto.`);
+        return;
+      }
+      setCart([...cart, { id: product.id, type: 'product', product, quantity: qtyToAdd }]);
     }
   };
 
@@ -444,14 +759,15 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     const item = cart.find(item => item.id === id && item.type === type);
     if (!item) return;
 
-    const newQty = item.quantity + amount;
+    const isWeightBased = type === 'product' && (item.product?.unidadMedida === 'kg' || item.product?.unidadMedida === 'g');
+    const newQty = parseFloat((item.quantity + amount).toFixed(3));
 
     if (newQty <= 0) {
       setCart(cart.filter(item => !(item.id === id && item.type === type)));
     } else {
       // Check stock limit for products only
       if (type === 'product' && item.product && amount > 0 && newQty > item.product.stock) {
-        alert(`Lo sentimos, el stock límite para este producto es de ${item.product.stock} unidades.`);
+        alert(`Lo sentimos, el stock límite para este producto es de ${item.product.stock} ${item.product.unidadMedida === 'kg' ? 'Kg' : item.product.unidadMedida === 'g' ? 'g' : 'unidades'}.`);
         return;
       }
       if (type === 'meal' && amount > 0) {
@@ -551,15 +867,16 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     // Itemized list
     doc.setFont('helvetica', 'normal');
     tx.items.forEach((item) => {
+      let suffix = item.unidadMedida === 'kg' ? ' Kg' : item.unidadMedida === 'g' ? ' g' : ' uds';
       let displayName = item.name.toUpperCase();
-      if (displayName.length > 20) displayName = displayName.slice(0, 19) + '.';
+      if (displayName.length > 18) displayName = displayName.slice(0, 17) + '.';
       
       doc.text(displayName, 5, currentY);
-      doc.text(`${item.qty}`, 42, currentY, { align: 'center' });
-      doc.text(`$${item.price.toFixed(2)}`, 56, currentY, { align: 'center' });
+      doc.text(`${item.qty}${suffix}`, 42, currentY, { align: 'center' });
+      doc.text(`$${item.price.toFixed(0)}`, 58, currentY, { align: 'center' });
       
       const itemTotal = item.qty * item.price;
-      doc.text(`$${itemTotal.toFixed(2)}`, 75, currentY, { align: 'right' });
+      doc.text(`$${itemTotal.toFixed(0)}`, 75, currentY, { align: 'right' });
       currentY += 5.5;
     });
 
@@ -783,7 +1100,8 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           productId,
           name,
           qty: item.quantity,
-          price
+          price,
+          unidadMedida: item.type === 'product' ? (liveProduct?.unidadMedida || item.product?.unidadMedida) : undefined
         };
       });
 
@@ -911,13 +1229,25 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       const cartProducts = cart.filter(item => item.type === 'product');
       const cartMeals = cart.filter(item => item.type === 'meal');
 
+      let progEntregaLine = '';
+      if (shippingMethod === 'Domicilio' && config?.modulosActivos?.frutería === true) {
+        const sector = getSectorForComuna(comuna, config?.rutasCamion);
+        if (sector) {
+          progEntregaLine = `👉 PROGRAMACIÓN ENTREGA: Sector ${sector.name} — Próxima Ruta (${sector.days.join(', ')})\n`;
+        }
+      }
+
       let msg = '';
       if (finalMethod === 'Tarjeta') {
         const docText = documentType === 'Factura' ? 'Factura' : 'Boleta';
         const docUrl = simulatedPdfUrl || `https://www.sii.cl/facturacion_electronica/ejemplo_dte_${documentType === 'Factura' ? 33 : 39}.pdf`;
         
         if (shippingMethod === 'Domicilio') {
-          msg = `¡Hola! Nuevo pedido pagado. Método: Delivery. Dirección de entrega: ${street.trim()} # ${number.trim()}, ${comuna}. Total con envío: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n\n`;
+          msg = `¡Hola! Nuevo pedido pagado. Método: Delivery. Dirección de entrega: ${street.trim()} # ${number.trim()}, ${comuna}. Total con envío: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n`;
+          if (progEntregaLine) {
+            msg += progEntregaLine;
+          }
+          msg += `\n`;
         } else {
           msg = `¡Hola! Nuevo pedido pagado. Método: Retiro en Local. Total: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n\n`;
         }
@@ -930,7 +1260,12 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
             ? (liveProduct?.name || item.product?.name || '')
             : (liveFoodItem?.name || item.foodItem?.name || '');
           const price = getItemPrice(item);
-          msg += `• *${item.quantity}x* _${name}_ | Precio c/u: $${price.toFixed(2)}\n`;
+          const suffix = item.type === 'product' && liveProduct?.unidadMedida ? (liveProduct.unidadMedida === 'kg' ? ' Kg' : liveProduct.unidadMedida === 'g' ? ' g' : 'x') : 'x';
+          if (suffix === 'x') {
+            msg += `• *${item.quantity}x* _${name}_ | Precio c/u: $${price.toFixed(0)}\n`;
+          } else {
+            msg += `• *${item.quantity}${suffix}* _${name}_ | Precio ${suffix.trim()}: $${price.toFixed(0)}\n`;
+          }
         });
         
         if (shippingMethod === 'Domicilio') {
@@ -948,6 +1283,9 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         
         if (shippingMethod === 'Domicilio') {
           msg += `📍 *Dirección de Despacho:* ${street.trim()} # ${number.trim()}, ${comuna}\n`;
+          if (progEntregaLine) {
+            msg += progEntregaLine;
+          }
         } else {
           msg += `📍 *Dirección de Retiro:* Retiro en local\n`;
         }
@@ -993,8 +1331,14 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
             if (!liveProduct) return;
             const price = getItemPrice(item);
             const itemSubtotal = price * item.quantity;
-            msg += `• *${item.quantity}x* _${liveProduct.name}_\n`;
-            msg += `  Precio cu: $${price.toFixed(2)} | Sub: $${itemSubtotal.toFixed(2)}\n`;
+            const suffix = liveProduct.unidadMedida ? (liveProduct.unidadMedida === 'kg' ? ' Kg' : liveProduct.unidadMedida === 'g' ? ' g' : 'x') : 'x';
+            if (suffix === 'x') {
+              msg += `• *${item.quantity}x* _${liveProduct.name}_\n`;
+              msg += `  Precio cu: $${price.toFixed(0)} | Sub: $${itemSubtotal.toFixed(0)}\n`;
+            } else {
+              msg += `• *${item.quantity}${suffix}* _${liveProduct.name}_\n`;
+              msg += `  Precio ${suffix.trim()}: $${price.toFixed(0)} | Sub: $${itemSubtotal.toFixed(0)}\n`;
+            }
           });
           msg += `------------------------------------\n`;
         }
@@ -1054,6 +1398,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     precioOferta: number;
     imageUrl: string;
     rawItem: any;
+    unidadMedida?: 'unidad' | 'kg' | 'g';
   }> = [];
 
   products.forEach(p => {
@@ -1069,6 +1414,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         precioOferta: Number(p.precioOferta),
         imageUrl: p.imageUrl,
         rawItem: p,
+        unidadMedida: p.unidadMedida,
       });
     }
   });
@@ -1222,12 +1568,54 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                           ${itemOffer.price.toFixed(2)}
                         </span>
                         <span className="text-base font-black text-rose-600 leading-none mt-0.5">
-                          ${itemOffer.precioOferta.toFixed(2)}
+                          ${itemOffer.precioOferta.toFixed(2)}{itemOffer.unidadMedida === 'kg' ? ' / Kg' : itemOffer.unidadMedida === 'g' ? ' / g' : ''}
                         </span>
                       </div>
 
                       {isOutofStock ? (
                         <span className="text-[10px] text-rose-600 font-black bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-200">Agotado</span>
+                      ) : (itemOffer.unidadMedida === 'kg' || itemOffer.unidadMedida === 'g') ? (
+                        cartQty > 0 ? (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={cartQty}
+                              onChange={(e) => {
+                                const newW = parseFloat(e.target.value);
+                                setCart(cart.map(item => item.id === itemOffer.id && item.type === 'product' ? { ...item, quantity: newW } : item));
+                              }}
+                              className="bg-white border border-rose-200 rounded-lg px-1.5 py-1 text-[11px] font-black text-slate-950 outline-none"
+                            >
+                              {(itemOffer.unidadMedida === 'kg' ? KG_OPTIONS : G_OPTIONS).map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleRemoveItem(itemOffer.id, 'product')}
+                              className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg border border-rose-100 cursor-pointer"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={getSelectedWeight(itemOffer.rawItem)}
+                              onChange={(e) => setSelectedWeights(prev => ({ ...prev, [itemOffer.id]: parseFloat(e.target.value) }))}
+                              className="bg-white border border-rose-200 rounded-lg px-1 py-1 text-[11px] font-black text-slate-950 outline-none"
+                            >
+                              {(itemOffer.unidadMedida === 'kg' ? KG_OPTIONS : G_OPTIONS).map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleAddProduct(itemOffer.rawItem)}
+                              className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-black cursor-pointer shadow-xs"
+                            >
+                              Llevar
+                            </button>
+                          </div>
+                        )
                       ) : cartQty > 0 ? (
                         <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 rounded-lg p-0.5">
                           <button
@@ -1270,8 +1658,71 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         </div>
       )}
 
+      {/* SECTION 2B: PRODUCTOS DE FRUTERÍA Y VERDULERÍA */}
+      {config?.modulosActivos?.frutería === true && (
+        <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 shadow-3xs">
+                  <ShoppingBag className="w-4 h-4" />
+                </span>
+                <h3 className="font-black text-slate-950 text-lg font-sans tracking-tight">
+                  Productos de Frutería y Verdulería 🍎
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 font-bold font-sans">
+                Frutas y verduras frescas, frutos secos y del campo seleccionados al peso
+              </p>
+            </div>
+          </div>
+
+          {/* Categories Carousel */}
+          {fruteriaCategories.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {fruteriaCategories.map((cat) => {
+                const isSelected = selectedFruteriaCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedFruteriaCategory(cat)}
+                    className={`py-2 px-4 rounded-full text-xs font-black tracking-tight whitespace-nowrap transition-all cursor-pointer border-2 ${
+                      isSelected
+                        ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
+                        : 'bg-slate-100 text-slate-800 hover:bg-slate-250 border-transparent font-extrabold'
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      {renderCategoryIcon(cat, config)}
+                      <span>{cat}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Grid of Store items */}
+          {filteredFruteriaProducts.length === 0 ? (
+            <p className="text-slate-500 text-xs font-bold italic text-center py-5">
+              No se encontraron productos que coincidan con la búsqueda.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {filteredFruteriaProducts.map((p) => {
+                const cartItem = cart.find(item => item.id === p.id && item.type === 'product');
+                const inCart = !!cartItem;
+                const isOutofStock = p.stock <= 0;
+
+                return renderProductCard(p, inCart, cartItem, isOutofStock);
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* SECTION 1: MENÚ DEL DÍA (Warm dishes) */}
-      {config?.modulosActivos?.cocinaAlmuerzos !== false && (
+      {config?.modulosActivos?.cocinaAlmuerzos === true && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
           <div className="space-y-1">
@@ -1445,182 +1896,67 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       </div>
       )}
 
-      {/* SECTION 2: PRODUCTOS DE LA TIENDA (Víveres y Abarrotes) */}
-      {(config?.modulosActivos?.tiendaAbarrotes !== false ||
-        config?.modulosActivos?.bodega !== false ||
-        config?.modulosActivos?.farmacia !== false ||
-        config?.modulosActivos?.frutería !== false) && (
+      {/* SECTION 2A: PRODUCTOS DE LA TIENDA (Víveres y Abarrotes) */}
+      {config?.modulosActivos?.tiendaAbarrotes === true && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 shadow-3xs">
-                <ShoppingBag className="w-4 h-4" />
-              </span>
-              <h3 className="font-black text-slate-950 text-lg font-sans tracking-tight">
-                Productos de Tienda 📦
-              </h3>
-            </div>
-            <p className="text-xs text-slate-600 font-bold font-sans">
-              Víveres, latas, bebidas frías, lácteos y snacks indispensables
-            </p>
-          </div>
-        </div>
-
-        {/* Categories Carousel */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {productCategories.map((cat) => {
-            const isSelected = selectedProductCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedProductCategory(cat)}
-                className={`py-2 px-4 rounded-full text-xs font-black tracking-tight whitespace-nowrap transition-all cursor-pointer border-2 ${
-                  isSelected
-                    ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-250 border-transparent font-extrabold'
-                }`}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {renderCategoryIcon(cat, config)}
-                  <span>{cat}</span>
+          <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 shadow-3xs">
+                  <ShoppingBag className="w-4 h-4" />
                 </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Grid of Store items */}
-        {filteredProducts.length === 0 ? (
-          <p className="text-slate-500 text-xs font-bold italic text-center py-5">
-            No se encontraron productos que coincidan con la búsqueda.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredProducts.map((p) => {
-              const cartItem = cart.find(item => item.id === p.id && item.type === 'product');
-              const inCart = !!cartItem;
-              const isOutofStock = p.stock <= 0;
-
-              return (
-                <div 
-                  key={p.id}
-                  className={`bg-white rounded-2xl border-2 transition-all duration-305 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md ${
-                    isOutofStock 
-                      ? 'opacity-65 border-slate-200 bg-slate-50' 
-                      : inCart 
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/5' 
-                        : 'border-slate-200 bg-white'
-                  }`}
-                >
-                  <div className="relative h-44 w-full bg-slate-50 overflow-hidden shrink-0">
-                    <img
-                      src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
-                      alt={p.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-contain p-2.5 bg-white transition-transform duration-305 ease-out hover:scale-101"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
-                      }}
-                    />
-                    
-                    <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-black px-3.5 py-1 rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1.5">
-                      {renderCategoryIcon(p.category, config, "w-4 h-4 object-contain inline-block")}
-                      <span>{p.category}</span>
-                    </span>
-
-                    {p.enOferta && (
-                      <span className="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-lg shadow-md uppercase tracking-widest flex items-center gap-1 animate-pulse z-10">
-                        🔥 ¡OFERTA!
-                      </span>
-                    )}
-
-                    {isOutofStock ? (
-                      <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[1.5px] flex items-center justify-center">
-                        <span className="bg-red-500 text-white font-extrabold text-xs px-4 py-2 rounded-full uppercase tracking-widest shadow-md">
-                          Agotado / Sin Stock
-                        </span>
-                      </div>
-                    ) : p.stock <= 5 ? (
-                      <span className="absolute bottom-3 right-3 bg-amber-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-xs">
-                        ¡Solo quedan {p.stock} u.!
-                      </span>
-                    ) : (
-                      <span className="absolute bottom-3 right-3 bg-slate-950/90 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg">
-                        S. Disp: {p.stock}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3 font-sans">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="space-y-1">
-                        <p className="text-slate-950 font-black text-base leading-tight">
-                          {p.name}
-                        </p>
-                        <p className="text-xs text-slate-600 font-extrabold font-mono">
-                          SKU: {p.sku || p.id}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] text-slate-550 font-black uppercase tracking-wide block">Precio</span>
-                        {p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined ? (
-                          <div className="flex flex-col items-end">
-                            <span className="text-xs text-slate-400 line-through font-extrabold leading-none mb-0.5">
-                              ${p.price.toFixed(2)}
-                            </span>
-                            <span className="text-lg font-black text-rose-600 leading-none">
-                              ${Number(p.precioOferta).toFixed(2)}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-lg font-black text-slate-950">
-                            ${p.price.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-205 font-sans">
-                      <span className="text-xs text-slate-950 font-black">Tienda 📦</span>
-
-                      {isOutofStock ? (
-                        <span className="text-xs text-rose-600 font-black bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">No disponible</span>
-                      ) : inCart ? (
-                        <div className="flex items-center bg-slate-100 border-2 border-slate-250 rounded-xl p-1 shadow-inner">
-                          <button
-                            onClick={() => handleAdjustQty(p.id, 'product', -1)}
-                            className="p-1.5 bg-white text-emerald-700 hover:bg-slate-100 rounded-lg shadow-3xs transition-colors cursor-pointer"
-                          >
-                            <Minus className="w-3.5 h-3.5 stroke-[3]" />
-                          </button>
-                          <span className="px-3 text-xs font-black text-slate-950">
-                            {cartItem.quantity}
-                          </span>
-                          <button
-                            onClick={() => handleAdjustQty(p.id, 'product', 1)}
-                            className="p-1.5 bg-white text-emerald-700 hover:bg-slate-100 rounded-lg shadow-3xs transition-colors cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleAddProduct(p)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-2.5 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer"
-                        >
-                          <Plus className="w-4 h-4 stroke-[3]" />
-                          Agregar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                <h3 className="font-black text-slate-950 text-lg font-sans tracking-tight">
+                  Productos de Tienda 📦
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 font-bold font-sans">
+                Víveres, latas, bebidas frías, lácteos y snacks indispensables
+              </p>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Categories Carousel */}
+          {tiendaCategories.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {tiendaCategories.map((cat) => {
+                const isSelected = selectedProductCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedProductCategory(cat)}
+                    className={`py-2 px-4 rounded-full text-xs font-black tracking-tight whitespace-nowrap transition-all cursor-pointer border-2 ${
+                      isSelected
+                        ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
+                        : 'bg-slate-100 text-slate-800 hover:bg-slate-250 border-transparent font-extrabold'
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      {renderCategoryIcon(cat, config)}
+                      <span>{cat}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Grid of Store items */}
+          {filteredTiendaProducts.length === 0 ? (
+            <p className="text-slate-500 text-xs font-bold italic text-center py-5">
+              No se encontraron productos que coincidan con la búsqueda.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {filteredTiendaProducts.map((p) => {
+                const cartItem = cart.find(item => item.id === p.id && item.type === 'product');
+                const inCart = !!cartItem;
+                const isOutofStock = p.stock <= 0;
+
+                return renderProductCard(p, inCart, cartItem, isOutofStock);
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Persistent Shopping Cart Sticky Floating Action Button at bottom */}
@@ -1736,7 +2072,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                                   </div>
                                 ) : (
                                   <span className="text-xs text-slate-800 font-black font-sans">
-                                    ${price.toFixed(2)} c/u
+                                    ${price.toFixed(2)} {item.type === 'product' && liveProduct?.unidadMedida && liveProduct.unidadMedida !== 'unidad' ? `/ ${liveProduct.unidadMedida === 'kg' ? 'Kg' : 'g'}` : 'c/u'}
                                   </span>
                                 )}
                               </div>
@@ -1744,23 +2080,38 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
 
                             <div className="flex items-center gap-2">
                               {/* Adjust qty item */}
-                              <div className="flex items-center bg-white border-2 border-slate-250 rounded-xl p-1 shadow-2xs">
-                                <button
-                                  onClick={() => handleAdjustQty(item.id, item.type, -1)}
-                                  className="p-1 hover:bg-slate-55 text-slate-800 rounded-lg cursor-pointer"
+                              {item.type === 'product' && (liveProduct?.unidadMedida === 'kg' || liveProduct?.unidadMedida === 'g') ? (
+                                <select
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const newW = parseFloat(e.target.value);
+                                    setCart(cart.map(c => c.id === item.id && c.type === 'product' ? { ...c, quantity: newW } : c));
+                                  }}
+                                  className="bg-white border-2 border-slate-300 rounded-xl px-2 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500"
                                 >
-                                  <Minus className="w-3.5 h-3.5 stroke-[3]" />
-                                </button>
-                                <span className="px-2 font-black text-slate-950 text-xs">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  onClick={() => handleAdjustQty(item.id, item.type, 1)}
-                                  className="p-1 hover:bg-slate-55 text-slate-800 rounded-lg cursor-pointer"
-                                >
-                                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                                </button>
-                              </div>
+                                  {(liveProduct?.unidadMedida === 'kg' ? KG_OPTIONS : G_OPTIONS).map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="flex items-center bg-white border-2 border-slate-250 rounded-xl p-1 shadow-2xs">
+                                  <button
+                                    onClick={() => handleAdjustQty(item.id, item.type, -1)}
+                                    className="p-1 hover:bg-slate-55 text-slate-800 rounded-lg cursor-pointer"
+                                  >
+                                    <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                                  </button>
+                                  <span className="px-2 font-black text-slate-950 text-xs">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    onClick={() => handleAdjustQty(item.id, item.type, 1)}
+                                    className="p-1 hover:bg-slate-55 text-slate-800 rounded-lg cursor-pointer"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                                  </button>
+                                </div>
+                              )}
 
                               {/* Remove item button */}
                               <button
@@ -1907,10 +2258,28 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                                 </option>
                               ))}
                             </select>
+
+                            {/* Dynamic Delivery sector banner for Módulo Frutería */}
+                            {config?.modulosActivos?.frutería === true && (
+                              (() => {
+                                const sector = getSectorForComuna(comuna, config?.rutasCamion);
+                                if (!sector) return null;
+                                return (
+                                  <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl space-y-1 animate-in fade-in duration-200 mt-2.5">
+                                    <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-900">
+                                      🚚 Ruta de Camión ({sector.name})
+                                    </span>
+                                    <p className="text-xs font-bold text-indigo-950 leading-relaxed">
+                                      Despachamos a tu zona los días <span className="text-indigo-600 underline decoration-indigo-300 font-extrabold">{sector.days.join(' y ')}</span>. Costo de envío: <span className="text-indigo-700 font-black font-mono">${sector.fee.toLocaleString()} CLP</span>.
+                                    </p>
+                                  </div>
+                                );
+                              })()
+                            )}
                           </div>
 
-                          {/* Manual Delivery Corto Selector */}
-                          {gpsDistance !== null && gpsDistance <= 500 && (
+                          {/* Manual Delivery Corto Selector (Only for other stores / when frutería module is NOT active) */}
+                          {gpsDistance !== null && gpsDistance <= 500 && config?.modulosActivos?.frutería !== true && (
                             <div className="bg-amber-50/60 border-2 border-amber-200 p-3.5 rounded-2xl flex items-start gap-3 transition-all duration-200 animate-in fade-in duration-200">
                               <input
                                 id="delivery-corto-checkbox"
@@ -1934,20 +2303,35 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                             </div>
                           ) : deliveryFee > 0 ? (
                             <div className={`p-4 rounded-2xl flex justify-between items-center font-sans animate-in fade-in duration-250 ${
-                              deliveryFee === 1000 
-                                ? 'bg-amber-50 border-2 border-amber-250 text-amber-950' 
-                                : 'bg-emerald-50 border-2 border-emerald-250 text-emerald-950'
+                              config?.modulosActivos?.frutería === true
+                                ? 'bg-indigo-50 border-2 border-indigo-250 text-indigo-950'
+                                : deliveryFee === 1000 
+                                  ? 'bg-amber-50 border-2 border-amber-250 text-amber-950' 
+                                  : 'bg-emerald-50 border-2 border-emerald-250 text-emerald-950'
                             }`}>
                               <div>
-                                <p className={`text-[10px] font-extrabold uppercase tracking-wider ${deliveryFee === 1000 ? 'text-amber-800' : 'text-emerald-800'}`}>
-                                  {deliveryFee === 1000 ? 'Tarifa Especial Preferencial' : 'Tarifa de Despacho Cotizada'}
+                                <p className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                                  config?.modulosActivos?.frutería === true
+                                    ? 'text-indigo-800'
+                                    : deliveryFee === 1000 ? 'text-amber-800' : 'text-emerald-800'
+                                }`}>
+                                  {config?.modulosActivos?.frutería === true
+                                    ? 'Flete Logístico Programado'
+                                    : deliveryFee === 1000 ? 'Tarifa Especial Preferencial' : 'Tarifa de Despacho Cotizada'}
                                 </p>
                                 <p className="text-xs font-black">
-                                  {deliveryFee === 1000 ? 'DELIVERY VECINAL (CORTA DISTANCIA)' : `Sandbox Uber Direct / PedidosYa (${comuna})`}
+                                  {config?.modulosActivos?.frutería === true
+                                    ? (() => {
+                                        const sec = getSectorForComuna(comuna, config?.rutasCamion);
+                                        return sec ? `${sec.name} (${comuna})` : `Despacho Camión (${comuna})`;
+                                      })()
+                                    : deliveryFee === 1000 ? 'DELIVERY VECINAL (CORTA DISTANCIA)' : `Sandbox Uber Direct / PedidosYa (${comuna})`}
                                 </p>
                               </div>
                               <span className={`text-xs font-black bg-white border-2 px-3 py-1.5 rounded-xl font-mono ${
-                                deliveryFee === 1000 ? 'text-amber-950 border-amber-350' : 'text-emerald-950 border-emerald-350'
+                                config?.modulosActivos?.frutería === true
+                                  ? 'text-indigo-950 border-indigo-350'
+                                  : deliveryFee === 1000 ? 'text-amber-950 border-amber-350' : 'text-emerald-950 border-emerald-350'
                               }`}>
                                 ${deliveryFee.toFixed(0)}
                               </span>

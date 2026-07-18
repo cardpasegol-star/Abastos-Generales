@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive } from '../types';
+import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive, SectorConfig } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
 
 const FOOD_PRESET_IMAGES = [
@@ -268,6 +268,39 @@ interface MantTabProps {
   tenantId?: string;
 }
 
+const DEFAULT_RUTAS_CAMION: Record<string, SectorConfig> = {
+  sur: {
+    name: "Sector Sur",
+    comunas: ["La Florida", "La Pintana", "San Bernardo", "Puente Alto", "El Bosque", "San Miguel", "Pedro Aguirre Cerda", "Cisterna", "San Ramón", "Lo Espejo", "Buin"],
+    days: ["Martes", "Viernes"],
+    fee: 3400
+  },
+  oriente: {
+    name: "Sector Oriente",
+    comunas: ["Macul", "Peñalolén", "La Reina", "Ñuñoa", "Providencia", "Las Condes", "Vitacura", "Lo Barnechea"],
+    days: ["Miércoles", "Sábado"],
+    fee: 3400
+  },
+  norte: {
+    name: "Sector Norte",
+    comunas: ["Lampa", "Quilicura", "Renca", "Conchalí", "Huechuraba", "Recoleta", "Independencia"],
+    days: ["Lunes", "Jueves"],
+    fee: 3400
+  },
+  poniente: {
+    name: "Sector Poniente",
+    comunas: ["Maipú", "Pudahuel", "Cerrillos", "Estación Central", "Quinta Normal", "Cerro Navia", "Lo Prado"],
+    days: ["Lunes", "Jueves"],
+    fee: 3400
+  },
+  centro: {
+    name: "Eje Central",
+    comunas: ["Santiago Centro"],
+    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+    fee: 3400
+  }
+};
+
 export default function MantTab({
   products,
   foodItems,
@@ -307,6 +340,7 @@ export default function MantTab({
   const [adminPinField, setAdminPinField] = useState(config.adminPin || '1234');
   const [localBannerUrl, setLocalBannerUrl] = useState(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
   const [ivaPercentInput, setIvaPercentInput] = useState(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
+  const [rutasCamion, setRutasCamion] = useState<Record<string, SectorConfig>>(config.rutasCamion || DEFAULT_RUTAS_CAMION);
   const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
   const [modulosActivos, setModulosActivos] = useState<{
     tiendaAbarrotes: boolean;
@@ -442,6 +476,7 @@ export default function MantTab({
       farmacia: true,
       frutería: true
     });
+    setRutasCamion(config.rutasCamion || DEFAULT_RUTAS_CAMION);
   }, [config]);
 
   // Fetch employees list from config/business_info/empleados subcollection
@@ -724,7 +759,8 @@ export default function MantTab({
         siiRut: siiRut.trim(),
         siiDigitalCert: siiDigitalCert.trim(),
         siiApiKey: siiApiKey.trim(),
-        modulosActivos
+        modulosActivos,
+        rutasCamion
       });
 
       // Save each employee slot to the config/business_info/empleados subcollection
@@ -755,6 +791,40 @@ export default function MantTab({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleToggleDay = (sectorKey: string, day: string) => {
+    setRutasCamion(prev => {
+      const currentConfig = prev || DEFAULT_RUTAS_CAMION;
+      const sector = currentConfig[sectorKey];
+      if (!sector) return currentConfig;
+      const days = sector.days.includes(day)
+        ? sector.days.filter(d => d !== day)
+        : [...sector.days, day];
+      return {
+        ...currentConfig,
+        [sectorKey]: {
+          ...sector,
+          days
+        }
+      };
+    });
+  };
+
+  const handleFeeChange = (sectorKey: string, val: string) => {
+    const feeNum = parseFloat(val) || 0;
+    setRutasCamion(prev => {
+      const currentConfig = prev || DEFAULT_RUTAS_CAMION;
+      const sector = currentConfig[sectorKey];
+      if (!sector) return currentConfig;
+      return {
+        ...currentConfig,
+        [sectorKey]: {
+          ...sector,
+          fee: feeNum
+        }
+      };
+    });
   };
 
   const executeResetDb = async () => {
@@ -1235,37 +1305,63 @@ export default function MantTab({
                 { id: 'bodega', label: '🍷 Bodega', desc: 'Bebidas y licores' },
                 { id: 'farmacia', label: '💊 Farmacia', desc: 'Cuidado y medicamentos' },
                 { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' }
-              ].map((mod) => (
-                <div 
-                  key={mod.id} 
-                  className={`p-3 border-2 rounded-2xl flex items-center justify-between gap-2.5 transition-all ${
-                    modulosActivos[mod.id as keyof typeof modulosActivos] 
-                      ? 'bg-indigo-50/40 border-indigo-150 text-indigo-950 shadow-3xs' 
-                      : 'bg-gray-50/60 border-gray-150 text-gray-450'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <span className="text-[11px] font-black uppercase tracking-wide block font-sans">
-                      {mod.label}
-                    </span>
-                    <span className="text-[9px] font-bold text-gray-400 block font-sans">
-                      {mod.desc}
-                    </span>
+              ].map((mod) => {
+                const permitidos = config.modulosPermitidos || {
+                  tiendaAbarrotes: true,
+                  cocinaAlmuerzos: true,
+                  bodega: false,
+                  farmacia: false,
+                  frutería: false
+                };
+                const isPermitted = permitidos[mod.id as keyof typeof permitidos] !== false;
+                const isActive = modulosActivos[mod.id as keyof typeof modulosActivos] && isPermitted;
+
+                return (
+                  <div 
+                    key={mod.id} 
+                    className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
+                      !isPermitted
+                        ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
+                        : isActive 
+                          ? 'bg-indigo-50/40 border-indigo-150 text-indigo-950 shadow-3xs' 
+                          : 'bg-gray-50/60 border-gray-150 text-gray-450'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between w-full gap-2">
+                      <div className="space-y-0.5">
+                        <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : ''}`}>
+                          {mod.label}
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400 block font-sans">
+                          {mod.desc}
+                        </span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          disabled={!isPermitted}
+                          checked={isActive}
+                          onChange={(e) => setModulosActivos({
+                            ...modulosActivos,
+                            [mod.id]: e.target.checked
+                          })}
+                        />
+                        <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
+                          !isPermitted 
+                            ? 'opacity-50 cursor-not-allowed' 
+                            : 'peer-checked:bg-indigo-600'
+                        }`}></div>
+                      </label>
+                    </div>
+                    {!isPermitted && (
+                      <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
+                        🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
+                      </div>
+                    )}
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={modulosActivos[mod.id as keyof typeof modulosActivos]}
-                      onChange={(e) => setModulosActivos({
-                        ...modulosActivos,
-                        [mod.id]: e.target.checked
-                      })}
-                    />
-                    <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                  </label>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -1279,147 +1375,151 @@ export default function MantTab({
             </p>
 
             {/* Product Categories */}
-            <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
-              <label className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">
-                🛍️ Categorías de Productos (La Bodega)
-              </label>
-              <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
-                {productCategoriesList.map(cat => (
-                  <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-800 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
-                    <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
-                      <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+            {modulosActivos?.tiendaAbarrotes !== false && (
+              <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                <label className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">
+                  🛍️ Categorías de Productos (La Bodega)
+                </label>
+                <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+                  {productCategoriesList.map(cat => (
+                    <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-800 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
+                      <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
+                        <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                      </span>
+                      <span className="font-bold">{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveProductCat(cat)}
+                        className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
+                      >
+                        <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
                     </span>
-                    <span className="font-bold">{cat}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveProductCat(cat)}
-                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
-                    >
-                      <X className="w-3.5 h-3.5 stroke-[2.5]" />
-                    </button>
-                  </span>
-                ))}
-                {productCategoriesList.length === 0 && (
-                  <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Ej. Bebidas, Enlatados, Jabones..."
-                  className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
-                  value={newProductCat}
-                  onChange={(e) => setNewProductCat(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddProductCat(); } }}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddProductCat}
-                  className="bg-indigo-600 text-white font-extrabold text-xs px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors cursor-pointer shadow-3xs"
-                >
-                  Agregar
-                </button>
-              </div>
-              {/* Product Sticker Selector */}
-              <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
-                  🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
-                </span>
-                <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
-                  {Array.from(new Map(PRESET_3D_ICONS.map(item => [item.url, item])).values()).map(item => (
-                    <SelectorStickerItem
-                      key={item.url}
-                      item={item}
-                      selected={productSelectedEmoji === item.url}
-                      onClick={() => setProductSelectedEmoji(item.url)}
-                    />
                   ))}
+                  {productCategoriesList.length === 0 && (
+                    <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. Bebidas, Enlatados, Jabones..."
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                    value={newProductCat}
+                    onChange={(e) => setNewProductCat(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddProductCat(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddProductCat}
+                    className="bg-indigo-600 text-white font-extrabold text-xs px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors cursor-pointer shadow-3xs"
+                  >
+                    Agregar
+                  </button>
+                </div>
+                {/* Product Sticker Selector */}
+                <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                    🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
+                  </span>
+                  <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
+                    {Array.from(new Map(PRESET_3D_ICONS.map(item => [item.url, item])).values()).map(item => (
+                      <SelectorStickerItem
+                        key={item.url}
+                        item={item}
+                        selected={productSelectedEmoji === item.url}
+                        onClick={() => setProductSelectedEmoji(item.url)}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Food Item Categories */}
-            <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
-              <label className="text-[9.5px] font-black text-emerald-700 uppercase tracking-widest block">
-                🍳 Categorías del Menú (Alimentos y Cocina)
-              </label>
-              <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
-                {foodItemCategoriesList.map(cat => (
-                  <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-850 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
-                    <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
-                      <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+            {modulosActivos?.cocinaAlmuerzos !== false && (
+              <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                <label className="text-[9.5px] font-black text-emerald-700 uppercase tracking-widest block">
+                  🍳 Categorías del Menú (Alimentos y Cocina)
+                </label>
+                <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+                  {foodItemCategoriesList.map(cat => (
+                    <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-850 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
+                      <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
+                        <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                      </span>
+                      <span className="font-bold">{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFoodCat(cat)}
+                        className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
+                      >
+                        <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
                     </span>
-                    <span className="font-bold">{cat}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFoodCat(cat)}
-                      className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
-                    >
-                      <X className="w-3.5 h-3.5 stroke-[2.5]" />
-                    </button>
-                  </span>
-                ))}
-                {foodItemCategoriesList.length === 0 && (
-                  <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Ej. Sopas, Desayunos, Postres..."
-                  className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
-                  value={newFoodCat}
-                  onChange={(e) => setNewFoodCat(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFoodCat(); } }}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddFoodCat}
-                  className={`font-extrabold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-3xs ${
-                    newFoodCat.trim() !== ''
-                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                      : 'bg-slate-200 text-slate-450 hover:bg-slate-250'
-                  }`}
-                >
-                  Agregar
-                </button>
-              </div>
-              {/* Food Sticker Selector */}
-              <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
-                  🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
-                </span>
-                <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
-                  {Array.from(new Map(PRESET_3D_ICONS.map(item => [item.url, item])).values()).map(item => (
-                    <SelectorStickerItem
-                      key={item.url}
-                      item={item}
-                      selected={foodSelectedEmoji === item.url}
-                      onClick={() => setFoodSelectedEmoji(item.url)}
-                    />
                   ))}
+                  {foodItemCategoriesList.length === 0 && (
+                    <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. Sopas, Desayunos, Postres..."
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                    value={newFoodCat}
+                    onChange={(e) => setNewFoodCat(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFoodCat(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddFoodCat}
+                    className={`font-extrabold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-3xs ${
+                      newFoodCat.trim() !== ''
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                        : 'bg-slate-200 text-slate-450 hover:bg-slate-250'
+                    }`}
+                  >
+                    Agregar
+                  </button>
+                </div>
+                {/* Food Sticker Selector */}
+                <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                    🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
+                  </span>
+                  <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
+                    {Array.from(new Map(PRESET_3D_ICONS.map(item => [item.url, item])).values()).map(item => (
+                      <SelectorStickerItem
+                        key={item.url}
+                        item={item}
+                        selected={foodSelectedEmoji === item.url}
+                        onClick={() => setFoodSelectedEmoji(item.url)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botón de Guardado Específico */}
+                <div className="pt-1.5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveKitchenCategories}
+                    disabled={!isUnlocked || loading}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Categorías de Cocina</span>
+                  </button>
+                  {notifySavedKitchenCats && (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
+                      <span>¡Categorías de cocina guardadas con éxito!</span>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Botón de Guardado Específico */}
-              <div className="pt-1.5 space-y-2">
-                <button
-                  type="button"
-                  onClick={handleSaveKitchenCategories}
-                  disabled={!isUnlocked || loading}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Guardar Categorías de Cocina</span>
-                </button>
-                {notifySavedKitchenCats && (
-                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
-                    <span>¡Categorías de cocina guardadas con éxito!</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Section: Gestión de Personal */}
@@ -1551,6 +1651,79 @@ export default function MantTab({
                 </div>
               </div>
             )}
+
+            {/* Truck Route Delivery Logistics Config */}
+            {modulosActivos?.frutería === true && (
+              <div className="space-y-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 mt-4">
+                <div>
+                  <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest block">
+                    🚚 CONFIGURACIÓN DE RUTAS DE CAMIÓN (Módulo Frutería)
+                  </h4>
+                  <p className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">
+                    Configura los días que el camión visita cada zona de Santiago y el costo del flete.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {Object.entries(rutasCamion || DEFAULT_RUTAS_CAMION).map(([key, sectorVal]) => {
+                    const sector = sectorVal as SectorConfig;
+                    return (
+                      <div key={key} className="bg-white p-3.5 rounded-xl border border-slate-150 shadow-3xs space-y-2.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                          <div>
+                            <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                              📍 {sector.name}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-semibold block leading-normal max-w-sm mt-0.5">
+                              Comunas: {sector.comunas.join(', ')}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wider">Costo Envío:</span>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-24 bg-slate-50 border border-slate-200 rounded-lg pl-5 pr-2 py-1 text-xs font-bold text-slate-800 text-right focus:bg-white outline-none"
+                                value={sector.fee}
+                                onChange={(e) => handleFeeChange(key, e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                            📅 Días de entrega para {sector.name}:
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => {
+                              const isChecked = sector.days.includes(day);
+                              return (
+                                <label key={day} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-bold cursor-pointer transition-all select-none ${
+                                  isChecked
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-3xs'
+                                    : 'bg-slate-50/50 border-slate-200 text-slate-500 hover:bg-slate-50'
+                                }`}>
+                                  <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={isChecked}
+                                    onChange={() => handleToggleDay(key, day)}
+                                  />
+                                  <span>{day.substring(0, 2)}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <button
@@ -1565,6 +1738,7 @@ export default function MantTab({
       </section>
 
       {/* Section B: Traditional Meals Management list */}
+      {config?.modulosActivos?.cocinaAlmuerzos !== false && (
       <section className="space-y-3">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-sm font-extrabold text-gray-950 uppercase tracking-wider">
@@ -1673,6 +1847,7 @@ export default function MantTab({
           ))}
         </div>
       </section>
+      )}
 
       {/* Section C: Danger Zone database reset */}
       <section className="space-y-3 pt-5 border-t border-gray-100">
@@ -1695,7 +1870,7 @@ export default function MantTab({
       </section>
 
       {/* Auxiliary modal popup for creating dishes */}
-      {showDishModal && (
+      {showDishModal && config?.modulosActivos?.cocinaAlmuerzos !== false && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]">
             <div className="flex justify-between items-center bg-gray-50/50 px-5 py-4 border-b border-gray-100">

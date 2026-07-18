@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
-import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado } from './types';
-import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG } from './initDb';
+import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory } from './types';
+import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG, getTenantSpecificConfig } from './initDb';
 
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
@@ -21,13 +21,14 @@ export default function App() {
   const [tenantId, setTenantId] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const urlTienda = params.get('tienda');
+      const urlTienda = params.get('tienda') || params.get('id_tienda');
       if (urlTienda) {
         const clean = urlTienda.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        localStorage.setItem('id_tienda', clean);
         localStorage.setItem('tenant_tienda_id', clean);
         return clean;
       }
-      return localStorage.getItem('tenant_tienda_id');
+      return localStorage.getItem('id_tienda') || localStorage.getItem('tenant_tienda_id');
     } catch {
       return null;
     }
@@ -153,15 +154,7 @@ export default function App() {
           setConfig(snap.data() as BusinessConfig);
         } else {
           // If deleted, restore default config tailored to tenantId
-          const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
-          const tenantConfig: BusinessConfig = {
-            ...DEFAULT_CONFIG,
-            name: tenantId.toLowerCase() === 'turco' ? 'Minimarket Virtual "DondeElTurco"' : `Minimarket "${formattedName}"`,
-            bannerUrl: tenantId.toLowerCase() === 'turco' 
-              ? 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800'
-              : DEFAULT_CONFIG.bannerUrl,
-            gps: tenantId.toLowerCase() === 'turco' ? 'Av. Holanda #123' : DEFAULT_CONFIG.gps,
-          };
+          const tenantConfig = getTenantSpecificConfig(tenantId);
           setDoc(configRef, tenantConfig).catch(err => 
             handleFirestoreError(err, OperationType.WRITE, `tenants/${tenantId}/config/business_info`)
           );
@@ -366,7 +359,11 @@ export default function App() {
   };
 
   const handleUpdateProductStock = async (id: string, newStock: number) => {
-    const sanitizedStock = Math.max(0, Math.floor(Number(newStock)) || 0);
+    const targetProduct = products.find(p => p.id === id);
+    const isWeightBased = targetProduct?.unidadMedida === 'kg' || targetProduct?.unidadMedida === 'g' || (targetProduct && getModuleForCategory(targetProduct.category) === 'frutería');
+    const sanitizedStock = isWeightBased 
+      ? parseFloat(Math.max(0, Number(newStock)).toFixed(3))
+      : Math.max(0, Math.floor(Number(newStock)) || 0);
 
     // 1. Immediately update local React state and LocalStorage for zero-latency UI updates
     setProducts((prev) => {
@@ -503,6 +500,7 @@ export default function App() {
       <WelcomeScreen
         onSelectStore={(id) => {
           setTenantId(id);
+          localStorage.setItem('id_tienda', id);
           localStorage.setItem('tenant_tienda_id', id);
         }}
       />
@@ -670,6 +668,7 @@ export default function App() {
                 onUpdateFoodItemStock={handleUpdateFoodItemStock}
                 onBackToMarketplace={() => {
                   setTenantId(null);
+                  localStorage.removeItem('id_tienda');
                   localStorage.removeItem('tenant_tienda_id');
                 }}
               />

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check, UploadCloud, ChevronRight, FileSpreadsheet, FileText, Clipboard, CheckCircle2, Trash2, ArrowRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Product, BusinessConfig, isModuleActive } from '../types';
+import { Product, BusinessConfig, isModuleActive, getModuleForCategory } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
@@ -201,10 +201,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     imageUrl: string;
     enOferta: boolean;
     precioOferta: string | number;
+    unidadMedida?: 'unidad' | 'kg' | 'g';
   }>({
     sku: '', name: '', category: defaultCategory,
     stock: 0, price: '', cost: '', imageUrl: PRESET_IMAGES[0].url,
-    enOferta: false, precioOferta: ''
+    enOferta: false, precioOferta: '',
+    unidadMedida: 'unidad'
   });
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -1021,7 +1023,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       name: '', category: defaultCategory, stock: 12, price: '', cost: '',
       imageUrl: PRESET_IMAGES[0].url,
       enOferta: false,
-      precioOferta: ''
+      precioOferta: '',
+      unidadMedida: 'unidad'
     });
     setShowAddModal(true);
   }, [defaultCategory]);
@@ -1036,7 +1039,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       stock: product.stock, price: product.price, cost: product.cost,
       imageUrl: product.imageUrl || PRESET_IMAGES[0].url,
       enOferta: product.enOferta || false,
-      precioOferta: product.precioOferta !== undefined && product.precioOferta !== null ? String(product.precioOferta) : ''
+      precioOferta: product.precioOferta !== undefined && product.precioOferta !== null ? String(product.precioOferta) : '',
+      unidadMedida: product.unidadMedida || 'unidad'
     });
     setShowAddModal(true);
   }, []);
@@ -1097,16 +1101,18 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     }
     setLoading(true);
     try {
+      const isFrut = getModuleForCategory(formData.category || defaultCategory) === 'frutería';
       const parsedData = {
         sku: formData.sku || '',
         name: formData.name || '',
         category: formData.category || defaultCategory,
-        stock: parseInt(String(formData.stock), 10) || 0,
+        stock: isFrut ? (parseFloat(String(formData.stock)) || 0) : (parseInt(String(formData.stock), 10) || 0),
         price: parseFloat(String(formData.price)) || 0,
         cost: parseFloat(String(formData.cost)) || 0,
         imageUrl: formData.imageUrl || PRESET_IMAGES[0].url,
         enOferta: formData.enOferta,
-        precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null
+        precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null,
+        unidadMedida: isFrut ? (formData.unidadMedida || 'unidad') : 'unidad'
       };
       if (editingItem) {
         await onEditProduct({ ...editingItem, ...parsedData, updatedAt: new Date().toISOString() });
@@ -1344,18 +1350,18 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   <span className={`text-xs font-black px-3.5 py-2 rounded-xl border ${
                     isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-200' : isLowStock ? 'bg-amber-50 text-amber-700 border-amber-305' : 'bg-slate-50 text-slate-800 border-slate-250'
                   }`}>
-                    {isLowStock && '⚠️ '}{p.stock} unidades
+                    {isLowStock && '⚠️ '}{p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'unidades'}
                   </span>
                   <div className="text-right">
                     <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">Precio</span>
-                    <span className="text-2xl font-black text-emerald-600">${p.price.toLocaleString('es-CL')} CLP</span>
+                    <span className="text-2xl font-black text-emerald-600">${p.price.toLocaleString('es-CL')} CLP {p.unidadMedida === 'kg' ? '/ Kg' : p.unidadMedida === 'g' ? '/ g' : ''}</span>
                   </div>
                 </div>
 
                 {userRole === 'admin' && (
                   <div className="flex justify-between text-xs text-slate-800 font-extrabold bg-slate-100 p-3.5 rounded-2xl mt-1 border-2 border-slate-200">
                     <span>Costo: ${p.cost.toFixed(2)}</span>
-                    <span className="text-emerald-750 font-black">Ganancia: ${(p.price - p.cost).toFixed(2)} / ud</span>
+                    <span className="text-emerald-750 font-black">Ganancia: ${(p.price - p.cost).toFixed(2)} / {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'ud'}</span>
                   </div>
                 )}
               </div>
@@ -1534,10 +1540,24 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               </select>
             </div>
 
+            {/* Unidad de Medida (Solo para Frutería y Verdulería) */}
+            {getModuleForCategory(formData.category || defaultCategory) === 'frutería' && (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Unidad de Venta *</label>
+                <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+                  value={formData.unidadMedida || 'unidad'} 
+                  onChange={(e) => setFormData({ ...formData, unidadMedida: e.target.value as any })}>
+                  <option value="unidad">Por Unidad</option>
+                  <option value="kg">Por Kilo (Kg)</option>
+                  <option value="g">Por Gramos (g)</option>
+                </select>
+              </div>
+            )}
+
             {/* Stock / Costo / Precio */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'Stock', key: 'stock', type: 'number', step: '1' },
+                { label: 'Stock', key: 'stock', type: 'number', step: getModuleForCategory(formData.category || defaultCategory) === 'frutería' ? '0.001' : '1' },
                 { label: 'Costo ($)', key: 'cost', type: 'number', step: '0.01' },
                 { label: 'Precio ($)', key: 'price', type: 'number', step: '0.01' },
               ].map(({ label, key, type, step }) => (

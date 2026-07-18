@@ -16,11 +16,18 @@ interface StoreItem {
 
 const MOCK_STORES: StoreItem[] = [
   { 
-    id: 'turco', 
+    id: 'el_turco', 
     name: 'Minimarket "Donde el Turco"', 
     comuna: 'La Pintana', 
     description: 'Abarrotes, fiambrería, panadería, bebidas frías y la mejor atención del barrio.', 
     emoji: '🏪' 
+  },
+  { 
+    id: 'fruteria_principe_gales', 
+    name: 'Frutería Príncipe de Gales', 
+    comuna: 'Ñuñoa', 
+    description: 'Frutas y verduras seleccionadas al peso, frutos secos, productos del campo y un servicio excepcional.', 
+    emoji: '🍎' 
   },
   { 
     id: 'buencorte', 
@@ -97,6 +104,8 @@ export default function WelcomeScreen({ onSelectStore }: WelcomeScreenProps) {
   );
 
   const handleSelect = (storeId: string) => {
+    localStorage.setItem('id_tienda', storeId);
+    localStorage.setItem('tenant_tienda_id', storeId);
     onSelectStore(storeId);
   };
 
@@ -107,6 +116,8 @@ export default function WelcomeScreen({ onSelectStore }: WelcomeScreenProps) {
       setError('Por favor, ingresa un código de almacén válido.');
       return;
     }
+    localStorage.setItem('id_tienda', cleanCode);
+    localStorage.setItem('tenant_tienda_id', cleanCode);
     onSelectStore(cleanCode);
   };
 
@@ -293,7 +304,10 @@ export default function WelcomeScreen({ onSelectStore }: WelcomeScreenProps) {
           onBarcodeDetected={(code) => {
             setIsScannerOpen(false);
             if (code) {
-              onSelectStore(code);
+              const cleanCode = code.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+              localStorage.setItem('id_tienda', cleanCode);
+              localStorage.setItem('tenant_tienda_id', cleanCode);
+              onSelectStore(cleanCode);
             }
           }}
         />

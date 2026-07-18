@@ -14,6 +14,13 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
   const [status, setStatus] = useState<'active' | 'suspended'>(config.licenseStatus || 'active');
   const [expirationDate, setExpirationDate] = useState(config.licenseExpirationDate || '2026-12-31');
   const [message, setMessage] = useState(config.licenseMessage || 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.');
+  const [modulosPermitidos, setModulosPermitidos] = useState(config.modulosPermitidos || {
+    tiendaAbarrotes: true,
+    cocinaAlmuerzos: true,
+    bodega: false,
+    farmacia: false,
+    frutería: false
+  });
   
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -41,7 +48,8 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
         ...config,
         licenseStatus: status,
         licenseExpirationDate: expirationDate,
-        licenseMessage: message.trim()
+        licenseMessage: message.trim(),
+        modulosPermitidos
       };
       
       await onUpdateConfig(updatedConfig);
@@ -197,6 +205,55 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                 >
                   {btn.label}
                 </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 🔐 PERMISOS DE MÓDULOS CONTRATADOS */}
+          <div className="space-y-3.5 border-t border-gray-100 pt-3.5">
+            <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider flex items-center gap-1">
+              🔐 PERMISOS DE MÓDULOS CONTRATADOS
+            </h4>
+            <p className="text-[10px] text-gray-450 leading-normal font-sans">
+              Active o inactive los permisos contractuales de los módulos comerciales. Esto controla directamente si el dueño del negocio puede activar el módulo en su panel de administración.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { id: 'tiendaAbarrotes', label: '🏪 Tienda de Abarrotes', desc: 'Productos de abasto general' },
+                { id: 'cocinaAlmuerzos', label: '🍲 Cocina / Almuerzos', desc: 'Platos de comida preparados' },
+                { id: 'bodega', label: '🍷 Bodega', desc: 'Bebidas y licores' },
+                { id: 'farmacia', label: '💊 Farmacia', desc: 'Cuidado y medicamentos' },
+                { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' }
+              ].map((mod) => (
+                <div 
+                  key={mod.id} 
+                  className={`p-3 border-2 rounded-2xl flex items-center justify-between gap-2.5 transition-all ${
+                    modulosPermitidos[mod.id as keyof typeof modulosPermitidos] 
+                      ? 'bg-indigo-50/40 border-indigo-150 text-indigo-950 shadow-3xs' 
+                      : 'bg-gray-50/60 border-gray-150 text-gray-450'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] font-black uppercase tracking-wide block font-sans">
+                      {mod.label}
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-400 block font-sans">
+                      {mod.desc}
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={modulosPermitidos[mod.id as keyof typeof modulosPermitidos]}
+                      onChange={(e) => setModulosPermitidos({
+                        ...modulosPermitidos,
+                        [mod.id]: e.target.checked
+                      })}
+                    />
+                    <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
               ))}
             </div>
           </div>

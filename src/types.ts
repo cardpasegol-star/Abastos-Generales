@@ -10,6 +10,7 @@ export interface Product {
   updatedAt: string;
   enOferta?: boolean;
   precioOferta?: number | null;
+  unidadMedida?: 'unidad' | 'kg' | 'g';
 }
 
 export interface CartItem {
@@ -22,6 +23,7 @@ export interface TransactionItem {
   name: string;
   qty: number;
   price: number;
+  unidadMedida?: 'unidad' | 'kg' | 'g';
 }
 
 export interface Transaction {
@@ -74,6 +76,21 @@ export interface ModulosActivos {
   frutería: boolean;
 }
 
+export interface ModulosPermitidos {
+  tiendaAbarrotes: boolean;
+  cocinaAlmuerzos: boolean;
+  bodega: boolean;
+  farmacia: boolean;
+  frutería: boolean;
+}
+
+export interface SectorConfig {
+  name: string;
+  comunas: string[];
+  days: string[];
+  fee: number;
+}
+
 export interface BusinessConfig {
   id: string;
   name: string;
@@ -93,6 +110,8 @@ export interface BusinessConfig {
   siiDigitalCert?: string;
   siiApiKey?: string;
   modulosActivos?: ModulosActivos;
+  modulosPermitidos?: ModulosPermitidos;
+  rutasCamion?: Record<string, SectorConfig>;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';
@@ -123,6 +142,15 @@ export function isModuleActive(category: string, config?: BusinessConfig): boole
     farmacia: true,
     frutería: true
   };
+  const permitidos = config.modulosPermitidos || {
+    tiendaAbarrotes: true,
+    cocinaAlmuerzos: true,
+    bodega: false,
+    farmacia: false,
+    frutería: false
+  };
   const moduleKey = getModuleForCategory(category);
-  return modulos[moduleKey] !== false;
+  const isPermitted = permitidos[moduleKey] !== false;
+  const isActive = modulos[moduleKey] !== false;
+  return isPermitted && isActive;
 }
