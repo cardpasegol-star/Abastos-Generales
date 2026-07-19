@@ -21,6 +21,7 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
     farmacia: false,
     frutería: false
   });
+  const [mostrarAlmuerzos, setMostrarAlmuerzos] = useState<boolean>(config.mostrarAlmuerzos !== false);
   
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -49,7 +50,8 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
         licenseStatus: status,
         licenseExpirationDate: expirationDate,
         licenseMessage: message.trim(),
-        modulosPermitidos
+        modulosPermitidos,
+        mostrarAlmuerzos
       };
       
       await onUpdateConfig(updatedConfig);
@@ -255,6 +257,35 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                   </label>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* 🛠️ VISIBILIDAD DE MÓDULOS OPCIONALES (DEV) */}
+          <div className="space-y-3.5 border-t border-gray-100 pt-3.5 animate-in fade-in duration-200">
+            <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider flex items-center gap-1">
+              🛠️ VISIBILIDAD DE MÓDULOS OPCIONALES (DEV)
+            </h4>
+            <p className="text-[10px] text-gray-450 leading-normal font-sans">
+              Controle la visibilidad física de las características en la UI de la aplicación de forma dinámica sin alterar los datos persistidos de los mismos.
+            </p>
+            <div className="p-3.5 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-between gap-2.5 transition-all">
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-black uppercase tracking-wide block font-sans">
+                  🍲 Módulo de Almuerzos (Cocina)
+                </span>
+                <span className="text-[9px] font-bold text-gray-400 block font-sans">
+                  Habilita o deshabilita la visualización del menú de almuerzos en compras y administración.
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={mostrarAlmuerzos}
+                  onChange={(e) => setMostrarAlmuerzos(e.target.checked)}
+                />
+                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
             </div>
           </div>
 

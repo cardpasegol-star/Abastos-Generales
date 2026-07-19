@@ -1738,7 +1738,7 @@ export default function MantTab({
       </section>
 
       {/* Section B: Traditional Meals Management list */}
-      {config?.modulosActivos?.cocinaAlmuerzos !== false && (
+      {config?.modulosActivos?.cocinaAlmuerzos !== false && config?.mostrarAlmuerzos !== false && (
       <section className="space-y-3">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-sm font-extrabold text-gray-950 uppercase tracking-wider">
@@ -1870,7 +1870,7 @@ export default function MantTab({
       </section>
 
       {/* Auxiliary modal popup for creating dishes */}
-      {showDishModal && config?.modulosActivos?.cocinaAlmuerzos !== false && (
+      {showDishModal && config?.modulosActivos?.cocinaAlmuerzos !== false && config?.mostrarAlmuerzos !== false && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]">
             <div className="flex justify-between items-center bg-gray-50/50 px-5 py-4 border-b border-gray-100">

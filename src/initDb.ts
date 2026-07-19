@@ -176,6 +176,7 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   licenseExpirationDate: '2026-12-31',
   licenseStatus: 'active',
   licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.',
+  mostrarAlmuerzos: true,
   modulosActivos: {
     tiendaAbarrotes: true,
     cocinaAlmuerzos: true,

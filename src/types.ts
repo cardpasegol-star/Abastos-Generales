@@ -112,6 +112,7 @@ export interface BusinessConfig {
   modulosActivos?: ModulosActivos;
   modulosPermitidos?: ModulosPermitidos;
   rutasCamion?: Record<string, SectorConfig>;
+  mostrarAlmuerzos?: boolean;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';

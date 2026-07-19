@@ -319,6 +319,18 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
   const [comuna, setComuna] = useState(() => localStorage.getItem('cliente_comuna') || 'La Florida');
+  const [showRutasModal, setShowRutasModal] = useState(false);
+
+  const isFruteria = config?.name?.toLowerCase().includes('frutería') || 
+                     config?.name?.toLowerCase().includes('gales') || 
+                     (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false);
+
+  const moduloTiendaActive = config?.modulosActivos?.tiendaAbarrotes === true && !isFruteria;
+
+  useEffect(() => {
+    localStorage.setItem('cliente_comuna', comuna);
+  }, [comuna]);
+
   const [paymentMethod, setPaymentMethod] = useState<'MercadoPago' | 'Efectivo'>('MercadoPago');
 
   // Document selection states
@@ -511,7 +523,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     return matchesSearch && matchesCategory;
   });
 
-  const filteredFoodItems = config?.modulosActivos?.cocinaAlmuerzos !== true ? [] : foodItems.filter(dish => {
+  const filteredFoodItems = config?.modulosActivos?.cocinaAlmuerzos !== true || config?.mostrarAlmuerzos === false ? [] : foodItems.filter(dish => {
     if (!isModuleActive(dish.category, config)) return false;
     const matchesSearch = dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           dish.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1471,6 +1483,88 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         </div>
       </div>
 
+      {/* Banner de Rutas de Reparto - Solo para Frutería */}
+      {isFruteria && (
+        <div className="bg-emerald-50/90 border-2 border-emerald-200 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-start gap-3">
+            <span className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shadow-3xs text-base">
+              🚚
+            </span>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
+                <span>Rutas de Despacho Programado</span>
+                <span className="bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Logística Camión
+                </span>
+              </h4>
+              
+              {/* Comuna selection & display */}
+              <div className="mt-1.5 text-xs text-slate-700 leading-relaxed space-y-2">
+                {comuna ? (
+                  (() => {
+                    const sector = getSectorForComuna(comuna, config?.rutasCamion);
+                    return (
+                      <p className="font-bold text-slate-800">
+                        📍 Despachamos a tu comuna (<span className="text-emerald-700 font-extrabold">{comuna}</span>) los días:{' '}
+                        <span className="bg-emerald-100 text-emerald-850 font-black px-2 py-0.5 rounded">
+                          {sector ? sector.days.join(' y ') : 'Consultar'}
+                        </span>{' '}
+                        | Flete:{' '}
+                        <span className="font-black text-slate-950">
+                          ${sector ? sector.fee.toLocaleString('es-CL') : '3.400'} CLP
+                        </span>
+                      </p>
+                    );
+                  })()
+                ) : (
+                  <div className="space-y-1">
+                    <p className="font-extrabold text-slate-850">
+                      📅 Días de reparto en Santiago:
+                    </p>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-slate-600 font-semibold">
+                      <li><span className="font-bold text-slate-800">Sector Sur</span> (La Florida, La Pintana, etc.): Mar y Vie</li>
+                      <li><span className="font-bold text-slate-800">Sector Oriente</span>: Mié y Sáb</li>
+                      <li><span className="font-bold text-slate-800">Sector Norte/Poniente</span>: Lun y Jue</li>
+                    </ul>
+                  </div>
+                )}
+
+                {/* Quick inline Comuna selector */}
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-[11px] font-extrabold text-slate-650">Mi Comuna:</span>
+                  <select
+                    value={comuna}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setComuna(val);
+                      localStorage.setItem('cliente_comuna', val);
+                    }}
+                    className="bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1 text-[11px] font-black text-slate-950 outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    {RM_COMUNAS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Buttons to view zones */}
+          <div className="flex items-center justify-between border-t border-emerald-200/50 pt-2">
+            <button
+              onClick={() => setShowRutasModal(true)}
+              className="text-[11px] font-black text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1 cursor-pointer hover:underline"
+            >
+              <span>📅 Ver zonas y comunas de reparto</span>
+              <span className="text-[10px]">➜</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Global Search Input Box */}
       <div className="relative">
         <input
@@ -1722,7 +1816,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       )}
 
       {/* SECTION 1: MENÚ DEL DÍA (Warm dishes) */}
-      {config?.modulosActivos?.cocinaAlmuerzos === true && (
+      {config?.modulosActivos?.cocinaAlmuerzos === true && config?.mostrarAlmuerzos !== false && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
           <div className="space-y-1">
@@ -1897,7 +1991,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       )}
 
       {/* SECTION 2A: PRODUCTOS DE LA TIENDA (Víveres y Abarrotes) */}
-      {config?.modulosActivos?.tiendaAbarrotes === true && (
+      {moduloTiendaActive && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
             <div className="space-y-1">
@@ -2985,6 +3079,68 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
               <p className="text-xs text-sky-400 font-extrabold font-mono leading-relaxed animate-pulse">
                 {siiMessage || 'Emitiendo documento electrónico autorizado por el SII...'}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Routes Modal */}
+      {showRutasModal && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-100 max-h-[85vh] animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-4 border-b-2 border-slate-100 flex items-center justify-between bg-white text-slate-950 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🚚</span>
+                <h3 className="text-sm font-black text-slate-950 font-sans">
+                  Zonas y Días de Reparto
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowRutasModal(false)}
+                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-full transition-colors cursor-pointer border border-slate-200"
+              >
+                <X className="w-4 h-4 stroke-[2.5]" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 overflow-y-auto space-y-4 font-sans text-xs">
+              <p className="text-slate-600 font-bold leading-relaxed">
+                Revisa los días asignados a cada sector para programar tu entrega. El camión de reparto recorre estas zonas de forma exclusiva.
+              </p>
+
+              <div className="space-y-3">
+                {Object.entries(config?.rutasCamion || DEFAULT_RUTAS_CAMION).map(([key, sector]) => (
+                  <div key={key} className="bg-slate-50 border-2 border-slate-200 p-3.5 rounded-2xl space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="font-extrabold text-slate-900 uppercase text-[10px] tracking-wide">
+                        {sector.name}
+                      </span>
+                      <span className="bg-indigo-50 text-indigo-800 text-[10px] font-black px-2.5 py-0.5 rounded-md border border-indigo-100">
+                        {sector.days.join(' y ')}
+                      </span>
+                    </div>
+                    <p className="text-slate-750 font-semibold leading-relaxed text-[11px]">
+                      <span className="font-bold text-slate-900">Comunas:</span> {sector.comunas.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}
+                    </p>
+                    <div className="flex justify-between items-center text-[10px] text-slate-550 pt-1 border-t border-slate-200 border-dashed">
+                      <span>Costo de envío (Flete):</span>
+                      <span className="font-black text-slate-900">${sector.fee.toLocaleString('es-CL')} CLP</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+              <button
+                onClick={() => setShowRutasModal(false)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Entendido
+              </button>
             </div>
           </div>
         </div>
