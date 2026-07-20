@@ -58,6 +58,14 @@ export default function App() {
   });
   const [products, setProducts] = useState<Product[]>(() => {
     try {
+      const fruteriaData = localStorage.getItem('FRUTERIA_DATA');
+      if (fruteriaData) {
+        return JSON.parse(fruteriaData);
+      }
+      const appProducts = localStorage.getItem('APP_PRODUCTS_DATA');
+      if (appProducts) {
+        return JSON.parse(appProducts);
+      }
       const savedTenantId = localStorage.getItem('tenant_tienda_id');
       if (savedTenantId) {
         const cached = localStorage.getItem(`products_${savedTenantId}`);
@@ -170,6 +178,8 @@ export default function App() {
         });
         setProducts(prodList);
         localStorage.setItem(`products_${tenantId}`, JSON.stringify(prodList));
+        localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(prodList));
+        localStorage.setItem('FRUTERIA_DATA', JSON.stringify(prodList));
         setLoading(false);
       }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/products`));
 
@@ -228,6 +238,8 @@ export default function App() {
       if (tenantId) {
         localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
       }
+      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -260,6 +272,8 @@ export default function App() {
       if (tenantId) {
         localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
       }
+      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -280,6 +294,8 @@ export default function App() {
       if (tenantId) {
         localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
       }
+      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -371,6 +387,8 @@ export default function App() {
       if (tenantId) {
         localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
       }
+      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -661,6 +679,7 @@ export default function App() {
             {currentTab === 'Compras' && (
               <ComprasTab
                 products={products}
+                productos={products}
                 foodItems={foodItems}
                 config={config}
                 onAddTransaction={handleAddTransaction}

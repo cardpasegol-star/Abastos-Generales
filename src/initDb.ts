@@ -190,6 +190,12 @@ export const DEFAULT_CONFIG: BusinessConfig = {
     bodega: false,
     farmacia: false,
     frutería: false
+  },
+  modules: {
+    rutasCamion: false,
+    fruteria: false,
+    almuerzos: true,
+    tienda: true
   }
 };
 
@@ -332,6 +338,12 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
         bodega: false,
         farmacia: false,
         frutería: true
+      },
+      modules: {
+        rutasCamion: true,
+        fruteria: true,
+        almuerzos: false,
+        tienda: false
       }
     };
   }

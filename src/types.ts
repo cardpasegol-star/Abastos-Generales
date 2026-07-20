@@ -9,6 +9,8 @@ export interface Product {
   imageUrl: string;
   updatedAt: string;
   enOferta?: boolean;
+  esOferta?: boolean;
+  descuento?: number;
   precioOferta?: number | null;
   unidadMedida?: 'unidad' | 'kg' | 'g';
 }
@@ -113,6 +115,12 @@ export interface BusinessConfig {
   modulosPermitidos?: ModulosPermitidos;
   rutasCamion?: Record<string, SectorConfig>;
   mostrarAlmuerzos?: boolean;
+  modules?: {
+    rutasCamion: boolean;
+    fruteria: boolean;
+    almuerzos: boolean;
+    tienda: boolean;
+  };
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';
@@ -136,6 +144,15 @@ export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bod
 
 export function isModuleActive(category: string, config?: BusinessConfig): boolean {
   if (!config) return true;
+
+  const moduleKey = getModuleForCategory(category);
+
+  if (config.modules) {
+    if (moduleKey === 'frutería') return config.modules.fruteria;
+    if (moduleKey === 'cocinaAlmuerzos') return config.modules.almuerzos;
+    if (moduleKey === 'tiendaAbarrotes') return config.modules.tienda;
+  }
+
   const modulos = config.modulosActivos || {
     tiendaAbarrotes: true,
     cocinaAlmuerzos: true,
@@ -150,7 +167,6 @@ export function isModuleActive(category: string, config?: BusinessConfig): boole
     farmacia: false,
     frutería: false
   };
-  const moduleKey = getModuleForCategory(category);
   const isPermitted = permitidos[moduleKey] !== false;
   const isActive = modulos[moduleKey] !== false;
   return isPermitted && isActive;

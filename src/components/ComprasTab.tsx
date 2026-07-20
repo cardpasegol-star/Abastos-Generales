@@ -250,6 +250,7 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
 
 interface ComprasTabProps {
   products: Product[];
+  productos?: Product[];
   foodItems?: FoodItem[];
   config: BusinessConfig;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
@@ -266,7 +267,13 @@ interface CartItem {
   quantity: number;
 }
 
-export default function ComprasTab({ products, foodItems = [], config, onAddTransaction, onUpdateProductStock, onUpdateFoodItemStock, onBackToMarketplace }: ComprasTabProps) {
+export default function ComprasTab({ products, productos = [], foodItems = [], config, onAddTransaction, onUpdateProductStock, onUpdateFoodItemStock, onBackToMarketplace }: ComprasTabProps) {
+  // Single Source of Truth: productosComprar is mapped directly to the dynamic products inventory state
+  const productosComprar = productos.length > 0 ? productos : products;
+
+  // Diagnostics verification log to identify active inventory items dynamically on render
+  console.log("PRODUCTOS EN COMPRAS:", productosComprar);
+
   // Search state (unified across both lists)
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -326,6 +333,12 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
                      (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false);
 
   const moduloTiendaActive = config?.modulosActivos?.tiendaAbarrotes === true && !isFruteria;
+
+  // Modern Independent Feature Flags (Todo o Nada)
+  const flagRutasCamion = config?.modules?.rutasCamion ?? (config?.rutasCamion ? true : false);
+  const flagFruteria = true;
+  const flagAlmuerzos = true;
+  const flagTienda = true;
 
   useEffect(() => {
     localStorage.setItem('cliente_comuna', comuna);
@@ -495,8 +508,11 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     setIsCheckingOut(false);
   }, [config?.id]);
 
-  // Lists of categories
-  const rawProductCategories = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks', 'Frutas', 'Verduras', 'Frutas Frescas'];
+  // Lists of categories dynamically built to ensure any custom category from the dynamic products list is included
+  const defaultCategories = ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks', 'Frutas', 'Verduras', 'Frutas Frescas'];
+  const uniqueProductCats = Array.from(new Set(productosComprar.map(p => p.category || (p as any).categoria).filter(Boolean)));
+  const configCats = config?.productCategories || [];
+  const rawProductCategories = Array.from(new Set([...configCats, ...uniqueProductCats, ...defaultCategories]));
   const activeProductCategories = rawProductCategories.filter(cat => isModuleActive(cat, config));
 
   const tiendaCategories = ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')];
@@ -505,33 +521,52 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   const foodItemCategories = ['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']).filter(cat => isModuleActive(cat, config))];
 
   // Match items based on filters and search
-  const filteredTiendaProducts = config?.modulosActivos?.tiendaAbarrotes !== true ? [] : products.filter(product => {
-    if (getModuleForCategory(product.category) === 'frutería') return false;
-    if (!isModuleActive(product.category, config)) return false;
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (product.sku || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedProductCategory === 'Todo' || product.category === selectedProductCategory;
+  const filteredTiendaProducts = productosComprar.filter(product => {
+    const catRaw = product.category || (product as any).categoria || '';
+    if (getModuleForCategory(catRaw) === 'frutería') return false;
+
+    const searchClean = searchTerm.trim().toLowerCase();
+    const productName = (product.name || (product as any).nombre || '').toLowerCase();
+    const productSku = (product.sku || '').toLowerCase();
+
+    const matchesSearch = !searchClean || 
+                          productName.includes(searchClean) ||
+                          productSku.includes(searchClean);
+    const matchesCategory = selectedProductCategory === 'Todo' || catRaw === selectedProductCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const filteredFruteriaProducts = config?.modulosActivos?.frutería !== true ? [] : products.filter(product => {
-    if (getModuleForCategory(product.category) !== 'frutería') return false;
-    if (!isModuleActive(product.category, config)) return false;
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (product.sku || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedFruteriaCategory === 'Todo' || product.category === selectedFruteriaCategory;
+  let filteredFruteriaProducts = productosComprar.filter(product => {
+    const catRaw = product.category || (product as any).categoria || '';
+    if (getModuleForCategory(catRaw) !== 'frutería') return false;
+
+    const searchClean = (searchTerm || '').trim().toLowerCase();
+    const productName = (product.name || (product as any).nombre || '').toLowerCase();
+    const productSku = (product.sku || '').toLowerCase();
+    
+    const matchesSearch = !searchClean || productName.includes(searchClean) || productSku.includes(searchClean);
+    const matchesCategory = !selectedFruteriaCategory || selectedFruteriaCategory === 'Todo' || catRaw === selectedFruteriaCategory;
+
     return matchesSearch && matchesCategory;
   });
 
-  const filteredFoodItems = config?.modulosActivos?.cocinaAlmuerzos !== true || config?.mostrarAlmuerzos === false ? [] : foodItems.filter(dish => {
+  const filteredFoodItems = !flagAlmuerzos ? [] : foodItems.filter(dish => {
     if (!isModuleActive(dish.category, config)) return false;
-    const matchesSearch = dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          dish.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchClean = searchTerm.trim().toLowerCase();
+    const matchesSearch = !searchClean || 
+                          dish.name.toLowerCase().includes(searchClean) ||
+                          dish.description.toLowerCase().includes(searchClean);
     const matchesCategory = selectedFoodCategory === 'Todo' || dish.category === selectedFoodCategory;
     return matchesSearch && matchesCategory;
   });
 
   const renderProductCard = (p: Product, inCart: boolean, cartItem: any, isOutofStock: boolean) => {
+    const basePrice = Number(p.price || (p as any).precio || 0);
+    const ofertaPrice = Number(p.precioOferta || (p as any).offerPrice || 0);
+    const isOferta = (p.enOferta === true || (p as any).esOferta === true || ofertaPrice > 0) && ofertaPrice < basePrice;
+    const displayPrice = isOferta ? ofertaPrice : basePrice;
+    const productName = p.name || (p as any).nombre || 'Producto sin nombre';
+
     return (
       <div 
         key={p.id}
@@ -546,7 +581,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         <div className="relative h-44 w-full bg-slate-50 overflow-hidden shrink-0">
           <img
             src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
-            alt={p.name}
+            alt={productName}
             referrerPolicy="no-referrer"
             className="w-full h-full object-contain p-2.5 bg-white transition-transform duration-305 ease-out hover:scale-101"
             onError={(e) => {
@@ -555,11 +590,11 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           />
           
           <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-black px-3.5 py-1 rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1.5">
-            {renderCategoryIcon(p.category, config, "w-4 h-4 object-contain inline-block")}
-            <span>{p.category}</span>
+            {renderCategoryIcon(p.category || (p as any).categoria, config, "w-4 h-4 object-contain inline-block")}
+            <span>{p.category || (p as any).categoria}</span>
           </span>
 
-          {p.enOferta && (
+          {isOferta && (
             <span className="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-lg shadow-md uppercase tracking-widest flex items-center gap-1 animate-pulse z-10">
               🔥 ¡OFERTA!
             </span>
@@ -586,38 +621,38 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
           <div className="flex justify-between items-start gap-2">
             <div className="space-y-1">
               <p className="text-slate-950 font-black text-base leading-tight">
-                {p.name}
+                {productName}
               </p>
               <p className="text-xs text-slate-600 font-extrabold font-mono">
                 SKU: {p.sku || p.id}
               </p>
               {p.unidadMedida && p.unidadMedida !== 'unidad' && (
                 <div className="text-[11px] font-extrabold text-indigo-700 mt-1 uppercase tracking-wide">
-                  Precio base: {p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined ? (
+                  Precio base: {isOferta ? (
                     <span>
-                      <span className="line-through text-slate-400 mr-1">${p.price.toLocaleString('es-CL')}</span>
-                      <span className="text-rose-600">${Number(p.precioOferta).toLocaleString('es-CL')}</span> / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}
+                      <span className="line-through text-slate-400 mr-1">${basePrice.toLocaleString('es-CL')}</span>
+                      <span className="text-rose-600">${ofertaPrice.toLocaleString('es-CL')}</span> / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}
                     </span>
                   ) : (
-                    <span>${p.price.toLocaleString('es-CL')} / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}</span>
+                    <span>${basePrice.toLocaleString('es-CL')} / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}</span>
                   )}
                 </div>
               )}
             </div>
             <div className="text-right shrink-0">
               <span className="text-[10px] text-slate-550 font-black uppercase tracking-wide block">Precio</span>
-              {p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined ? (
+              {isOferta ? (
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-slate-400 line-through font-extrabold leading-none mb-0.5">
-                    ${p.price.toFixed(2)}
+                    ${basePrice.toFixed(2)}
                   </span>
                   <span className="text-lg font-black text-rose-600 leading-none">
-                    ${Number(p.precioOferta).toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
+                    ${ofertaPrice.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
                   </span>
                 </div>
               ) : (
                 <span className="text-lg font-black text-slate-950">
-                  ${p.price.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
+                  ${basePrice.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
                 </span>
               )}
             </div>
@@ -1399,6 +1434,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
   };
 
   // Unified offers list combining store products and food items
+  // Single Source of Truth (SSOT): We iterate over the unified 'productosComprar' (alias of products)
   const offerItems: Array<{
     id: string;
     type: 'product' | 'meal';
@@ -1413,26 +1449,54 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
     unidadMedida?: 'unidad' | 'kg' | 'g';
   }> = [];
 
-  products.forEach(p => {
-    if (p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined && isModuleActive(p.category, config)) {
-      offerItems.push({
-        id: p.id,
-        type: 'product',
-        name: p.name,
-        sku: p.sku,
-        category: p.category,
-        stock: p.stock,
-        price: p.price,
-        precioOferta: Number(p.precioOferta),
-        imageUrl: p.imageUrl,
-        rawItem: p,
-        unidadMedida: p.unidadMedida,
-      });
+  productosComprar.forEach(p => {
+    const isOferta = p.enOferta === true || 
+                     p.esOferta === true || 
+                     (p.precioOferta !== null && p.precioOferta !== undefined && Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.price)) ||
+                     (p.descuento !== undefined && Number(p.descuento) > 0);
+    if (isOferta) {
+      const catLower = p.category.toLowerCase();
+      const isFruteriaCat = getModuleForCategory(p.category) === 'frutería' || 
+                            ['frutas frescas', 'frutas', 'verduras', 'verduleria', 'verdulería'].includes(catLower);
+      const isTiendaCat = !isFruteriaCat;
+      const isAllowed = (isFruteriaCat && flagFruteria) || (isTiendaCat && flagTienda);
+
+      if (isAllowed) {
+        // Safe computation of precioOferta if null/undefined but has a discount
+        const calculatedPrecioOferta = p.precioOferta !== null && p.precioOferta !== undefined && Number(p.precioOferta) > 0
+          ? Number(p.precioOferta)
+          : (p.descuento ? Math.round(p.price * (1 - p.descuento / 100)) : p.price);
+
+        offerItems.push({
+          id: p.id,
+          type: 'product',
+          name: p.name,
+          sku: p.sku,
+          category: p.category,
+          stock: p.stock,
+          price: p.price,
+          precioOferta: calculatedPrecioOferta,
+          imageUrl: p.imageUrl,
+          rawItem: p,
+          unidadMedida: p.unidadMedida,
+        });
+      }
     }
   });
 
+  // Alias name 'ofertasDelDia' matching exactly the requested naming convention, derived directly from offerItems
+  const ofertasDelDia = offerItems;
+
   foodItems.forEach(f => {
-    if (f.enOferta && f.precioOferta !== null && f.precioOferta !== undefined && isModuleActive(f.category, config)) {
+    const isOferta = f.enOferta === true || 
+                     (f as any).esOferta === true || 
+                     (f.precioOferta !== null && f.precioOferta !== undefined && Number(f.precioOferta) > 0 && Number(f.precioOferta) < Number(f.price)) ||
+                     ((f as any).descuento !== undefined && Number((f as any).descuento) > 0);
+    if (isOferta && flagAlmuerzos) {
+      const calculatedPrecioOferta = f.precioOferta !== null && f.precioOferta !== undefined && Number(f.precioOferta) > 0
+        ? Number(f.precioOferta)
+        : ((f as any).descuento ? Math.round(f.price * (1 - (f as any).descuento / 100)) : f.price);
+
       offerItems.push({
         id: f.id,
         type: 'meal',
@@ -1441,7 +1505,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         category: f.category,
         stock: f.stock ?? 0,
         price: f.price,
-        precioOferta: Number(f.precioOferta),
+        precioOferta: calculatedPrecioOferta,
         imageUrl: f.imageUrl,
         rawItem: f,
       });
@@ -1483,8 +1547,8 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
         </div>
       </div>
 
-      {/* Banner de Rutas de Reparto - Solo para Frutería */}
-      {isFruteria && (
+      {/* Banner de Rutas de Reparto - Condicional por Feature Flag */}
+      {flagRutasCamion && (
         <div className="bg-emerald-50/90 border-2 border-emerald-200 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-start gap-3">
             <span className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shadow-3xs text-base">
@@ -1753,10 +1817,13 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       )}
 
       {/* SECTION 2B: PRODUCTOS DE FRUTERÍA Y VERDULERÍA */}
-      {config?.modulosActivos?.frutería === true && (
+      {flagFruteria && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
             <div className="space-y-1">
+              <div className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1 inline-block mb-1.5 font-mono uppercase">
+                TOTAL PRODUCTOS EN MEMORIA: {productosComprar.length}
+              </div>
               <div className="flex items-center gap-2">
                 <span className="p-1.5 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 shadow-3xs">
                   <ShoppingBag className="w-4 h-4" />
@@ -1816,7 +1883,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       )}
 
       {/* SECTION 1: MENÚ DEL DÍA (Warm dishes) */}
-      {config?.modulosActivos?.cocinaAlmuerzos === true && config?.mostrarAlmuerzos !== false && (
+      {flagAlmuerzos && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
           <div className="space-y-1">
@@ -1991,7 +2058,7 @@ export default function ComprasTab({ products, foodItems = [], config, onAddTran
       )}
 
       {/* SECTION 2A: PRODUCTOS DE LA TIENDA (Víveres y Abarrotes) */}
-      {moduloTiendaActive && (
+      {flagTienda && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
             <div className="space-y-1">

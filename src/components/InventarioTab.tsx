@@ -1110,7 +1110,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         price: parseFloat(String(formData.price)) || 0,
         cost: parseFloat(String(formData.cost)) || 0,
         imageUrl: formData.imageUrl || PRESET_IMAGES[0].url,
-        enOferta: formData.enOferta,
+        enOferta: formData.enOferta ? true : false,
+        esOferta: formData.enOferta ? true : false,
         precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null,
         unidadMedida: isFrut ? (formData.unidadMedida || 'unidad') : 'unidad'
       };
