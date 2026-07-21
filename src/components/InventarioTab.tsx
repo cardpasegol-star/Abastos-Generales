@@ -188,8 +188,18 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
   
-  const productCats = (config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']).filter(cat => isModuleActive(cat, config));
+  const rawProductCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
+  const rawFruteriaCats = config?.fruteriaCategories || ['Frutas', 'Verduras', 'Frutos Secos', 'Legumbres', 'Abarrotes / Varios'];
+
+  const productCats = Array.from(new Set([
+    ...(config?.modulosActivos?.tiendaAbarrotes !== false ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
+    ...(config?.modulosActivos?.frutería !== false ? rawFruteriaCats : [])
+  ]));
   const defaultCategory = productCats.length > 0 ? productCats[0] : 'Bebidas';
+
+  const isFruteria = config?.name?.toLowerCase().includes('frutería') || 
+                     config?.name?.toLowerCase().includes('gales') || 
+                     (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false);
 
   const [formData, setFormData] = useState<{
     sku: string;
@@ -206,7 +216,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     sku: '', name: '', category: defaultCategory,
     stock: 0, price: '', cost: '', imageUrl: PRESET_IMAGES[0].url,
     enOferta: false, precioOferta: '',
-    unidadMedida: 'unidad'
+    unidadMedida: isFruteria ? 'kg' : 'unidad'
   });
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -1024,10 +1034,10 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       imageUrl: PRESET_IMAGES[0].url,
       enOferta: false,
       precioOferta: '',
-      unidadMedida: 'unidad'
+      unidadMedida: isFruteria ? 'kg' : 'unidad'
     });
     setShowAddModal(true);
-  }, [defaultCategory]);
+  }, [defaultCategory, isFruteria]);
 
   const handleOpenEdit = useCallback((product: Product) => {
     setEditingItem(product);

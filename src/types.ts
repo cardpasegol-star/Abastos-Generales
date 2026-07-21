@@ -103,6 +103,7 @@ export interface BusinessConfig {
   ivaPercentage?: number;
   productCategories?: string[];
   foodItemCategories?: string[];
+  fruteriaCategories?: string[];
   categoryIcons?: Record<string, string>;
   licenseExpirationDate?: string; // YYYY-MM-DD
   licenseStatus?: 'active' | 'suspended'; // 'active' | 'suspended'

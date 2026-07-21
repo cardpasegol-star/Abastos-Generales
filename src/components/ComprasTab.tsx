@@ -313,7 +313,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     if (selectedWeights[p.id] !== undefined) {
       return selectedWeights[p.id];
     }
-    return p.unidadMedida === 'kg' ? 0.25 : p.unidadMedida === 'g' ? 100 : 1;
+    const isWeightProduct = isFruteriaStore || (p as any).unit === 'kg' || (p as any).unidad === 'kilo' || (p as any).unidad === 'kg' || (p as any).unidad === 'kilo' || p.unidadMedida === 'kg' || p.unidadMedida === 'g';
+    if (!isWeightProduct) return 1;
+    return p.unidadMedida === 'g' ? 100 : 0.25;
   };
 
   const [showCartModal, setShowCartModal] = useState(false);
@@ -331,6 +333,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const isFruteria = config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
                      (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false);
+
+  const isFruteriaStore = isFruteria;
 
   const moduloTiendaActive = config?.modulosActivos?.tiendaAbarrotes === true && !isFruteria;
 
@@ -511,7 +515,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   // Lists of categories dynamically built to ensure any custom category from the dynamic products list is included
   const defaultCategories = ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks', 'Frutas', 'Verduras', 'Frutas Frescas'];
   const uniqueProductCats = Array.from(new Set(productosComprar.map(p => p.category || (p as any).categoria).filter(Boolean)));
-  const configCats = config?.productCategories || [];
+  const configCats = [...(config?.productCategories || []), ...(config?.fruteriaCategories || [])];
   const rawProductCategories = Array.from(new Set([...configCats, ...uniqueProductCats, ...defaultCategories]));
   const activeProductCategories = rawProductCategories.filter(cat => isModuleActive(cat, config));
 
@@ -665,7 +669,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
             {isOutofStock ? (
               <span className="text-xs text-rose-600 font-black bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">No disponible</span>
-            ) : (p.unidadMedida === 'kg' || p.unidadMedida === 'g') ? (
+            ) : (isFruteriaStore || (p as any).unit === 'kg' || (p as any).unidad === 'kilo' || (p as any).unidad === 'kg' || (p as any).unidad === 'kilo' || p.unidadMedida === 'kg' || p.unidadMedida === 'g') ? (
               /* Weight Based Selector */
               inCart ? (
                 <div className="flex items-center gap-1.5">
@@ -677,7 +681,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     }}
                     className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white"
                   >
-                    {(p.unidadMedida === 'kg' ? KG_OPTIONS : G_OPTIONS).map(opt => (
+                    {(p.unidadMedida === 'g' ? G_OPTIONS : KG_OPTIONS).map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
@@ -696,7 +700,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     onChange={(e) => setSelectedWeights(prev => ({ ...prev, [p.id]: parseFloat(e.target.value) }))}
                     className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white"
                   >
-                    {(p.unidadMedida === 'kg' ? KG_OPTIONS : G_OPTIONS).map(opt => (
+                    {(p.unidadMedida === 'g' ? G_OPTIONS : KG_OPTIONS).map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
@@ -751,7 +755,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const handleAddProduct = (product: Product, customQty?: number) => {
     if (product.stock <= 0) return;
 
-    const isWeightBased = product.unidadMedida === 'kg' || product.unidadMedida === 'g';
+    const isWeightBased = isFruteriaStore || (product as any).unit === 'kg' || (product as any).unidad === 'kilo' || (product as any).unidad === 'kg' || (product as any).unidad === 'kilo' || product.unidadMedida === 'kg' || product.unidadMedida === 'g';
     const qtyToAdd = customQty !== undefined ? customQty : (isWeightBased ? getSelectedWeight(product) : 1);
 
     const existing = cart.find(item => item.id === product.id && item.type === 'product');
@@ -1548,7 +1552,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       </div>
 
       {/* Banner de Rutas de Reparto - Condicional por Feature Flag */}
-      {flagRutasCamion && (
+      {isFruteriaStore && flagRutasCamion && (
         <div className="bg-emerald-50/90 border-2 border-emerald-200 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-start gap-3">
             <span className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shadow-3xs text-base">
@@ -1817,7 +1821,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       )}
 
       {/* SECTION 2B: PRODUCTOS DE FRUTERÍA Y VERDULERÍA */}
-      {flagFruteria && (
+      {(isFruteriaStore || filteredFruteriaProducts.length > 0) && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
             <div className="space-y-1">

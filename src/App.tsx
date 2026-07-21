@@ -21,9 +21,16 @@ export default function App() {
   const [tenantId, setTenantId] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const urlTienda = params.get('tienda') || params.get('id_tienda');
+      const urlTienda = params.get('tienda') || params.get('id_tienda') || params.get('modulo');
       if (urlTienda) {
-        const clean = urlTienda.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        let clean = urlTienda.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (clean === 'fruteria' || clean === 'frutería') {
+          clean = 'fruteria_principe_gales';
+        } else if (clean === 'turco') {
+          clean = 'el_turco';
+        } else if (clean === 'farmacia') {
+          clean = 'barrioseguro';
+        }
         localStorage.setItem('id_tienda', clean);
         localStorage.setItem('tenant_tienda_id', clean);
         return clean;
@@ -120,6 +127,30 @@ export default function App() {
     const timer = setInterval(checkCount, 1500);
     return () => clearInterval(timer);
   }, [config?.name]);
+
+  // Sync unlock states when currentEmployee is set/restored
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tiendaParam = params.get('tienda') || params.get('modulo') || params.get('id_tienda');
+      if (tiendaParam) {
+        let clean = tiendaParam.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (clean === 'fruteria' || clean === 'frutería') {
+          clean = 'fruteria_principe_gales';
+        } else if (clean === 'turco') {
+          clean = 'el_turco';
+        } else if (clean === 'farmacia') {
+          clean = 'barrioseguro';
+        }
+        setTenantId(clean);
+        localStorage.setItem('id_tienda', clean);
+        localStorage.setItem('tenant_tienda_id', clean);
+        setActiveTab('Compras');
+      }
+    } catch (err) {
+      console.error("Error reading tienda parameter on mount", err);
+    }
+  }, []);
 
   // Sync unlock states when currentEmployee is set/restored
   useEffect(() => {

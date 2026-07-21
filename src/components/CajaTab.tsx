@@ -783,7 +783,10 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
                     value={apiScannedProduct.category}
                     onChange={(e) => setApiScannedProduct({ ...apiScannedProduct, category: e.target.value })}
                   >
-                    {(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']).map(cat => (
+                    {Array.from(new Set([
+                      ...(config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']),
+                      ...(config?.fruteriaCategories || ['Frutas', 'Verduras', 'Frutos Secos', 'Legumbres', 'Abarrotes / Varios'])
+                    ])).map(cat => (
                       <option key={cat} value={cat}>
                         {getCategoryIconEmoji(cat, config)} {cat}
                       </option>

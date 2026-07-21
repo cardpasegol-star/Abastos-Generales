@@ -173,6 +173,9 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   adminPin: '1234',
   bannerUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800',
   ivaPercentage: 15,
+  productCategories: ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'],
+  foodItemCategories: ['Almuerzos', 'Sopas', 'Postres', 'Bebidas'],
+  fruteriaCategories: ['Frutas', 'Verduras', 'Frutos Secos', 'Legumbres', 'Abarrotes / Varios'],
   licenseExpirationDate: '2026-12-31',
   licenseStatus: 'active',
   licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.',
@@ -314,7 +317,8 @@ const INITIAL_FRUIT_PRODUCTS: Product[] = [
 
 export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
   const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
-  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales';
+  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+  const isFarmacia = tenantId.toLowerCase() === 'barrioseguro' || tenantId.toLowerCase() === 'farmacia';
 
   if (isPrincipeGales) {
     return {
@@ -325,6 +329,26 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
       gps: 'Av. Príncipe de Gales #5800, Ñuñoa',
       bannerUrl: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800',
       whatsapp: '+56920262026',
+      fruteriaCategories: [
+        'Frutas Frescas',
+        'Verduras y Hortalizas',
+        'Frutos Secos',
+        'Legumbres',
+        'Hierbas y Aliños',
+        'Hongos y Champiñones',
+        'Congelados y Pulpas',
+        'Ofertas / Remates'
+      ],
+      categoryIcons: {
+        'Frutas Frescas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png',
+        'Verduras y Hortalizas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Broccoli.png',
+        'Frutos Secos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Peanuts.png',
+        'Legumbres': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beans.png',
+        'Hierbas y Aliños': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Herb.png',
+        'Hongos y Champiñones': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Mushroom.png',
+        'Congelados y Pulpas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Strawberry.png',
+        'Ofertas / Remates': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png'
+      },
       modulosPermitidos: {
         tiendaAbarrotes: true,
         cocinaAlmuerzos: false,
@@ -348,6 +372,38 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
     };
   }
 
+  if (isFarmacia) {
+    return {
+      ...DEFAULT_CONFIG,
+      id: 'business_info',
+      name: 'Farmacia Barrio Seguro',
+      adminPin: '1234',
+      gps: 'Av. Providencia #1020, Providencia',
+      bannerUrl: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=800',
+      whatsapp: '+56912341234',
+      modulosPermitidos: {
+        tiendaAbarrotes: false,
+        cocinaAlmuerzos: false,
+        bodega: false,
+        farmacia: true,
+        frutería: false
+      },
+      modulosActivos: {
+        tiendaAbarrotes: false,
+        cocinaAlmuerzos: false,
+        bodega: false,
+        farmacia: true,
+        frutería: false
+      },
+      modules: {
+        rutasCamion: false,
+        fruteria: false,
+        almuerzos: false,
+        tienda: false
+      }
+    };
+  }
+
   const formattedName = tenantId.charAt(0).toUpperCase() + tenantId.slice(1);
   return {
     ...DEFAULT_CONFIG,
@@ -361,7 +417,7 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
 
 export function getTenantEmployees(tenantId: string) {
   const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
-  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales';
+  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
 
   if (isPrincipeGales) {
     return [
@@ -390,20 +446,21 @@ export async function bootstrapDatabaseIfEmpty(tenantId: string) {
       batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
       // Write products
-      const productsToSeed = tenantId.toLowerCase() === 'fruteria_principe_gales' ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+      const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+      const productsToSeed = isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
       productsToSeed.forEach(p => {
         batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
       });
 
       // Write food items
-      if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+      if (!isFruteriaTenant) {
         INITIAL_FOOD_ITEMS.forEach(f => {
           batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
         });
       }
 
       // Write transactions
-      if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+      if (!isFruteriaTenant) {
         INITIAL_TRANSACTIONS.forEach(t => {
           batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
         });
@@ -455,18 +512,19 @@ export async function resetDatabaseToDefault(tenantId: string) {
     const tenantConfig = getTenantSpecificConfig(tenantId);
     batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
-    const productsToSeed = tenantId.toLowerCase() === 'fruteria_principe_gales' ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+    const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+    const productsToSeed = isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
     productsToSeed.forEach(p => {
       batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
     });
 
-    if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+    if (!isFruteriaTenant) {
       INITIAL_FOOD_ITEMS.forEach(f => {
         batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
       });
     }
 
-    if (tenantId.toLowerCase() !== 'fruteria_principe_gales' && tenantId.toLowerCase() !== 'principe_gales') {
+    if (!isFruteriaTenant) {
       INITIAL_TRANSACTIONS.forEach(t => {
         batch.set(doc(db, 'tenants', tenantId, 'transactions', t.id), t);
       });

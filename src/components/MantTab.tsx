@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen } from 'lucide-react';
+import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen, Copy, QrCode, Download, ExternalLink, Check } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive, SectorConfig } from '../types';
@@ -69,6 +69,121 @@ const PRESET_3D_ICONS = [
   { label: 'Ferretería/Llave/Herramientas 🔧', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Wrench.png' },
   { label: 'Ropa/Vestuario/Polera 👕', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/T-Shirt.png' }
 ];
+
+const FRUTERIA_STICKER_PRESET = [
+  '🍎', '🍏', '🍓', '🍒', '🍌', '🍇', '🍉', '🍍', '🍑', '🍋', '🍊', // Frutas
+  '🥦', '🥕', '🥬', '🥔', '🧅', '🧄', '🌽', '🥒', '🫑', '🍆', '🥑', '🍄', // Verduras
+  '🥜', '🫘', '🌿', '🥚', '🌻', // Rubros Varios
+  '🔥', '🏷️', '✨' // Estado
+];
+
+function getFruteria3DUrl(emoji: string): string {
+  switch (emoji) {
+    // Frutas
+    case '🍎': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png';
+    case '🍏': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Green%20Apple.png';
+    case '🍓': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Strawberry.png';
+    case '🍒': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cherries.png';
+    case '🍌': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Banana.png';
+    case '🍇': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Grapes.png';
+    case '🍉': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Watermelon.png';
+    case '🍍': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pineapple.png';
+    case '🍑': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Peach.png';
+    case '🍋': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Lemon.png';
+    case '🍊': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Tangerine.png';
+
+    // Verduras
+    case '🥦': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Broccoli.png';
+    case '🥕': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Carrot.png';
+    case '🥬': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Leafy%20Green.png';
+    case 'PotatoIcon':
+    case '🥔': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Potato.png';
+    case 'OnionIcon':
+    case '🧅': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Onion.png';
+    case '🧄': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Garlic.png';
+    case '🌽': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ear%20of%20Corn.png';
+    case '🥒': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cucumber.png';
+    case '🫑': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bell%20Pepper.png';
+    case '🍆': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Eggplant.png';
+    case 'AvocadoIcon':
+    case '🥑': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Avocado.png';
+    case '🍄': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Mushroom.png';
+
+    // Rubros Varios
+    case '🥜': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Peanuts.png';
+    case 'FrijolIcon':
+    case '🫘': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beans.png';
+    case 'SpiceIcon':
+    case '🌿': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Herb.png';
+    case 'EggIcon':
+    case '🥚': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png';
+    case 'FlowerIcon':
+    case '🌻': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Sunflower.png';
+
+    // Estado
+    case 'FireIcon':
+    case '🔥': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png';
+    case 'TagIcon':
+    case '🏷️': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Label.png';
+    case 'SparkleIcon':
+    case '✨': return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Smilies/Sparkles.png';
+
+    default: return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png';
+  }
+}
+
+const FRUTERIA_STICKERS_ITEMS = FRUTERIA_STICKER_PRESET.map(emoji => {
+  let label = '';
+  switch (emoji) {
+    case '🍎': label = 'Manzana Roja'; break;
+    case '🍏': label = 'Manzana Verde'; break;
+    case '🍓': label = 'Frutilla'; break;
+    case '🍒': label = 'Cereza'; break;
+    case '🍌': label = 'Plátano'; break;
+    case '🍇': label = 'Uva'; break;
+    case '🍉': label = 'Sandía'; break;
+    case '🍍': label = 'Piña'; break;
+    case '🍑': label = 'Durazno'; break;
+    case '🍋': label = 'Limón'; break;
+    case '🍊': label = 'Naranja'; break;
+
+    case '🥦': label = 'Brócoli'; break;
+    case '🥕': label = 'Zanahoria'; break;
+    case '🥬': label = 'Lechuga/Verduras'; break;
+    case 'PotatoIcon':
+    case '🥔': label = 'Papa'; break;
+    case 'OnionIcon':
+    case '🧅': label = 'Cebolla'; break;
+    case '🧄': label = 'Ajo'; break;
+    case '🌽': label = 'Choclo'; break;
+    case '🥒': label = 'Pepino'; break;
+    case '🫑': label = 'Pimentón'; break;
+    case '🍆': label = 'Berenjena'; break;
+    case 'AvocadoIcon':
+    case '🥑': label = 'Palta'; break;
+    case '🍄': label = 'Champiñón'; break;
+
+    case '🥜': label = 'Maní/Frutos Secos'; break;
+    case 'FrijolIcon':
+    case '🫘': label = 'Porotos/Legumbres'; break;
+    case 'SpiceIcon':
+    case '🌿': label = 'Hierbas/Aliños'; break;
+    case 'EggIcon':
+    case '🥚': label = 'Huevos'; break;
+    case 'FlowerIcon':
+    case '🌻': label = 'Flores/Plantas'; break;
+
+    case 'FireIcon':
+    case '🔥': label = 'Ofertas/Remates'; break;
+    case 'TagIcon':
+    case '🏷️': label = 'Promoción'; break;
+    case 'SparkleIcon':
+    case '✨': label = 'Destacados'; break;
+
+    default: label = emoji;
+  }
+  return { label, url: getFruteria3DUrl(emoji) };
+});
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
@@ -365,10 +480,13 @@ export default function MantTab({
   // Dynamic categories management state
   const [productCategoriesList, setProductCategoriesList] = useState<string[]>([]);
   const [foodItemCategoriesList, setFoodItemCategoriesList] = useState<string[]>([]);
+  const [fruteriaCategoriesList, setFruteriaCategoriesList] = useState<string[]>([]);
   const [newProductCat, setNewProductCat] = useState('');
   const [newFoodCat, setNewFoodCat] = useState('');
+  const [newFruteriaCat, setNewFruteriaCat] = useState('');
   const [productSelectedEmoji, setProductSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png');
   const [foodSelectedEmoji, setFoodSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pancakes.png');
+  const [fruteriaSelectedEmoji, setFruteriaSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png');
   const [categoryIconsList, setCategoryIconsList] = useState<Record<string, string>>({});
 
   // Kitchen dish builder form state
@@ -433,6 +551,36 @@ export default function MantTab({
   const [loading, setLoading] = useState(false);
   const [notifySaved, setNotifySaved] = useState(false);
   const [notifySavedKitchenCats, setNotifySavedKitchenCats] = useState(false);
+  const [notifySavedFruteriaCats, setNotifySavedFruteriaCats] = useState(false);
+
+  const [selectedQrType, setSelectedQrType] = useState<'fruteria' | 'turco' | 'farmacia'>(() => {
+    const nameLower = config?.name?.toLowerCase() || '';
+    if (nameLower.includes('frutería') || nameLower.includes('gales')) return 'fruteria';
+    if (nameLower.includes('farmacia') || nameLower.includes('seguro')) return 'farmacia';
+    return 'turco';
+  });
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleSaveFruteriaCategories = async () => {
+    setLoading(true);
+    try {
+      await onUpdateConfig({
+        ...config,
+        fruteriaCategories: fruteriaCategoriesList,
+        categoryIcons: {
+          ...config.categoryIcons,
+          ...categoryIconsList
+        }
+      });
+      localStorage.setItem('fruteria_categories_v1', JSON.stringify(fruteriaCategoriesList));
+      setNotifySavedFruteriaCats(true);
+      setTimeout(() => setNotifySavedFruteriaCats(false), 3000);
+    } catch (err) {
+      console.error("Error al guardar categorías de frutería:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSaveKitchenCategories = async () => {
     setLoading(true);
@@ -462,9 +610,58 @@ export default function MantTab({
     setAdminPinField(config.adminPin || '1234');
     setLocalBannerUrl(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
     setIvaPercentInput(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
-    setProductCategoriesList(config.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks']);
+
+    // State Isolation for Minimarket (Donde el Turco)
+    const cachedTurco = localStorage.getItem('turco_categories_v1');
+    let initialTurcoCats = ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
+    if (cachedTurco) {
+      initialTurcoCats = JSON.parse(cachedTurco);
+    } else if (config.productCategories && config.productCategories.length > 0) {
+      initialTurcoCats = config.productCategories;
+      localStorage.setItem('turco_categories_v1', JSON.stringify(initialTurcoCats));
+    } else {
+      localStorage.setItem('turco_categories_v1', JSON.stringify(initialTurcoCats));
+    }
+    setProductCategoriesList(initialTurcoCats);
+
     setFoodItemCategoriesList(config.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']);
-    setCategoryIconsList(config.categoryIcons || {});
+
+    // State Isolation for Frutería and default optimized seed categories list
+    const cachedFruteria = localStorage.getItem('fruteria_categories_v1');
+    const seedFruteria = [
+      { id: 'f1', name: 'Frutas Frescas', icon: '🍎' },
+      { id: 'f2', name: 'Verduras y Hortalizas', icon: '🥦' },
+      { id: 'f3', name: 'Frutos Secos', icon: '🥜' },
+      { id: 'f4', name: 'Legumbres', icon: '🫘' },
+      { id: 'f5', name: 'Hierbas y Aliños', icon: '🌿' },
+      { id: 'f6', name: 'Hongos y Champiñones', icon: '🍄' },
+      { id: 'f7', name: 'Congelados y Pulpas', icon: '🍓' },
+      { id: 'f8', name: 'Ofertas / Remates', icon: '🔥' }
+    ];
+    let initialFruteriaCats = seedFruteria.map(s => s.name);
+    let usedSeed = false;
+
+    if (cachedFruteria) {
+      initialFruteriaCats = JSON.parse(cachedFruteria);
+    } else if (config.fruteriaCategories && config.fruteriaCategories.length > 0) {
+      initialFruteriaCats = config.fruteriaCategories;
+      localStorage.setItem('fruteria_categories_v1', JSON.stringify(initialFruteriaCats));
+    } else {
+      usedSeed = true;
+      localStorage.setItem('fruteria_categories_v1', JSON.stringify(initialFruteriaCats));
+    }
+    setFruteriaCategoriesList(initialFruteriaCats);
+
+    const initialIcons = { ...(config.categoryIcons || {}) };
+    if (usedSeed) {
+      seedFruteria.forEach(s => {
+        if (!initialIcons[s.name]) {
+          initialIcons[s.name] = getFruteria3DUrl(s.icon) || s.icon;
+        }
+      });
+    }
+    setCategoryIconsList(initialIcons);
+
     setSiiEnabled(config.siiEnabled || false);
     setSiiRut(config.siiRut || '');
     setSiiDigitalCert(config.siiDigitalCert || '');
@@ -523,7 +720,9 @@ export default function MantTab({
     const val = newProductCat.trim();
     if (!val) return;
     if (productCategoriesList.includes(val)) return;
-    setProductCategoriesList([...productCategoriesList, val]);
+    const nextList = [...productCategoriesList, val];
+    setProductCategoriesList(nextList);
+    localStorage.setItem('turco_categories_v1', JSON.stringify(nextList));
     setCategoryIconsList(prev => ({
       ...prev,
       [val]: productSelectedEmoji
@@ -544,7 +743,9 @@ export default function MantTab({
   };
 
   const handleRemoveProductCat = (cat: string) => {
-    setProductCategoriesList(productCategoriesList.filter(c => c !== cat));
+    const nextList = productCategoriesList.filter(c => c !== cat);
+    setProductCategoriesList(nextList);
+    localStorage.setItem('turco_categories_v1', JSON.stringify(nextList));
     setCategoryIconsList(prev => {
       const next = { ...prev };
       delete next[cat];
@@ -554,6 +755,31 @@ export default function MantTab({
 
   const handleRemoveFoodCat = (cat: string) => {
     setFoodItemCategoriesList(foodItemCategoriesList.filter(c => c !== cat));
+    setCategoryIconsList(prev => {
+      const next = { ...prev };
+      delete next[cat];
+      return next;
+    });
+  };
+
+  const handleAddFruteriaCat = () => {
+    const val = newFruteriaCat.trim();
+    if (!val) return;
+    if (fruteriaCategoriesList.includes(val)) return;
+    const nextList = [...fruteriaCategoriesList, val];
+    setFruteriaCategoriesList(nextList);
+    localStorage.setItem('fruteria_categories_v1', JSON.stringify(nextList));
+    setCategoryIconsList(prev => ({
+      ...prev,
+      [val]: fruteriaSelectedEmoji
+    }));
+    setNewFruteriaCat('');
+  };
+
+  const handleRemoveFruteriaCat = (cat: string) => {
+    const nextList = fruteriaCategoriesList.filter(c => c !== cat);
+    setFruteriaCategoriesList(nextList);
+    localStorage.setItem('fruteria_categories_v1', JSON.stringify(nextList));
     setCategoryIconsList(prev => {
       const next = { ...prev };
       delete next[cat];
@@ -754,6 +980,7 @@ export default function MantTab({
         ivaPercentage: Number(ivaPercentInput),
         productCategories: productCategoriesList,
         foodItemCategories: foodItemCategoriesList,
+        fruteriaCategories: fruteriaCategoriesList,
         categoryIcons: categoryIconsList,
         siiEnabled,
         siiRut: siiRut.trim(),
@@ -783,6 +1010,10 @@ export default function MantTab({
           await deleteDoc(empDocRef).catch(() => {});
         }
       }
+
+      // Save categories to isolated localStorage keys
+      localStorage.setItem('turco_categories_v1', JSON.stringify(productCategoriesList));
+      localStorage.setItem('fruteria_categories_v1', JSON.stringify(fruteriaCategoriesList));
 
       setNotifySaved(true);
       setTimeout(() => setNotifySaved(false), 3000);
@@ -1311,9 +1542,9 @@ export default function MantTab({
                   cocinaAlmuerzos: true,
                   bodega: false,
                   farmacia: false,
-                  frutería: false
+                  frutería: true
                 };
-                const isPermitted = permitidos[mod.id as keyof typeof permitidos] !== false;
+                const isPermitted = mod.id === 'frutería' ? true : (permitidos[mod.id as keyof typeof permitidos] !== false);
                 const isActive = modulosActivos[mod.id as keyof typeof modulosActivos] && isPermitted;
 
                 return (
@@ -1520,6 +1751,237 @@ export default function MantTab({
                 </div>
               </div>
             )}
+
+            {/* Frutería Categories */}
+            {modulosActivos?.frutería !== false && (
+              <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                <label className="text-[9.5px] font-black text-rose-700 uppercase tracking-widest block">
+                  🍎 Categorías de Frutería y Verdulería
+                </label>
+                <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+                  {fruteriaCategoriesList.map(cat => (
+                    <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-850 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
+                      <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
+                        <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                      </span>
+                      <span className="font-bold">{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFruteriaCat(cat)}
+                        className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
+                      >
+                        <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    </span>
+                  ))}
+                  {fruteriaCategoriesList.length === 0 && (
+                    <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. Frutas, Verduras, Legumbres..."
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-rose-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                    value={newFruteriaCat}
+                    onChange={(e) => setNewFruteriaCat(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFruteriaCat(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddFruteriaCat}
+                    className={`font-extrabold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-3xs ${
+                      newFruteriaCat.trim() !== ''
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                        : 'bg-slate-200 text-slate-450 hover:bg-slate-250'
+                    }`}
+                  >
+                    Agregar
+                  </button>
+                </div>
+                {/* Frutería Sticker Selector */}
+                <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-150">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                    🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
+                  </span>
+                  <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
+                    {FRUTERIA_STICKERS_ITEMS.map(item => (
+                      <SelectorStickerItem
+                        key={item.url}
+                        item={item}
+                        selected={fruteriaSelectedEmoji === item.url}
+                        onClick={() => setFruteriaSelectedEmoji(item.url)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botón de Guardado Específico */}
+                <div className="pt-1.5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveFruteriaCategories}
+                    disabled={!isUnlocked || loading}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Categorías de Frutería</span>
+                  </button>
+                  {notifySavedFruteriaCats && (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
+                      <span>¡Categorías de frutería guardadas con éxito!</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section: Enlace Directo y Código QR del Negocio */}
+          <div className="space-y-4 border-t border-gray-100 pt-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-3xs">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-rose-50 text-rose-700 rounded-lg border border-rose-100">
+                <QrCode className="w-4 h-4" />
+              </span>
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                📱 Enlace Directo y Código QR del Negocio
+              </h4>
+            </div>
+            
+            <p className="text-[10px] text-slate-500 leading-normal">
+              Permite que tus clientes ingresen de forma directa a tu local o rubro preferido escaneando el código QR o pulsando el link, sin pasar por la selección manual de tiendas.
+            </p>
+
+            {/* Selector de rubro / tienda para generar el QR */}
+            <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-xl">
+              {[
+                { id: 'fruteria', label: '🍎 Frutería', color: 'hover:bg-rose-50 hover:text-rose-700' },
+                { id: 'turco', label: '🏪 Minimarket', color: 'hover:bg-emerald-50 hover:text-emerald-700' },
+                { id: 'farmacia', label: '💊 Farmacia', color: 'hover:bg-blue-50 hover:text-blue-700' }
+              ].map((tab) => {
+                const isSelected = selectedQrType === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSelectedQrType(tab.id as 'fruteria' | 'turco' | 'farmacia')}
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-black tracking-tight transition-all cursor-pointer text-center ${
+                      isSelected
+                        ? 'bg-white text-slate-900 shadow-2xs font-extrabold border border-slate-200'
+                        : `text-slate-550 ${tab.color} font-bold`
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* URL Display and Action Block */}
+            <div className="space-y-3 bg-slate-55 p-4 rounded-xl border border-slate-150">
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Enlace de Acceso Directo:
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/?tienda=${selectedQrType}`}
+                    className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 outline-none select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origin = window.location.origin || 'https://ais-pre-aizigdsszomixcqyfzgzwo-445840781421.us-west2.run.app';
+                      const url = `${origin}/?tienda=${selectedQrType}`;
+                      navigator.clipboard.writeText(url);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold flex items-center gap-1 transition-all shadow-3xs cursor-pointer ${
+                      copiedLink
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white" />
+                        <span>¡Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Copiar Enlace Exclusivo</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* QR Code and Actions */}
+              <div className="flex flex-col sm:flex-row items-center gap-4 pt-1">
+                <div className="bg-white p-3.5 rounded-xl border border-slate-250 shadow-2xs flex-shrink-0">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}/?tienda=${selectedQrType}`)}`}
+                    alt={`Código QR para ${selectedQrType}`}
+                    className="w-32 h-32 object-contain"
+                  />
+                </div>
+                
+                <div className="flex-1 space-y-2.5 text-center sm:text-left w-full">
+                  <div className="space-y-0.5">
+                    <h5 className="text-[11px] font-extrabold text-slate-900">
+                      Código QR Dinámico Exclusivo
+                    </h5>
+                    <p className="text-[10px] text-slate-500 leading-normal">
+                      Imprime este código QR y colócalo en tu local. Tus clientes podrán escanearlo con la cámara de sus teléfonos para abrir directamente tu rubro.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const origin = window.location.origin || 'https://ais-pre-aizigdsszomixcqyfzgzwo-445840781421.us-west2.run.app';
+                        const directUrl = `${origin}/?tienda=${selectedQrType}`;
+                        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(directUrl)}`;
+                        try {
+                          const response = await fetch(qrImageUrl);
+                          const blob = await response.blob();
+                          const blobUrl = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = blobUrl;
+                          link.download = `QR_Codigo_Exclusivo_${selectedQrType}.png`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(blobUrl);
+                        } catch (err) {
+                          window.open(qrImageUrl, '_blank');
+                        }
+                      }}
+                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[11px] py-2 px-3 rounded-lg shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Descargar QR para Impresión</span>
+                    </button>
+                    
+                    <a
+                      href={`${window.location.origin}/?tienda=${selectedQrType}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-[11px] py-2 px-3 rounded-lg shadow-3xs flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Probar Enlace</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Section: Gestión de Personal */}
