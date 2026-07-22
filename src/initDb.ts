@@ -175,7 +175,7 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   ivaPercentage: 15,
   productCategories: ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'],
   foodItemCategories: ['Almuerzos', 'Sopas', 'Postres', 'Bebidas'],
-  fruteriaCategories: ['Frutas', 'Verduras', 'Frutos Secos', 'Legumbres', 'Abarrotes / Varios'],
+  fruteriaCategories: ['Frutas', 'Verduras', 'Frutos Secos', 'Semillas', 'Huevos', 'Mermeladas', 'Miel', 'Abarrotes / Varios'],
   licenseExpirationDate: '2026-12-31',
   licenseStatus: 'active',
   licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.',
@@ -330,24 +330,24 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
       bannerUrl: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800',
       whatsapp: '+56920262026',
       fruteriaCategories: [
-        'Frutas Frescas',
-        'Verduras y Hortalizas',
+        'Frutas',
+        'Verduras',
         'Frutos Secos',
-        'Legumbres',
-        'Hierbas y Aliños',
-        'Hongos y Champiñones',
-        'Congelados y Pulpas',
-        'Ofertas / Remates'
+        'Semillas',
+        'Huevos',
+        'Mermeladas',
+        'Miel',
+        'Abarrotes / Varios'
       ],
       categoryIcons: {
-        'Frutas Frescas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png',
-        'Verduras y Hortalizas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Broccoli.png',
+        'Frutas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png',
+        'Verduras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Broccoli.png',
         'Frutos Secos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Peanuts.png',
-        'Legumbres': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beans.png',
-        'Hierbas y Aliños': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Herb.png',
-        'Hongos y Champiñones': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Mushroom.png',
-        'Congelados y Pulpas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Strawberry.png',
-        'Ofertas / Remates': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png'
+        'Semillas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beans.png',
+        'Huevos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png',
+        'Mermeladas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Honey%20Pot.png',
+        'Miel': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Honeybee.png',
+        'Abarrotes / Varios': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png'
       },
       modulosPermitidos: {
         tiendaAbarrotes: true,
