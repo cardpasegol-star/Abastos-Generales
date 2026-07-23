@@ -151,7 +151,7 @@ function getFruteria3DUrl(emoji: string): string {
 export const TURCO_STORE_STICKERS = ['🥤', '🍿', '🧴', '🧼', '🍞', '🥫', '🍫', '🧃', '🧻', '📦', '🥛', '🧀', '🛍️', '🍬', '🧹', '🥓', '🧊'];
 
 export const TURCO_STORE_STICKER_ITEMS = [
-  { label: 'Bebidas', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beverage%20Box.png', nativeEmoji: '🥤' },
+  { label: 'Bebidas', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cup%20With%20Straw.png', nativeEmoji: '🥤' },
   { label: 'Snacks', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Potato%20Chips.png', nativeEmoji: '🍿' },
   { label: 'Aseo y Loción', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png', nativeEmoji: '🧴' },
   { label: 'Jabón', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Soap.png', nativeEmoji: '🧼' },
@@ -206,6 +206,16 @@ export const FRUTERIA_STICKER_ITEMS = [
 
 export const EXCLUSIVE_FRUTERIA_STICKER_ITEMS = FRUTERIA_STICKER_ITEMS;
 
+export const ARTICO_STICKER_ITEMS = [
+  { label: 'Carnes', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Meat%20On%20Bone.png', nativeEmoji: '🥩' },
+  { label: 'Hamburguesas', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png', nativeEmoji: '🍔' },
+  { label: 'Congelados', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png', nativeEmoji: '🧊' },
+  { label: 'Pescados y Mariscos', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Fish.png', nativeEmoji: '🦐' },
+  { label: 'Quesos y Cecinas', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png', nativeEmoji: '🧀' },
+  { label: 'Kits y Cajas', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png', nativeEmoji: '📦' },
+  { label: 'Pollo y Aves', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Poultry%20Leg.png', nativeEmoji: '🍗' }
+];
+
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
   'Todo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
@@ -235,6 +245,13 @@ function getCategoryIcon(cat: string, customIcons?: Record<string, string>): str
   if (DEFAULT_CATEGORY_ICONS[cat]) return DEFAULT_CATEGORY_ICONS[cat];
 
   const lower = cat.toLowerCase();
+  if (lower.includes('carne') || lower.includes('churrasco')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Meat%20On%20Bone.png';
+  if (lower.includes('hamburguesa') || lower.includes('prefrito')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png';
+  if (lower.includes('congelado') || lower.includes('pulpa') || lower.includes('hielo')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png';
+  if (lower.includes('marisco') || lower.includes('pescado') || lower.includes('camarón')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Fish.png';
+  if (lower.includes('refrigerado') || lower.includes('cecina')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png';
+  if (lower.includes('kit') || lower.includes('caja')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png';
+
   if (lower.includes('huevo')) return DEFAULT_CATEGORY_ICONS['Huevos'];
   if (lower.includes('miel') || lower.includes('abeja')) return DEFAULT_CATEGORY_ICONS['Miel'];
   if (lower.includes('mermelada')) return DEFAULT_CATEGORY_ICONS['Mermeladas'];
@@ -497,12 +514,15 @@ export default function MantTab({
   const [productCategoriesList, setProductCategoriesList] = useState<string[]>([]);
   const [foodItemCategoriesList, setFoodItemCategoriesList] = useState<string[]>([]);
   const [fruteriaCategoriesList, setFruteriaCategoriesList] = useState<string[]>([]);
+  const [articoCategoriesList, setArticoCategoriesList] = useState<string[]>([]);
   const [newProductCat, setNewProductCat] = useState('');
   const [newFoodCat, setNewFoodCat] = useState('');
   const [newFruteriaCat, setNewFruteriaCat] = useState('');
+  const [newArticoCat, setNewArticoCat] = useState('');
   const [productSelectedEmoji, setProductSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png');
   const [foodSelectedEmoji, setFoodSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pancakes.png');
   const [fruteriaSelectedEmoji, setFruteriaSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png');
+  const [articoSelectedEmoji, setArticoSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png');
   const [categoryIconsList, setCategoryIconsList] = useState<Record<string, string>>({});
 
   // Kitchen dish builder form state
@@ -568,12 +588,25 @@ export default function MantTab({
   const [notifySaved, setNotifySaved] = useState(false);
   const [notifySavedKitchenCats, setNotifySavedKitchenCats] = useState(false);
   const [notifySavedFruteriaCats, setNotifySavedFruteriaCats] = useState(false);
+  const [notifySavedArticoCats, setNotifySavedArticoCats] = useState(false);
 
   const getActiveStoreInfo = () => {
     const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const urlTienda = params?.get('tienda') || params?.get('id_tienda');
     const tId = (tenantId || config?.id || '').toLowerCase();
     const nameLower = (config?.name || '').toLowerCase();
+
+    if (urlTienda === 'artico' || urlTienda === 'artico_congelados' || urlTienda === 'congelados' || tId.includes('artico') || tId.includes('congelados') || nameLower.includes('ártico') || nameLower.includes('artico')) {
+      return {
+        key: 'artico',
+        paramValue: 'artico',
+        moduleLabel: 'Ártico Congelados',
+        emoji: '🧊',
+        storeName: config?.name || 'Ártico Congelados',
+        sectionTitle: '📱 Enlace Directo y Código QR Exclusivo de Ártico Congelados',
+        badgeBg: 'bg-cyan-50 text-cyan-700 border-cyan-200'
+      };
+    }
 
     if (urlTienda === 'fruteria' || tId.includes('fruteria') || tId.includes('gales') || nameLower.includes('frutería') || nameLower.includes('gales')) {
       return {
@@ -633,6 +666,30 @@ export default function MantTab({
       setTimeout(() => setNotifySavedFruteriaCats(false), 3000);
     } catch (err) {
       console.error("Error al guardar categorías de frutería:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveArticoCategories = async () => {
+    setLoading(true);
+    try {
+      const mergedIcons = {
+        ...config.categoryIcons,
+        ...categoryIconsList
+      };
+      await onUpdateConfig({
+        ...config,
+        articoCategories: articoCategoriesList,
+        categoryIcons: mergedIcons
+      });
+      localStorage.setItem('artico_categories_data', JSON.stringify(articoCategoriesList));
+      localStorage.setItem('artico_categories_v1', JSON.stringify(articoCategoriesList));
+      localStorage.setItem('category_icons_v1', JSON.stringify(mergedIcons));
+      setNotifySavedArticoCats(true);
+      setTimeout(() => setNotifySavedArticoCats(false), 3000);
+    } catch (err) {
+      console.error("Error al guardar categorías de Ártico:", err);
     } finally {
       setLoading(false);
     }
@@ -714,6 +771,33 @@ export default function MantTab({
 
     setFruteriaCategoriesList(initialFruteriaCats);
     localStorage.setItem('fruteria_categories_v1', JSON.stringify(initialFruteriaCats));
+
+    // State Isolation for Ártico Congelados
+    const OFFICIAL_ARTICO_DEFAULTS = [
+      '🥩 Carnes y Churrascos',
+      '🍔 Hamburguesas y Prefritos',
+      '🧊 Congelados y Pulpas',
+      '🦐 Mariscos y Pescados',
+      '🧀 Refrigerados y Cecinas',
+      '📦 Kits y Huevos'
+    ];
+    const cachedArtico = localStorage.getItem('artico_categories_data') || localStorage.getItem('artico_categories_v1');
+    let initialArticoCats = [...OFFICIAL_ARTICO_DEFAULTS];
+    if (cachedArtico) {
+      try {
+        const parsed = JSON.parse(cachedArtico);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          initialArticoCats = parsed;
+        }
+      } catch (e) {
+        console.error("Error parsing cached artico categories:", e);
+      }
+    } else if (config.articoCategories && config.articoCategories.length > 0) {
+      initialArticoCats = config.articoCategories;
+    }
+    setArticoCategoriesList(initialArticoCats);
+    localStorage.setItem('artico_categories_data', JSON.stringify(initialArticoCats));
+    localStorage.setItem('artico_categories_v1', JSON.stringify(initialArticoCats));
 
     const savedIcons = JSON.parse(localStorage.getItem('category_icons_v1') || '{}');
     const initialIcons = {
@@ -820,6 +904,45 @@ export default function MantTab({
 
   const handleRemoveFoodCat = (cat: string) => {
     setFoodItemCategoriesList(foodItemCategoriesList.filter(c => c !== cat));
+    setCategoryIconsList(prev => {
+      const next = { ...prev };
+      delete next[cat];
+      return next;
+    });
+  };
+
+  const handleAddArticoCat = () => {
+    const val = newArticoCat.trim();
+    if (!val) return;
+    if (articoCategoriesList.includes(val)) return;
+    const nextList = [...articoCategoriesList, val];
+    setArticoCategoriesList(nextList);
+    localStorage.setItem('artico_categories_data', JSON.stringify(nextList));
+    localStorage.setItem('artico_categories_v1', JSON.stringify(nextList));
+
+    const activeSticker = articoSelectedEmoji || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png';
+    const updatedIcons = {
+      ...categoryIconsList,
+      [val]: activeSticker
+    };
+    setCategoryIconsList(updatedIcons);
+
+    try {
+      const savedIcons = JSON.parse(localStorage.getItem('category_icons_v1') || '{}');
+      savedIcons[val] = activeSticker;
+      localStorage.setItem('category_icons_v1', JSON.stringify(savedIcons));
+    } catch (e) {
+      console.error("Error persisting category_icons_v1:", e);
+    }
+
+    setNewArticoCat('');
+  };
+
+  const handleRemoveArticoCat = (cat: string) => {
+    const nextList = articoCategoriesList.filter(c => c !== cat);
+    setArticoCategoriesList(nextList);
+    localStorage.setItem('artico_categories_data', JSON.stringify(nextList));
+    localStorage.setItem('artico_categories_v1', JSON.stringify(nextList));
     setCategoryIconsList(prev => {
       const next = { ...prev };
       delete next[cat];
@@ -1058,6 +1181,7 @@ export default function MantTab({
         productCategories: productCategoriesList,
         foodItemCategories: foodItemCategoriesList,
         fruteriaCategories: fruteriaCategoriesList,
+        articoCategories: articoCategoriesList,
         categoryIcons: categoryIconsList,
         siiEnabled,
         siiRut: siiRut.trim(),
@@ -1093,9 +1217,14 @@ export default function MantTab({
         localStorage.setItem('turco_categories_v1', JSON.stringify(productCategoriesList));
       } else if (activeStoreInfo.key === 'fruteria') {
         localStorage.setItem('fruteria_categories_v1', JSON.stringify(fruteriaCategoriesList));
+      } else if (activeStoreInfo.key === 'artico') {
+        localStorage.setItem('artico_categories_data', JSON.stringify(articoCategoriesList));
+        localStorage.setItem('artico_categories_v1', JSON.stringify(articoCategoriesList));
       } else {
         localStorage.setItem('turco_categories_v1', JSON.stringify(productCategoriesList));
         localStorage.setItem('fruteria_categories_v1', JSON.stringify(fruteriaCategoriesList));
+        localStorage.setItem('artico_categories_data', JSON.stringify(articoCategoriesList));
+        localStorage.setItem('artico_categories_v1', JSON.stringify(articoCategoriesList));
       }
 
       setNotifySaved(true);
@@ -1739,7 +1868,7 @@ export default function MantTab({
                   <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
                     {TURCO_STORE_STICKER_ITEMS.map(item => (
                       <SelectorStickerItem
-                        key={item.url}
+                        key={item.label}
                         item={item}
                         selected={productSelectedEmoji === item.url}
                         onClick={() => setProductSelectedEmoji(item.url)}
@@ -1805,7 +1934,7 @@ export default function MantTab({
                   <div className="flex gap-1.5 overflow-x-auto py-1 px-0.5 scrollbar-none max-w-full">
                     {TURCO_KITCHEN_STICKER_ITEMS.map(item => (
                       <SelectorStickerItem
-                        key={item.url}
+                        key={item.label}
                         item={item}
                         selected={foodSelectedEmoji === item.url}
                         onClick={() => setFoodSelectedEmoji(item.url)}

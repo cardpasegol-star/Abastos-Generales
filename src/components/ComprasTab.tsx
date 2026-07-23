@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory, SectorConfig } from '../types';
 import { jsPDF } from 'jspdf';
@@ -24,6 +24,12 @@ const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Mermeladas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Honey%20Pot.png',
   'Miel': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Honeybee.png',
   'Abarrotes / Varios': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png',
+  'Carnes y Churrascos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cut%20of%20Meat.png',
+  'Hamburguesas y Prefritos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png',
+  'Congelados y Pulpas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20and%20places/Ice.png',
+  'Mariscos y Pescados': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shrimp.png',
+  'Refrigerados y Cecinas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png',
+  'Kits y Huevos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png',
 };
 
 function getCategoryIcon(cat: string, config?: BusinessConfig): string {
@@ -268,6 +274,7 @@ interface ComprasTabProps {
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
   onUpdateFoodItemStock?: (id: string, newStock: number) => Promise<void>;
   onBackToMarketplace?: () => void;
+  onSelectStore?: (storeId: string) => void;
 }
 
 interface CartItem {
@@ -278,7 +285,7 @@ interface CartItem {
   quantity: number;
 }
 
-export default function ComprasTab({ products, productos = [], foodItems = [], config, onAddTransaction, onUpdateProductStock, onUpdateFoodItemStock, onBackToMarketplace }: ComprasTabProps) {
+export default function ComprasTab({ products, productos = [], foodItems = [], config, onAddTransaction, onUpdateProductStock, onUpdateFoodItemStock, onBackToMarketplace, onSelectStore }: ComprasTabProps) {
   // Single Source of Truth: productosComprar is mapped directly to the dynamic products inventory state
   const productosComprar = productos.length > 0 ? productos : products;
 
@@ -287,6 +294,22 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
   // Search state (unified across both lists)
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close typeahead dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Category states for each segment
   const [selectedProductCategory, setSelectedProductCategory] = useState<string>('Todo');
@@ -341,18 +364,51 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const [comuna, setComuna] = useState(() => localStorage.getItem('cliente_comuna') || 'La Florida');
   const [showRutasModal, setShowRutasModal] = useState(false);
 
-  const isFruteria = config?.name?.toLowerCase().includes('frutería') || 
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const urlTienda = urlParams?.get('tienda') || urlParams?.get('id_tienda') || urlParams?.get('modulo');
+  const isFruteriaByUrl = urlTienda === 'fruteria' || urlTienda === 'frutería' || urlTienda === 'fruteria_principe_gales';
+  const isArticoByUrl = urlTienda === 'artico' || urlTienda === 'artico_congelados' || urlTienda === 'congelados';
+
+  const isArtico = isArticoByUrl ||
+                   config?.name?.toLowerCase().includes('ártico') ||
+                   config?.name?.toLowerCase().includes('artico') ||
+                   config?.name?.toLowerCase().includes('congelados');
+
+  const isFruteria = !isArtico && (
+                     isFruteriaByUrl ||
+                     config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
-                     (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false);
+                     (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false)
+  );
 
   const isFruteriaStore = isFruteria;
+
+  const getArticoDeliveryDays = (comunaName: string): string => {
+    const cLower = (comunaName || '').toLowerCase();
+    if (['la florida', 'la pintana', 'puente alto', 'san bernardo', 'maipú', 'maipu', 'san miguel', 'san ramón', 'la granja', 'el bosquecito', 'macul'].some(c => cLower.includes(c))) {
+      return 'Martes y Jueves';
+    }
+    if (['providencia', 'las condes', 'vitacura', 'ñuñoa', 'nunoa', 'peñalolén', 'penalolen', 'la reina', 'lo barnechea'].some(c => cLower.includes(c))) {
+      return 'Miércoles y Sábado';
+    }
+    if (['santiago', 'recoleta', 'estación central', 'estacion central', 'independencia', 'pudahuel', 'quilicura', 'renca', 'quinta normal', 'cerrillos', 'conchalí'].some(c => cLower.includes(c))) {
+      return 'Lunes y Viernes';
+    }
+    return 'Martes y Jueves';
+  };
 
   const moduloTiendaActive = config?.modulosActivos?.tiendaAbarrotes === true && !isFruteria;
 
   // Modern Independent Feature Flags (Todo o Nada)
   const flagRutasCamion = config?.modules?.rutasCamion ?? (config?.rutasCamion ? true : false);
-  const flagFruteria = true;
-  const flagAlmuerzos = true;
+  const flagFruteria = config?.modules?.fruteria ?? (config?.modulosActivos?.frutería ?? true);
+  
+  const isKitchenActive = !isFruteria && (
+    config?.modules?.almuerzos ?? 
+    (config?.modulosActivos?.cocinaAlmuerzos ?? (config?.mostrarAlmuerzos !== false))
+  );
+  const showKitchenModule = isKitchenActive;
+  const flagAlmuerzos = isKitchenActive;
   const flagTienda = true;
 
   useEffect(() => {
@@ -523,20 +579,66 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     setIsCheckingOut(false);
   }, [config?.id]);
 
+  // Automatic Data Normalization helper for Frutería
+  const normalizeProductForFruteria = (p: Product): Product => {
+    const nameLower = (p.name || (p as any).nombre || '').toLowerCase();
+    let cat = p.category || (p as any).categoria || 'Frutas';
+    
+    // Reassign alien categories (Bebidas, Abarrotes, etc.) when viewing Frutería
+    if (getModuleForCategory(cat) !== 'frutería') {
+      if (nameLower.includes('plátano') || nameLower.includes('platano') || nameLower.includes('manzana') || nameLower.includes('naranja') || nameLower.includes('palta') || nameLower.includes('fruta') || nameLower.includes('uva') || nameLower.includes('limón') || nameLower.includes('limon') || nameLower.includes('frutilla') || nameLower.includes('kiwi') || nameLower.includes('piña') || nameLower.includes('pina') || nameLower.includes('mango') || nameLower.includes('pera') || nameLower.includes('durazno') || nameLower.includes('ciruela')) {
+        cat = 'Frutas';
+      } else if (nameLower.includes('tomate') || nameLower.includes('papa') || nameLower.includes('cebolla') || nameLower.includes('lechuga') || nameLower.includes('zanahoria') || nameLower.includes('ajo') || nameLower.includes('verdura') || nameLower.includes('zapallo') || nameLower.includes('pimentón') || nameLower.includes('pimenton') || nameLower.includes('cilantro') || nameLower.includes('perejil') || nameLower.includes('choclo')) {
+        cat = 'Verduras';
+      } else if (nameLower.includes('nuez') || nameLower.includes('almendra') || nameLower.includes('maní') || nameLower.includes('mani') || nameLower.includes('pasas') || nameLower.includes('seco') || nameLower.includes('semilla')) {
+        cat = 'Frutos Secos';
+      } else {
+        cat = 'Abarrotes / Varios';
+      }
+    }
+
+    return {
+      ...p,
+      category: cat,
+      categoria: cat,
+      store: 'fruteria',
+      module: 'fruteria',
+      unidadMedida: p.unidadMedida || 'kg'
+    } as Product;
+  };
+
+  // Normalized product list for active store context
+  const productosNormalizados = isFruteria
+    ? productosComprar.map(p => normalizeProductForFruteria(p))
+    : productosComprar;
+
   // Lists of categories dynamically built to ensure any custom category from the dynamic products list is included
   const defaultCategories = ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks', 'Frutas', 'Verduras', 'Frutas Frescas'];
-  const uniqueProductCats = Array.from(new Set(productosComprar.map(p => p.category || (p as any).categoria).filter(Boolean)));
+  const uniqueProductCats = Array.from(new Set(productosNormalizados.map(p => p.category || (p as any).categoria).filter(Boolean)));
   const configCats = [...(config?.productCategories || []), ...(config?.fruteriaCategories || [])];
   const rawProductCategories = Array.from(new Set([...configCats, ...uniqueProductCats, ...defaultCategories]));
   const activeProductCategories = rawProductCategories.filter(cat => isModuleActive(cat, config));
 
-  const tiendaCategories = ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')];
-  const fruteriaCategories = ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) === 'frutería')];
+  const OFFICIAL_ARTICO_CATEGORIES = [
+    'Carnes y Churrascos',
+    'Hamburguesas y Prefritos',
+    'Congelados y Pulpas',
+    'Mariscos y Pescados',
+    'Refrigerados y Cecinas',
+    'Kits y Huevos'
+  ];
 
-  const foodItemCategories = ['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']).filter(cat => isModuleActive(cat, config))];
+  const tiendaCategories = Array.from(new Set(isArtico
+    ? ['Todo', ...OFFICIAL_ARTICO_CATEGORIES, ...uniqueProductCats.filter(c => !OFFICIAL_ARTICO_CATEGORIES.includes(c))]
+    : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')]));
+  const fruteriaCategories = Array.from(new Set(isFruteria
+    ? ['Todo', ...Array.from(new Set(productosNormalizados.map(p => p.category || (p as any).categoria).filter(Boolean)))]
+    : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) === 'frutería')]));
+
+  const foodItemCategories = Array.from(new Set(['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']).filter(cat => isModuleActive(cat, config))]));
 
   // Match items based on filters and search
-  const filteredTiendaProducts = productosComprar.filter(product => {
+  const filteredTiendaProducts = isFruteria ? [] : productosComprar.filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
     if (getModuleForCategory(catRaw) === 'frutería') return false;
 
@@ -551,9 +653,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     return matchesSearch && matchesCategory;
   });
 
-  let filteredFruteriaProducts = productosComprar.filter(product => {
+  let filteredFruteriaProducts = (isFruteria ? productosNormalizados : productosComprar).filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
-    if (getModuleForCategory(catRaw) !== 'frutería') return false;
+    if (!isFruteria && getModuleForCategory(catRaw) !== 'frutería') return false;
 
     const searchClean = (searchTerm || '').trim().toLowerCase();
     const productName = (product.name || (product as any).nombre || '').toLowerCase();
@@ -582,71 +684,80 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     const displayPrice = isOferta ? ofertaPrice : basePrice;
     const productName = p.name || (p as any).nombre || 'Producto sin nombre';
 
+    const isHighlighted = highlightedCardId === p.id;
+
     return (
       <div 
         key={p.id}
-        className={`bg-white rounded-2xl border-2 transition-all duration-305 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md ${
-          isOutofStock 
-            ? 'opacity-65 border-slate-200 bg-slate-50' 
-            : inCart 
-              ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/5' 
-              : 'border-slate-200 bg-white'
+        id={`product-card-${p.id}`}
+        className={`bg-white rounded-2xl border-2 transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md p-4 ${
+          isHighlighted
+            ? 'ring-4 ring-amber-400 border-amber-500 scale-[1.02] shadow-xl z-20 animate-pulse'
+            : isOutofStock 
+              ? 'opacity-65 border-slate-200 bg-slate-50' 
+              : inCart 
+                ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/5' 
+                : 'border-slate-200 bg-white'
         }`}
       >
-        <div className="relative h-44 w-full bg-slate-50 overflow-hidden shrink-0">
+        <div 
+          className="relative w-full bg-white overflow-hidden shrink-0 flex items-center justify-center p-2 mb-2"
+          style={{ height: '160px', width: '100%', position: 'relative' }}
+        >
           <img
             src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
             alt={productName}
             referrerPolicy="no-referrer"
-            className="w-full h-full object-contain p-2.5 bg-white transition-transform duration-305 ease-out hover:scale-101"
+            className="transition-transform duration-300 ease-out hover:scale-105"
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
             }}
           />
           
-          <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-black px-3.5 py-1 rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1.5">
-            {renderCategoryIcon(p.category || (p as any).categoria, config, "w-4 h-4 object-contain inline-block")}
+          <span className="absolute top-1 left-1 bg-amber-500 text-white text-[10px] sm:text-[11px] font-black px-2.5 py-1 rounded-lg shadow-xs uppercase tracking-wider flex items-center gap-1.5 z-10">
+            {renderCategoryIcon(p.category || (p as any).categoria, config, "w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain inline-block")}
             <span>{p.category || (p as any).categoria}</span>
           </span>
 
           {isOferta && (
-            <span className="absolute top-3 right-3 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-lg shadow-md uppercase tracking-widest flex items-center gap-1 animate-pulse z-10">
+            <span className="absolute top-1 right-1 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] sm:text-xs font-black px-2.5 py-1 rounded-lg shadow-xs uppercase tracking-widest flex items-center gap-1 animate-pulse z-10">
               🔥 ¡OFERTA!
             </span>
           )}
 
           {isOutofStock ? (
-            <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[1.5px] flex items-center justify-center">
-              <span className="bg-red-500 text-white font-extrabold text-xs px-4 py-2 rounded-full uppercase tracking-widest shadow-md">
-                Agotado / Sin Stock
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[1px] flex items-center justify-center z-10 rounded-xl">
+              <span className="bg-red-500 text-white font-extrabold text-xs sm:text-sm px-4 py-2 rounded-full uppercase tracking-widest shadow-md text-center">
+                Agotado
               </span>
             </div>
           ) : p.stock <= 5 ? (
-            <span className="absolute bottom-3 right-3 bg-amber-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-xs">
-              ¡Solo quedan {p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'u.'}!
+            <span className="absolute bottom-1 right-1 bg-amber-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-xs z-10">
+              ¡Solo {p.stock}!
             </span>
           ) : (
-            <span className="absolute bottom-3 right-3 bg-slate-950/90 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg">
-              S. Disp: {p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'uds'}
+            <span className="absolute bottom-1 right-1 bg-slate-900/80 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg z-10">
+              Disp: {p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'u.'}
             </span>
           )}
         </div>
 
-        <div className="p-4 flex-1 flex flex-col justify-between space-y-3 font-sans">
-          <div className="flex justify-between items-start gap-2">
-            <div className="space-y-1">
-              <p className="text-slate-950 font-black text-base leading-tight">
+        <div className="flex-1 flex flex-col justify-between space-y-3 font-sans">
+          <div className="flex justify-between items-start gap-2.5">
+            <div className="space-y-1 min-w-0 flex-1">
+              <p className="text-slate-950 font-black text-sm sm:text-base leading-snug">
                 {productName}
               </p>
-              <p className="text-xs text-slate-600 font-extrabold font-mono">
+              <p className="text-xs text-slate-500 font-extrabold font-mono truncate">
                 SKU: {p.sku || p.id}
               </p>
               {p.unidadMedida && p.unidadMedida !== 'unidad' && (
-                <div className="text-[11px] font-extrabold text-indigo-700 mt-1 uppercase tracking-wide">
-                  Precio base: {isOferta ? (
+                <div className="text-xs font-extrabold text-indigo-700 uppercase tracking-wide mt-0.5">
+                  Base: {isOferta ? (
                     <span>
                       <span className="line-through text-slate-400 mr-1">${basePrice.toLocaleString('es-CL')}</span>
-                      <span className="text-rose-600">${ofertaPrice.toLocaleString('es-CL')}</span> / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}
+                      <span className="text-rose-600">${ofertaPrice.toLocaleString('es-CL')}</span>
                     </span>
                   ) : (
                     <span>${basePrice.toLocaleString('es-CL')} / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}</span>
@@ -655,42 +766,42 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
               )}
             </div>
             <div className="text-right shrink-0">
-              <span className="text-[10px] text-slate-550 font-black uppercase tracking-wide block">Precio</span>
+              <span className="text-[10px] text-slate-500 font-black uppercase tracking-wide block">Precio</span>
               {isOferta ? (
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-slate-400 line-through font-extrabold leading-none mb-0.5">
                     ${basePrice.toFixed(2)}
                   </span>
-                  <span className="text-lg font-black text-rose-600 leading-none">
+                  <span className="text-base sm:text-lg font-black text-rose-600 leading-none">
                     ${ofertaPrice.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
                   </span>
                 </div>
               ) : (
-                <span className="text-lg font-black text-slate-950">
+                <span className="text-base sm:text-lg font-black text-slate-950 leading-none">
                   ${basePrice.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-slate-205 font-sans">
-            <span className="text-xs text-slate-950 font-black">
-              {getModuleForCategory(p.category) === 'frutería' ? 'Frutería 🍎' : 'Tienda 📦'}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200 font-sans gap-2">
+            <span className="text-xs text-slate-600 font-extrabold truncate">
+              {isFruteria ? 'Frutería 🍎' : (getModuleForCategory(p.category) === 'frutería' ? 'Frutería 🍎' : 'Tienda 📦')}
             </span>
 
             {isOutofStock ? (
-              <span className="text-xs text-rose-600 font-black bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">No disponible</span>
+              <span className="text-xs text-rose-600 font-black bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 shrink-0">Agotado</span>
             ) : (isFruteriaStore || (p as any).unit === 'kg' || (p as any).unidad === 'kilo' || (p as any).unidad === 'kg' || (p as any).unidad === 'kilo' || p.unidadMedida === 'kg' || p.unidadMedida === 'g') ? (
               /* Weight Based Selector */
               inCart ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <select
                     value={cartItem.quantity}
                     onChange={(e) => {
                       const newW = parseFloat(e.target.value);
                       setCart(cart.map(item => item.id === p.id && item.type === 'product' ? { ...item, quantity: newW } : item));
                     }}
-                    className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white"
+                    className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
                   >
                     {(p.unidadMedida === 'g' ? G_OPTIONS : KG_OPTIONS).map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -698,18 +809,18 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   </select>
                   <button
                     onClick={() => handleRemoveItem(p.id, 'product')}
-                    className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-200 transition-colors cursor-pointer"
+                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl border border-rose-200 transition-colors cursor-pointer"
                     title="Eliminar del carrito"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <select
                     value={getSelectedWeight(p)}
                     onChange={(e) => setSelectedWeights(prev => ({ ...prev, [p.id]: parseFloat(e.target.value) }))}
-                    className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white"
+                    className="bg-slate-50 border-2 border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-black text-slate-950 outline-none focus:border-emerald-500 focus:bg-white cursor-pointer"
                   >
                     {(p.unidadMedida === 'g' ? G_OPTIONS : KG_OPTIONS).map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -717,18 +828,18 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   </select>
                   <button
                     onClick={() => handleAddProduct(p)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1 shadow-md border border-emerald-500 cursor-pointer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3.5 py-2 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1 shadow-xs border border-emerald-500 cursor-pointer shrink-0"
                   >
-                    <Plus className="w-3 h-3 stroke-[3]" />
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
                     <span>Llevar</span>
                   </button>
                 </div>
               )
             ) : inCart ? (
-              <div className="flex items-center bg-slate-100 border-2 border-slate-250 rounded-xl p-1 shadow-inner font-sans">
+              <div className="flex items-center bg-slate-100 border-2 border-slate-300 rounded-xl p-1 shadow-inner font-sans shrink-0">
                 <button
                   onClick={() => handleAdjustQty(p.id, 'product', -1)}
-                  className="p-1.5 bg-white text-emerald-700 hover:bg-slate-100 rounded-lg shadow-3xs transition-colors cursor-pointer"
+                  className="p-1.5 bg-white text-emerald-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 >
                   <Minus className="w-3.5 h-3.5 stroke-[3]" />
                 </button>
@@ -738,7 +849,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                 <button
                   onClick={() => handleAdjustQty(p.id, 'product', 1)}
                   disabled={cartItem.quantity >= p.stock}
-                  className={`p-1.5 bg-white rounded-lg shadow-3xs transition-all cursor-pointer ${
+                  className={`p-1.5 bg-white rounded-lg transition-all cursor-pointer ${
                     cartItem.quantity >= p.stock 
                       ? 'text-slate-350 opacity-40 cursor-not-allowed' 
                       : 'text-emerald-700 hover:bg-slate-100'
@@ -750,7 +861,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
             ) : (
               <button
                 onClick={() => handleAddProduct(p)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-2.5 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2 rounded-xl transition-all duration-100 active:scale-95 flex items-center gap-1.5 shadow-xs border border-emerald-500 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
                 Agregar
@@ -1529,57 +1640,126 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
   return (
     <div id="compras-container" className="space-y-6 pb-36 animate-in fade-in duration-300">
-      {onBackToMarketplace && (
-        <button
-          onClick={onBackToMarketplace}
-          className="group flex items-center gap-2.5 text-xs font-extrabold text-white bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-800 hover:from-indigo-500 hover:to-blue-700 px-5 py-3 rounded-full shadow-md hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-[1.03] active:scale-95 border border-indigo-500/35 transition-all duration-300 ease-out cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 stroke-[3] transition-transform duration-300 group-hover:-translate-x-1" />
-          <span>Volver al Marketplace</span>
-        </button>
-      )}
+      {/* Marketplace Stores Bar */}
+      <div className="bg-white/95 backdrop-blur-md p-3 rounded-2xl border-2 border-slate-200 shadow-sm flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5">
+          <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 px-1 flex items-center gap-1 shrink-0">
+            <ShoppingBag className="w-3.5 h-3.5 text-indigo-600" />
+            Tiendas:
+          </span>
+
+          {[
+            { id: 'fruteria_principe_gales', name: 'Frutería Príncipe', emoji: '🍎', activeBg: 'bg-emerald-600 text-white shadow-emerald-600/30' },
+            { id: 'el_turco', name: 'Donde el Turco', emoji: '🏪', activeBg: 'bg-amber-600 text-white shadow-amber-600/30' },
+            { id: 'artico_congelados', name: 'Ártico Congelados', emoji: '🧊', activeBg: 'bg-sky-600 text-white shadow-sky-600/30' },
+            { id: 'buencorte', name: 'El Buen Corte', emoji: '🥩', activeBg: 'bg-rose-700 text-white shadow-rose-700/30' },
+            { id: 'barrioseguro', name: 'Barrio Seguro', emoji: '💊', activeBg: 'bg-emerald-700 text-white shadow-emerald-700/30' }
+          ].map(s => {
+            const isActive = (isArtico && s.id === 'artico_congelados') ||
+                             (isFruteria && s.id === 'fruteria_principe_gales') ||
+                             (!isArtico && !isFruteria && config.name?.toLowerCase().includes('turco') && s.id === 'el_turco') ||
+                             (config.name?.toLowerCase().includes('corte') && s.id === 'buencorte') ||
+                             (config.name?.toLowerCase().includes('farmacia') && s.id === 'barrioseguro');
+
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  if (onSelectStore) {
+                    onSelectStore(s.id);
+                  } else {
+                    localStorage.setItem('id_tienda', s.id);
+                    localStorage.setItem('tenant_tienda_id', s.id);
+                    window.location.search = `?tienda=${s.id}`;
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shrink-0 ${
+                  isActive 
+                    ? `${s.activeBg} shadow-sm scale-105 ring-2 ring-offset-1 ring-slate-300`
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                }`}
+              >
+                <span>{s.emoji}</span>
+                <span>{s.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {onBackToMarketplace && (
+          <button
+            type="button"
+            onClick={onBackToMarketplace}
+            className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer shadow-3xs active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 stroke-[3]" />
+            <span>Volver al Marketplace</span>
+          </button>
+        )}
+      </div>
+
       {/* Visual Header Banner */}
-      <div className="relative rounded-2xl overflow-hidden shadow-md h-36 bg-slate-900 text-white flex items-center p-5 border-2 border-slate-900">
+      <div className={`relative rounded-2xl overflow-hidden shadow-md h-36 text-white flex items-center p-5 border-2 ${
+        isArtico 
+          ? 'bg-slate-950 border-sky-400/60 shadow-sky-950/20' 
+          : 'bg-slate-900 border-slate-900'
+      }`}>
         <div className="absolute inset-0 z-0">
           <img
-            src={config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800'}
+            src={config.bannerUrl || (isArtico 
+              ? 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800'
+              : 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800')}
             alt="Local Banner"
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover filter brightness-[0.45] contrast-110"
+            className="w-full h-full object-cover filter brightness-[0.4] contrast-110"
           />
         </div>
         <div className="relative z-10 space-y-2">
-          <span className="bg-emerald-600 text-white text-xs font-black uppercase px-3.5 py-1.5 rounded-full tracking-wider shadow-md inline-flex items-center gap-1.5">
+          <span className={`${
+            isArtico ? 'bg-sky-600 text-white' : 'bg-emerald-600 text-white'
+          } text-xs font-black uppercase px-3.5 py-1.5 rounded-full tracking-wider shadow-md inline-flex items-center gap-1.5`}>
             <Sparkles className="w-3.5 h-3.5 fill-amber-300 stroke-amber-350" />
-            CATÁLOGO COMPLETO
+            {isArtico ? 'DISTRIBUIDORA DE CONGELADOS' : 'CATÁLOGO COMPLETO'}
           </span>
-          <h2 className="text-2xl font-black tracking-tight font-sans text-white">
-            {config.name || 'Donde el Goyo'} 🏪
+          <h2 className="text-2xl font-black tracking-tight font-sans text-white flex items-center gap-2">
+            <span>{config.name || (isArtico ? 'Ártico Congelados' : 'Donde el Goyo')}</span>
+            <span>{isArtico ? '🧊' : '🏪'}</span>
           </h2>
-          <p className="text-xs text-slate-100 font-extrabold leading-relaxed max-w-sm">
-            ¡Agrega víveres de la tienda y exquisitas comidas de la cocina al mismo carrito para enviarlo todo junto!
+          <p className="text-xs text-slate-100 font-extrabold leading-relaxed max-w-md">
+            {isArtico 
+              ? '¡Carnes, churrascos, hamburguesas, pulpas de fruta, mariscos y kits con reparto programado por comuna!'
+              : '¡Agrega víveres de la tienda y exquisitas comidas de la cocina al mismo carrito para enviarlo todo junto!'}
           </p>
         </div>
       </div>
 
-      {/* Banner de Rutas de Reparto - Condicional por Feature Flag */}
-      {isFruteriaStore && flagRutasCamion && (
-        <div className="bg-emerald-50/90 border-2 border-emerald-200 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+      {/* Banner de Rutas / Logística por Comuna */}
+      {(isArtico || (isFruteriaStore && flagRutasCamion) || flagRutasCamion) && (
+        <div className={isArtico 
+          ? "bg-sky-50/95 border-2 border-sky-300 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300"
+          : "bg-emerald-50/90 border-2 border-emerald-200 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300"
+        }>
           <div className="flex items-start gap-3">
-            <span className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shadow-3xs text-base">
-              🚚
+            <span className={isArtico ? "p-2.5 bg-sky-100 text-sky-800 rounded-xl shadow-3xs text-xl" : "p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shadow-3xs text-base"}>
+              {isArtico ? '🧊' : '🚚'}
             </span>
             <div className="flex-1 min-w-0">
-              <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
-                <span>Rutas de Despacho Programado</span>
-                <span className="bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Logística Camión
+              <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5 flex-wrap">
+                <span>{isArtico ? 'Logística Ártico: Días de Despacho por Zona' : 'Rutas de Despacho Programado'}</span>
+                <span className={isArtico ? "bg-sky-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider" : "bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider"}>
+                  {isArtico ? 'Reparto por Comuna' : 'Logística Camión'}
                 </span>
               </h4>
               
               {/* Comuna selection & display */}
               <div className="mt-1.5 text-xs text-slate-700 leading-relaxed space-y-2">
-                {comuna ? (
+                {isArtico ? (
+                  <p className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                    <span>🚚 Cobertura activa en <span className="bg-sky-200 text-sky-950 px-2 py-0.5 rounded-md font-black">{comuna}</span>.</span>
+                    <span>Días de despacho programado para esta zona: <span className="bg-sky-600 text-white font-black px-2.5 py-0.5 rounded-md shadow-2xs">{getArticoDeliveryDays(comuna)}</span>.</span>
+                  </p>
+                ) : comuna ? (
                   (() => {
                     const sector = getSectorForComuna(comuna, config?.rutasCamion);
                     return (
@@ -1610,7 +1790,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
                 {/* Quick inline Comuna selector */}
                 <div className="flex items-center gap-2 pt-1">
-                  <span className="text-[11px] font-extrabold text-slate-650">Mi Comuna:</span>
+                  <span className="text-[11px] font-extrabold text-slate-650">Verificar otra Comuna:</span>
                   <select
                     value={comuna}
                     onChange={(e) => {
@@ -1618,7 +1798,10 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                       setComuna(val);
                       localStorage.setItem('cliente_comuna', val);
                     }}
-                    className="bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1 text-[11px] font-black text-slate-950 outline-none focus:border-emerald-500 cursor-pointer"
+                    className={isArtico
+                      ? "bg-white border-2 border-sky-300 rounded-lg px-2.5 py-1 text-[11px] font-black text-slate-950 outline-none focus:border-sky-600 cursor-pointer"
+                      : "bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1 text-[11px] font-black text-slate-950 outline-none focus:border-emerald-500 cursor-pointer"
+                    }
                   >
                     {RM_COMUNAS.map((c) => (
                       <option key={c} value={c}>
@@ -1632,37 +1815,244 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
           </div>
 
           {/* Buttons to view zones */}
-          <div className="flex items-center justify-between border-t border-emerald-200/50 pt-2">
+          <div className={`flex items-center justify-between border-t ${isArtico ? 'border-sky-200/60' : 'border-emerald-200/50'} pt-2`}>
             <button
               onClick={() => setShowRutasModal(true)}
-              className="text-[11px] font-black text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1 cursor-pointer hover:underline"
+              className={`text-[11px] font-black ${isArtico ? 'text-sky-800 hover:text-sky-900' : 'text-emerald-700 hover:text-emerald-800'} transition-colors flex items-center gap-1 cursor-pointer hover:underline`}
             >
-              <span>📅 Ver zonas y comunas de reparto</span>
+              <span>📅 Ver mapa y calendario de reparto por comunas</span>
               <span className="text-[10px]">➜</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Global Search Input Box */}
-      <div className="relative">
-        <input
-          type="text"
-          placeholder="Buscar platos de comida o víveres de la tienda..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-white border-2 border-slate-350 rounded-2xl pl-11 pr-20 py-4 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-extrabold text-slate-950 shadow-sm"
-        />
-        <Search className="absolute left-4 top-4.5 w-5 h-5 text-slate-500 stroke-[2.5]" />
-        {searchTerm && (
-          <button 
-            onClick={() => setSearchTerm('')}
-            className="absolute right-4 top-3 bg-slate-100 hover:bg-slate-200 text-slate-850 transition-colors rounded-xl px-3 py-1.5 text-xs font-black border border-slate-200"
-          >
-            Limpiar
-          </button>
-        )}
-      </div>
+      {/* Global Search Input Box with Autocomplete Dropdown */}
+      {(() => {
+        const searchClean = searchTerm.trim().toLowerCase();
+        const isSearching = searchClean.length >= 2;
+
+        const matchingProductSuggestions = (isFruteria ? productosNormalizados : productosComprar).filter(p => {
+          const pName = (p.name || (p as any).nombre || '').toLowerCase();
+          const pSku = (p.sku || '').toLowerCase();
+          const pCat = (p.category || (p as any).categoria || '').toLowerCase();
+          return pName.includes(searchClean) || pSku.includes(searchClean) || pCat.includes(searchClean);
+        });
+
+        const matchingFoodSuggestions = (!showKitchenModule || !flagAlmuerzos) ? [] : foodItems.filter(f => {
+          if (!isModuleActive(f.category, config)) return false;
+          const fName = (f.name || '').toLowerCase();
+          const fDesc = (f.description || '').toLowerCase();
+          const fCat = (f.category || '').toLowerCase();
+          return fName.includes(searchClean) || fDesc.includes(searchClean) || fCat.includes(searchClean);
+        });
+
+        const combinedSuggestions = [
+          ...matchingProductSuggestions.map(p => ({
+            id: p.id,
+            type: 'product' as const,
+            name: p.name || (p as any).nombre || 'Producto',
+            sku: p.sku,
+            category: p.category || (p as any).categoria || 'Tienda',
+            price: Number(p.precioOferta && p.enOferta ? p.precioOferta : p.price || (p as any).precio || 0),
+            basePrice: Number(p.price || (p as any).precio || 0),
+            isOferta: p.enOferta || (p as any).esOferta,
+            stock: p.stock,
+            unidadMedida: p.unidadMedida,
+            imageUrl: p.imageUrl,
+            rawItem: p,
+            isOutofStock: p.stock <= 0
+          })),
+          ...matchingFoodSuggestions.map(f => ({
+            id: f.id,
+            type: 'meal' as const,
+            name: f.name,
+            sku: '',
+            category: f.category || 'Cocina',
+            price: Number(f.enOferta && f.precioOferta !== null && f.precioOferta !== undefined ? f.precioOferta : f.price || 0),
+            basePrice: Number(f.price || 0),
+            isOferta: f.enOferta,
+            stock: f.stock ?? 0,
+            unidadMedida: 'ración',
+            imageUrl: f.imageUrl,
+            rawItem: f,
+            isOutofStock: (f.stock ?? 0) <= 0
+          }))
+        ].slice(0, 10);
+
+        return (
+          <div ref={searchContainerRef} className="relative z-30">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="🔍 Escribe para buscar productos o platos (ej: Manzana, Arroz)..."
+                value={searchTerm}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchTerm(val);
+                  if (val.trim().length >= 2) {
+                    setShowSuggestions(true);
+                  } else {
+                    setShowSuggestions(false);
+                  }
+                }}
+                onFocus={() => {
+                  if (searchTerm.trim().length >= 2) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                className="w-full bg-white border-2 border-slate-350 rounded-2xl pl-11 pr-24 py-4 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-extrabold text-slate-950 shadow-sm transition-all"
+              />
+              <Search className="absolute left-4 top-4.5 w-5 h-5 text-slate-500 stroke-[2.5]" />
+              {searchTerm && (
+                <button 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setShowSuggestions(false);
+                  }}
+                  className="absolute right-3 top-3 bg-slate-100 hover:bg-slate-200 text-slate-850 transition-colors rounded-xl px-3 py-1.5 text-xs font-black border border-slate-200 cursor-pointer"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+
+            {/* Typeahead Dropdown Menu */}
+            {showSuggestions && isSearching && (
+              <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border-2 border-slate-300 shadow-2xl z-50 overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-slate-100 font-sans">
+                <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-3xs">
+                  <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🔍 Sugerencias en tiempo real</span>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-black">
+                      {combinedSuggestions.length}
+                    </span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-bold hidden sm:inline">
+                    Haz clic para ir al producto
+                  </span>
+                </div>
+
+                {combinedSuggestions.length === 0 ? (
+                  <div className="p-5 text-center space-y-1">
+                    <p className="text-sm font-black text-slate-700">Sin coincidencias exactas</p>
+                    <p className="text-xs text-slate-500 font-medium">Prueba con otra palabra clave ("Palta", "Melón", "Leche")</p>
+                  </div>
+                ) : (
+                  combinedSuggestions.map((item) => {
+                    const displayPriceStr = `$${item.price.toLocaleString('es-CL')}`;
+
+                    return (
+                      <div
+                        key={`${item.type}-${item.id}`}
+                        onClick={() => {
+                          const targetCardId = item.type === 'product' ? `product-card-${item.id}` : `dish-card-${item.id}`;
+                          const el = document.getElementById(targetCardId);
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setHighlightedCardId(item.id);
+                            setTimeout(() => setHighlightedCardId(null), 2500);
+                          }
+                          setShowSuggestions(false);
+                        }}
+                        className="p-3 hover:bg-emerald-50/80 transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+                      >
+                        {/* Thumbnail + Details */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200 shrink-0 overflow-hidden flex items-center justify-center p-1 relative">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <span className="text-xl">
+                                {renderCategoryIcon(item.category, config, "w-6 h-6 object-contain")}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-black text-slate-900 group-hover:text-emerald-950 truncate leading-snug">
+                                {item.name}
+                              </p>
+                              {item.isOferta && (
+                                <span className="bg-rose-100 text-rose-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                  Oferta
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                                {renderCategoryIcon(item.category, config, "w-3 h-3 object-contain inline-block")}
+                                <span>{item.category}</span>
+                              </span>
+
+                              {item.isOutofStock ? (
+                                <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                                  Agotado
+                                </span>
+                              ) : item.stock > 0 && (
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  Disp: {item.stock} {item.unidadMedida === 'kg' ? 'Kg' : item.unidadMedida === 'g' ? 'g' : 'u.'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Price & Action Button */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="text-right">
+                            <span className="text-sm font-black text-slate-950 group-hover:text-emerald-700 block leading-tight">
+                              {displayPriceStr}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 block">
+                              {item.unidadMedida ? `por ${item.unidadMedida === 'kg' ? 'Kg' : item.unidadMedida === 'g' ? 'g' : item.unidadMedida}` : 'por un.'}
+                            </span>
+                          </div>
+
+                          {!item.isOutofStock && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (item.type === 'product') {
+                                  handleAddProduct(item.rawItem);
+                                } else {
+                                  handleAddMeal(item.rawItem);
+                                }
+                                const targetCardId = item.type === 'product' ? `product-card-${item.id}` : `dish-card-${item.id}`;
+                                const el = document.getElementById(targetCardId);
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  setHighlightedCardId(item.id);
+                                  setTimeout(() => setHighlightedCardId(null), 2500);
+                                }
+                                setShowSuggestions(false);
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs px-2.5 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                              <span className="hidden sm:inline">Agregar</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* SECCIÓN: OFERTAS DEL DÍA */}
       {offerItems.length > 0 && (
@@ -1698,7 +2088,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   <span className={`absolute top-2.5 right-2.5 text-[9px] font-black px-2 py-0.5 rounded-md z-10 text-white ${
                     itemOffer.type === 'product' ? 'bg-indigo-650' : 'bg-emerald-600'
                   }`}>
-                    {itemOffer.type === 'product' ? 'Tienda 🏪' : 'Cocina 🍲'}
+                    {itemOffer.type === 'product' ? (isFruteria ? 'Frutería 🍎' : 'Tienda 🏪') : 'Cocina 🍲'}
                   </span>
 
                   {/* Discount Percentage Badge */}
@@ -1713,7 +2103,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     Stock: {itemOffer.stock}
                   </div>
 
-                  <div className="h-32 bg-slate-50 relative flex items-center justify-center p-4 mt-6">
+                  <div className="h-32 bg-white relative flex items-center justify-center p-2 mt-6">
                     <img
                       src={itemOffer.imageUrl || (itemOffer.type === 'product' 
                         ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=100'
@@ -1884,7 +2274,15 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
               No se encontraron productos que coincidan con la búsqueda.
             </p>
           ) : (
-            <div className="grid grid-cols-1 gap-4">
+            <div 
+              className="w-full grid grid-cols-1 gap-4"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '16px',
+                width: '100%'
+              }}
+            >
               {filteredFruteriaProducts.map((p) => {
                 const cartItem = cart.find(item => item.id === p.id && item.type === 'product');
                 const inCart = !!cartItem;
@@ -1898,7 +2296,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       )}
 
       {/* SECTION 1: MENÚ DEL DÍA (Warm dishes) */}
-      {flagAlmuerzos && (
+      {(showKitchenModule && foodItems.length > 0) && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
           <div className="space-y-1">
@@ -1945,7 +2343,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
             No se encontraron comidas que coincidan con la búsqueda.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredFoodItems.map((dish) => {
               const cartItem = cart.find(item => item.id === dish.id && item.type === 'meal');
               const inCart = !!cartItem;
@@ -1953,8 +2351,13 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
               return (
                 <div 
                   key={dish.id} 
+                  id={`dish-card-${dish.id}`}
                   className={`bg-white rounded-2xl overflow-hidden border-2 transition-all duration-300 flex flex-col shadow-sm hover:shadow-md ${
-                    inCart ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/5' : 'border-slate-200 bg-white'
+                    highlightedCardId === dish.id
+                      ? 'ring-4 ring-amber-400 border-amber-500 scale-[1.02] shadow-xl z-20 animate-pulse'
+                      : inCart 
+                        ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/5' 
+                        : 'border-slate-200 bg-white'
                   }`}
                 >
                   <div className="relative h-44 w-full bg-slate-50 shrink-0">
@@ -2073,7 +2476,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       )}
 
       {/* SECTION 2A: PRODUCTOS DE LA TIENDA (Víveres y Abarrotes) */}
-      {flagTienda && (
+      {(!isFruteria && flagTienda) && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
             <div className="space-y-1">
@@ -2122,7 +2525,15 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
               No se encontraron productos que coincidan con la búsqueda.
             </p>
           ) : (
-            <div className="grid grid-cols-1 gap-4">
+            <div 
+              className="w-full grid grid-cols-1 gap-4"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '16px',
+                width: '100%'
+              }}
+            >
               {filteredTiendaProducts.map((p) => {
                 const cartItem = cart.find(item => item.id === p.id && item.type === 'product');
                 const inCart = !!cartItem;

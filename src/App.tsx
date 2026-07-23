@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
-import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory } from './types';
+import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory, normalizeProductForFruteria } from './types';
 import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG, getTenantSpecificConfig } from './initDb';
 
 import Header from './components/Header';
@@ -141,6 +141,8 @@ export default function App() {
           clean = 'el_turco';
         } else if (clean === 'farmacia') {
           clean = 'barrioseguro';
+        } else if (clean === 'artico' || clean === 'congelados') {
+          clean = 'artico_congelados';
         }
         setTenantId(clean);
         localStorage.setItem('id_tienda', clean);
@@ -204,8 +206,10 @@ export default function App() {
       const productsQuery = query(collection(db, 'tenants', tenantId, 'products'), orderBy('sku', 'asc'));
       unsubProducts = onSnapshot(productsQuery, (snap) => {
         const prodList: Product[] = [];
+        const isFrut = tenantId.includes('fruteria') || tenantId.includes('principe') || tenantId === 'fruteria_principe_gales';
         snap.forEach(d => {
-          prodList.push(d.data() as Product);
+          const item = d.data() as Product;
+          prodList.push(isFrut ? normalizeProductForFruteria(item) : item);
         });
         setProducts(prodList);
         localStorage.setItem(`products_${tenantId}`, JSON.stringify(prodList));
@@ -253,14 +257,21 @@ export default function App() {
     const sanitizedPrice = Number(item.price) || 0;
     const sanitizedCost = Number(item.cost) || 0;
 
-    const newProduct: Product = {
+    const isFruteriaTenant = tenantId?.includes('fruteria') || config?.name?.toLowerCase().includes('frutería') || item.store === 'fruteria';
+
+    let newProduct: Product = {
       ...item,
       id,
       stock: sanitizedStock,
       price: sanitizedPrice,
       cost: sanitizedCost,
+      store: isFruteriaTenant ? 'fruteria' : (item.store || 'turco'),
       updatedAt: new Date().toISOString()
     };
+
+    if (isFruteriaTenant) {
+      newProduct = normalizeProductForFruteria(newProduct);
+    }
 
     // Immediate zero-latency local state & LocalStorage update
     setProducts((prev) => {
@@ -289,13 +300,20 @@ export default function App() {
     const sanitizedPrice = Number(item.price) || 0;
     const sanitizedCost = Number(item.cost) || 0;
 
-    const sanitizedProduct: Product = {
+    const isFruteriaTenant = tenantId?.includes('fruteria') || config?.name?.toLowerCase().includes('frutería') || item.store === 'fruteria';
+
+    let sanitizedProduct: Product = {
       ...item,
       stock: sanitizedStock,
       price: sanitizedPrice,
       cost: sanitizedCost,
+      store: isFruteriaTenant ? 'fruteria' : (item.store || 'turco'),
       updatedAt: new Date().toISOString()
     };
+
+    if (isFruteriaTenant) {
+      sanitizedProduct = normalizeProductForFruteria(sanitizedProduct);
+    }
 
     // Immediate zero-latency local state & LocalStorage update
     setProducts((prev) => {
@@ -668,7 +686,7 @@ export default function App() {
       )}
 
       {/* Main viewport canvas */}
-      <main className="flex-1 px-4 pt-4 pb-28 max-w-md w-full mx-auto">
+      <main className="flex-1 px-4 pt-4 pb-28 max-w-4xl w-full mx-auto">
         {adminDeliveryActive && currentEmployee ? (
           <AdminDeliveryPanel
             products={products}
@@ -716,6 +734,15 @@ export default function App() {
                 onAddTransaction={handleAddTransaction}
                 onUpdateProductStock={handleUpdateProductStock}
                 onUpdateFoodItemStock={handleUpdateFoodItemStock}
+                onSelectStore={(storeId) => {
+                  let clean = storeId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                  if (clean === 'fruteria' || clean === 'frutería') clean = 'fruteria_principe_gales';
+                  if (clean === 'turco') clean = 'el_turco';
+                  if (clean === 'artico' || clean === 'congelados') clean = 'artico_congelados';
+                  localStorage.setItem('id_tienda', clean);
+                  localStorage.setItem('tenant_tienda_id', clean);
+                  setTenantId(clean);
+                }}
                 onBackToMarketplace={() => {
                   setTenantId(null);
                   localStorage.removeItem('id_tienda');

@@ -13,6 +13,7 @@ export interface Product {
   descuento?: number;
   precioOferta?: number | null;
   unidadMedida?: 'unidad' | 'kg' | 'g';
+  store?: string;
 }
 
 export interface CartItem {
@@ -76,6 +77,9 @@ export interface ModulosActivos {
   bodega: boolean;
   farmacia: boolean;
   frutería: boolean;
+  congeladosPulpas?: boolean;
+  carnesCecinas?: boolean;
+  kitsCajas?: boolean;
 }
 
 export interface ModulosPermitidos {
@@ -84,6 +88,9 @@ export interface ModulosPermitidos {
   bodega: boolean;
   farmacia: boolean;
   frutería: boolean;
+  congeladosPulpas?: boolean;
+  carnesCecinas?: boolean;
+  kitsCajas?: boolean;
 }
 
 export interface SectorConfig {
@@ -104,6 +111,7 @@ export interface BusinessConfig {
   productCategories?: string[];
   foodItemCategories?: string[];
   fruteriaCategories?: string[];
+  articoCategories?: string[];
   categoryIcons?: Record<string, string>;
   licenseExpirationDate?: string; // YYYY-MM-DD
   licenseStatus?: 'active' | 'suspended'; // 'active' | 'suspended'
@@ -127,20 +135,93 @@ export interface BusinessConfig {
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';
 
 export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bodega' | 'farmacia' | 'frutería' | 'cocinaAlmuerzos' {
-  const cat = category.toLowerCase();
+  const cat = (category || '').toLowerCase();
   if (cat.includes('bodega') || cat.includes('licor') || cat.includes('alcohol') || cat.includes('vino') || cat.includes('cerveza') || cat.includes('trago') || cat.includes('coctel') || cat.includes('destilado')) {
     return 'bodega';
   }
   if (cat.includes('farmacia') || cat.includes('medicamento') || cat.includes('remedio') || cat.includes('salud') || cat.includes('cuidado') || cat.includes('higiene') || cat.includes('farmaceut') || cat.includes('dental')) {
     return 'farmacia';
   }
-  if (cat.includes('frut') || cat.includes('verdur') || cat.includes('vegetal') || cat.includes('campo') || cat.includes('frutas') || cat.includes('verduras') || cat.includes('hortaliza')) {
+  if (
+    cat.includes('frut') || cat.includes('verdur') || cat.includes('vegetal') || cat.includes('campo') ||
+    cat.includes('frutas') || cat.includes('verduras') || cat.includes('hortaliza') || cat.includes('seco') ||
+    cat.includes('semilla') || cat.includes('huevo') || cat.includes('mermelada') || cat.includes('miel') ||
+    cat.includes('abarrotes / varios') || cat.includes('abarrotes/varios')
+  ) {
     return 'frutería';
   }
   if (cat.includes('almuerzo') || cat.includes('sopa') || cat.includes('postre') || cat.includes('cocina') || cat.includes('comida') || cat.includes('plato') || cat.includes('ración') || cat.includes('guiso') || cat.includes('ensalada')) {
     return 'cocinaAlmuerzos';
   }
   return 'tiendaAbarrotes';
+}
+
+export function normalizeProductForFruteria(p: Product): Product {
+  const nameLower = (p.name || (p as any).nombre || '').toLowerCase();
+  let cat = p.category || (p as any).categoria || 'Frutas';
+
+  if (
+    cat === 'Abarrotes' || cat === 'Bebidas' || cat === 'Lácteos' || cat === 'Snacks' ||
+    cat === 'Tienda' || !cat || getModuleForCategory(cat) !== 'frutería'
+  ) {
+    if (
+      nameLower.includes('melón') || nameLower.includes('melon') || nameLower.includes('sandía') ||
+      nameLower.includes('sandia') || nameLower.includes('plátano') || nameLower.includes('platano') ||
+      nameLower.includes('manzana') || nameLower.includes('naranja') || nameLower.includes('palta') ||
+      nameLower.includes('fruta') || nameLower.includes('uva') || nameLower.includes('limón') ||
+      nameLower.includes('limon') || nameLower.includes('frutilla') || nameLower.includes('kiwi') ||
+      nameLower.includes('piña') || nameLower.includes('pina') || nameLower.includes('mango') ||
+      nameLower.includes('pera') || nameLower.includes('durazno') || nameLower.includes('ciruela') ||
+      nameLower.includes('berry') || nameLower.includes('arándano') || nameLower.includes('arandano') ||
+      nameLower.includes('cereza') || nameLower.includes('frambuesa') || nameLower.includes('chirimoya') ||
+      nameLower.includes('higo') || nameLower.includes('damasco') || nameLower.includes('granada') ||
+      nameLower.includes('caqui') || nameLower.includes('membrillo')
+    ) {
+      cat = 'Frutas';
+    } else if (
+      nameLower.includes('tomate') || nameLower.includes('papa') || nameLower.includes('cebolla') ||
+      nameLower.includes('lechuga') || nameLower.includes('zanahoria') || nameLower.includes('ajo') ||
+      nameLower.includes('verdura') || nameLower.includes('zapallo') || nameLower.includes('pimentón') ||
+      nameLower.includes('pimenton') || nameLower.includes('cilantro') || nameLower.includes('perejil') ||
+      nameLower.includes('choclo') || nameLower.includes('apio') || nameLower.includes('espinaca') ||
+      nameLower.includes('acelga') || nameLower.includes('pepino') || nameLower.includes('betarraga') ||
+      nameLower.includes('brócoli') || nameLower.includes('brocoli') || nameLower.includes('coliflor') ||
+      nameLower.includes('rábano') || nameLower.includes('rabano') || nameLower.includes('berenjena') ||
+      nameLower.includes('alcachofa') || nameLower.includes('champiñón') || nameLower.includes('champinon')
+    ) {
+      cat = 'Verduras';
+    } else if (
+      nameLower.includes('nuez') || nameLower.includes('almendra') || nameLower.includes('maní') ||
+      nameLower.includes('mani') || nameLower.includes('pasas') || nameLower.includes('pistacho') ||
+      nameLower.includes('avellana') || nameLower.includes('castaña') || nameLower.includes('castana')
+    ) {
+      cat = 'Frutos Secos';
+    } else if (
+      nameLower.includes('semilla') || nameLower.includes('chia') || nameLower.includes('linaza') ||
+      nameLower.includes('girasol') || nameLower.includes('sésamo') || nameLower.includes('sesamo') ||
+      nameLower.includes('legumbre') || nameLower.includes('poroto') || nameLower.includes('lenteja') ||
+      nameLower.includes('garbanzo')
+    ) {
+      cat = 'Semillas';
+    } else if (nameLower.includes('huevo') || nameLower.includes('bandeja')) {
+      cat = 'Huevos';
+    } else if (nameLower.includes('mermelada') || nameLower.includes('confitura') || nameLower.includes('dulce de')) {
+      cat = 'Mermeladas';
+    } else if (nameLower.includes('miel') || nameLower.includes('panal')) {
+      cat = 'Miel';
+    } else {
+      cat = 'Abarrotes / Varios';
+    }
+  }
+
+  return {
+    ...p,
+    category: cat,
+    categoria: cat,
+    store: 'fruteria',
+    module: 'fruteria',
+    unidadMedida: p.unidadMedida || 'kg'
+  } as Product;
 }
 
 export function isModuleActive(category: string, config?: BusinessConfig): boolean {

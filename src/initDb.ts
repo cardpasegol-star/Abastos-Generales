@@ -315,10 +315,175 @@ const INITIAL_FRUIT_PRODUCTS: Product[] = [
   }
 ];
 
+export const INITIAL_ARTICO_PRODUCTS: Product[] = [
+  {
+    id: 'pack-huevos-12',
+    sku: 'HUEV-12',
+    name: 'Pack Huevos Yemita XL 12 Uds',
+    category: 'Kits y Huevos',
+    stock: 50,
+    price: 3650,
+    cost: 2500,
+    imageUrl: 'https://images.unsplash.com/photo-1516448620398-c5f44bf9f441?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'pack-huevos-20',
+    sku: 'HUEV-20',
+    name: 'Pack Huevos Yemita XL 20 Uds',
+    category: 'Kits y Huevos',
+    stock: 40,
+    price: 5750,
+    cost: 4100,
+    imageUrl: 'https://images.unsplash.com/photo-1516448620398-c5f44bf9f441?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'caja-huevos-180',
+    sku: 'HUEV-180',
+    name: 'Caja Huevos Yemita 180 Uds',
+    category: 'Kits y Huevos',
+    stock: 15,
+    price: 36250,
+    cost: 28000,
+    imageUrl: 'https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'pulpa-frambuesa-1kg',
+    sku: 'PULP-FRAMB',
+    name: 'Pulpa de Frambuesa Minuto Verde 1kg',
+    category: 'Congelados y Pulpas',
+    stock: 30,
+    price: 4500,
+    cost: 3100,
+    imageUrl: 'https://images.unsplash.com/photo-1570913149827-d2ac84ab3f9a?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'churrasco-vacuno-pack',
+    sku: 'CHURR-VAC',
+    name: 'Churrasco Vacuno (Formato Pack)',
+    category: 'Carnes y Churrascos',
+    stock: 25,
+    price: 7900,
+    cost: 5800,
+    imageUrl: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'kit-parrillero-8p',
+    sku: 'KIT-PARR',
+    name: 'Kit Parrillero (6 a 8 Personas)',
+    category: 'Kits y Huevos',
+    stock: 20,
+    price: 24900,
+    cost: 18500,
+    imageUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'hamburguesa-vacuno-pack4',
+    sku: 'HAMB-PACK4',
+    name: 'Hamburguesa Vacuno Pack 4 Uds',
+    category: 'Hamburguesas y Prefritos',
+    stock: 35,
+    price: 4200,
+    cost: 2900,
+    imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'filete-merluza-1kg',
+    sku: 'FISH-MERL',
+    name: 'Filete de Merluza Austral 1kg',
+    category: 'Mariscos y Pescados',
+    stock: 22,
+    price: 6800,
+    cost: 4800,
+    imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'queso-chanco-500g',
+    sku: 'QUES-CHAN',
+    name: 'Queso Chanco Trozo 500g',
+    category: 'Refrigerados y Cecinas',
+    stock: 28,
+    price: 4900,
+    cost: 3500,
+    imageUrl: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  }
+];
+
 export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
   const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
   const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
   const isFarmacia = tenantId.toLowerCase() === 'barrioseguro' || tenantId.toLowerCase() === 'farmacia';
+  const isArtico = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
+
+  if (isArtico) {
+    return {
+      ...DEFAULT_CONFIG,
+      id: 'business_info',
+      name: 'Ártico Congelados',
+      adminPin: '1234',
+      gps: 'Av. Vicuña Mackenna #8500, La Florida',
+      bannerUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800',
+      whatsapp: '+56987654321',
+      productCategories: [
+        'Carnes y Churrascos',
+        'Hamburguesas y Prefritos',
+        'Congelados y Pulpas',
+        'Mariscos y Pescados',
+        'Refrigerados y Cecinas',
+        'Kits y Huevos'
+      ],
+      categoryIcons: {
+        'Carnes y Churrascos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cut%20of%20Meat.png',
+        'Hamburguesas y Prefritos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png',
+        'Congelados y Pulpas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20and%20places/Ice.png',
+        'Mariscos y Pescados': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shrimp.png',
+        'Refrigerados y Cecinas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png',
+        'Kits y Huevos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png'
+      },
+      rutasCamion: {
+        'sector_sur': { name: 'Sector Sur', comunas: ['La Florida', 'La Pintana', 'Puente Alto', 'San Bernardo', 'Maipú', 'San Miguel'], days: ['Martes', 'Jueves'], fee: 3000 },
+        'sector_oriente': { name: 'Sector Oriente', comunas: ['Providencia', 'Las Condes', 'Vitacura', 'Ñuñoa', 'Peñalolén'], days: ['Miércoles', 'Sábado'], fee: 3500 },
+        'sector_poniente': { name: 'Sector Norte/Centro', comunas: ['Santiago Centro', 'Recoleta', 'Estación Central', 'Pudahuel'], days: ['Lunes', 'Viernes'], fee: 3200 }
+      },
+      modulosPermitidos: {
+        tiendaAbarrotes: true,
+        cocinaAlmuerzos: false,
+        bodega: false,
+        farmacia: false,
+        frutería: false
+      },
+      modulosActivos: {
+        tiendaAbarrotes: true,
+        cocinaAlmuerzos: false,
+        bodega: false,
+        farmacia: false,
+        frutería: false
+      },
+      modules: {
+        rutasCamion: true,
+        fruteria: false,
+        almuerzos: false,
+        tienda: true
+      }
+    };
+  }
 
   if (isPrincipeGales) {
     return {
@@ -446,14 +611,15 @@ export async function bootstrapDatabaseIfEmpty(tenantId: string) {
       batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
       // Write products
+      const isArticoTenant = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
       const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
-      const productsToSeed = isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+      const productsToSeed = isArticoTenant ? INITIAL_ARTICO_PRODUCTS : isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
       productsToSeed.forEach(p => {
         batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
       });
 
       // Write food items
-      if (!isFruteriaTenant) {
+      if (!isFruteriaTenant && !isArticoTenant) {
         INITIAL_FOOD_ITEMS.forEach(f => {
           batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
         });
@@ -512,13 +678,14 @@ export async function resetDatabaseToDefault(tenantId: string) {
     const tenantConfig = getTenantSpecificConfig(tenantId);
     batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
+    const isArticoTenant = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
     const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
-    const productsToSeed = isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+    const productsToSeed = isArticoTenant ? INITIAL_ARTICO_PRODUCTS : isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
     productsToSeed.forEach(p => {
       batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
     });
 
-    if (!isFruteriaTenant) {
+    if (!isFruteriaTenant && !isArticoTenant) {
       INITIAL_FOOD_ITEMS.forEach(f => {
         batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
       });

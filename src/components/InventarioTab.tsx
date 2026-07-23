@@ -52,7 +52,7 @@ export function getCategoryIconEmoji(cat: string, config?: BusinessConfig): stri
   const icon = getCategoryIcon(cat, config);
   if (icon.startsWith('http')) {
     if (cat.includes('Bebida')) return '🥤';
-    if (cat.includes('Abarrotes')) return '🧴';
+    if (cat.includes('Abarrotes') && !cat.includes('Varios')) return '🧴';
     if (cat.includes('Lácteos')) return '🥛';
     if (cat.includes('Snacks')) return '🍿';
     if (cat.includes('Almuerzo')) return '🍳';
@@ -207,18 +207,49 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
   
-  const rawProductCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
-  const rawFruteriaCats = config?.fruteriaCategories || ['Frutas', 'Verduras', 'Frutos Secos', 'Legumbres', 'Abarrotes / Varios'];
+  const invUrlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const invUrlTienda = invUrlParams?.get('tienda') || invUrlParams?.get('id_tienda') || invUrlParams?.get('modulo');
+  const isFruteriaByUrl = invUrlTienda === 'fruteria' || invUrlTienda === 'frutería' || invUrlTienda === 'fruteria_principe_gales';
 
-  const productCats = Array.from(new Set([
-    ...(config?.modulosActivos?.tiendaAbarrotes !== false ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
-    ...(config?.modulosActivos?.frutería !== false ? rawFruteriaCats : [])
-  ]));
-  const defaultCategory = productCats.length > 0 ? productCats[0] : 'Bebidas';
-
-  const isFruteria = config?.name?.toLowerCase().includes('frutería') || 
+  const isFruteria = isFruteriaByUrl ||
+                     config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
                      (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false);
+
+  const OFFICIAL_FRUTERIA_CATEGORIES = [
+    'Frutas',
+    'Verduras',
+    'Frutos Secos',
+    'Semillas',
+    'Huevos',
+    'Mermeladas',
+    'Miel',
+    'Abarrotes / Varios'
+  ];
+
+  const OFFICIAL_ARTICO_CATEGORIES = [
+    'Carnes y Churrascos',
+    'Hamburguesas y Prefritos',
+    'Congelados y Pulpas',
+    'Mariscos y Pescados',
+    'Refrigerados y Cecinas',
+    'Kits y Huevos'
+  ];
+
+  const rawProductCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
+  const rawFruteriaCats = config?.fruteriaCategories || OFFICIAL_FRUTERIA_CATEGORIES;
+
+  const isArtico = config?.name?.toLowerCase().includes('ártico') || config?.name?.toLowerCase().includes('artico') || config?.name?.toLowerCase().includes('congelados');
+
+  const productCats = isArtico
+    ? Array.from(new Set([...OFFICIAL_ARTICO_CATEGORIES, ...(config?.productCategories || [])]))
+    : isFruteria
+      ? Array.from(new Set([...(config?.fruteriaCategories || []), ...OFFICIAL_FRUTERIA_CATEGORIES]))
+      : Array.from(new Set([
+          ...(config?.modulosActivos?.tiendaAbarrotes !== false ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
+          ...(config?.modulosActivos?.frutería !== false ? rawFruteriaCats : [])
+        ]));
+  const defaultCategory = productCats.length > 0 ? productCats[0] : 'Frutas';
 
   const [formData, setFormData] = useState<{
     sku: string;
@@ -1130,7 +1161,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     }
     setLoading(true);
     try {
-      const isFrut = getModuleForCategory(formData.category || defaultCategory) === 'frutería';
+      const isFrut = isFruteria || getModuleForCategory(formData.category || defaultCategory) === 'frutería';
       const parsedData = {
         sku: formData.sku || '',
         name: formData.name || '',
@@ -1142,7 +1173,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         enOferta: formData.enOferta ? true : false,
         esOferta: formData.enOferta ? true : false,
         precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null,
-        unidadMedida: isFrut ? (formData.unidadMedida || 'unidad') : 'unidad'
+        unidadMedida: isFrut ? (formData.unidadMedida || 'kg') : 'unidad',
+        store: isFruteria ? 'fruteria' : 'turco',
+        module: isFruteria ? 'fruteria' : 'tiendaAbarrotes'
       };
       if (editingItem) {
         await onEditProduct({ ...editingItem, ...parsedData, updatedAt: new Date().toISOString() });
@@ -1158,13 +1191,14 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     }
   };
 
-  const handleDeleteProduct = async () => {
-    if (!editingItem) return;
-    if (!window.confirm('¿Eliminar este producto?')) return;
+  const handleDeleteProduct = async (id?: string) => {
+    const targetId = id || editingItem?.id;
+    if (!targetId) return;
     setLoading(true);
     try {
-      await onDeleteProduct(editingItem.id);
       setShowAddModal(false);
+      setEditingItem(null);
+      await onDeleteProduct(targetId);
     } catch (err) {
       console.error(err);
       alert('Error al eliminar el producto: ' + (err instanceof Error ? err.message : String(err)));
@@ -1560,9 +1594,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             {/* Categoría */}
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Categoría *</label>
-              <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+              <select name="category" className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
                 value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
-                {productCats.map(cat => (
+                {Array.from(new Set([...productCats, ...(formData.category ? [formData.category] : [])])).map(cat => (
                   <option key={cat} value={cat}>
                     {getCategoryIconEmoji(cat, config)} {cat}
                   </option>
@@ -1703,9 +1737,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           {/* Botones */}
           <div className="p-4 bg-slate-100 border-t-2 border-slate-200 flex gap-3 shrink-0 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {editingItem && (
-              <button type="button" onClick={handleDeleteProduct} disabled={loading}
-                className="flex-1 bg-white text-rose-600 border-2 border-rose-205 hover:bg-rose-50 py-3.5 rounded-2xl text-sm font-black active:scale-95 transition-all outline-none disabled:opacity-50 cursor-pointer">
-                Eliminar
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDeleteProduct(editingItem.id);
+                }}
+                disabled={loading}
+                className="flex-1 bg-white text-rose-600 border-2 border-rose-205 hover:bg-rose-50 py-3.5 rounded-2xl text-sm font-black active:scale-95 transition-all outline-none disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                🗑️ Eliminar
               </button>
             )}
             <button
