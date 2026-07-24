@@ -8,6 +8,9 @@ export interface Product {
   cost: number;
   imageUrl: string;
   updatedAt: string;
+  marca?: string;
+  subcategoria?: string;
+  precioNeto?: number;
   enOferta?: boolean;
   esOferta?: boolean;
   descuento?: number;
@@ -36,7 +39,7 @@ export interface Transaction {
   subtotal: number;
   tax: number; // IVA 15%
   total: number;
-  method: 'Efectivo' | 'Tarjeta';
+  method: 'Efectivo' | 'Tarjeta' | 'Mercado Pago (Sandbox)' | 'Webpay Plus (Integration)' | string;
   createdAt: string;
   employeeName?: string;
   documentType?: 'Boleta' | 'Factura';
@@ -49,6 +52,8 @@ export interface Transaction {
   deliveryAddress?: string;
   deliveryComuna?: string;
   deliveryFee?: number;
+  paymentStatus?: 'APPROVED' | 'PENDING' | string;
+  paymentStatusText?: string;
 }
 
 export interface Empleado {
@@ -88,6 +93,7 @@ export interface ModulosPermitidos {
   bodega: boolean;
   farmacia: boolean;
   frutería: boolean;
+  congelados?: boolean;
   congeladosPulpas?: boolean;
   carnesCecinas?: boolean;
   kitsCajas?: boolean;
@@ -121,6 +127,7 @@ export interface BusinessConfig {
   siiDigitalCert?: string;
   siiApiKey?: string;
   modulosActivos?: ModulosActivos;
+  articoActiveModules?: Record<string, boolean>;
   modulosPermitidos?: ModulosPermitidos;
   rutasCamion?: Record<string, SectorConfig>;
   mostrarAlmuerzos?: boolean;
@@ -129,6 +136,7 @@ export interface BusinessConfig {
     fruteria: boolean;
     almuerzos: boolean;
     tienda: boolean;
+    congelados?: boolean;
   };
 }
 

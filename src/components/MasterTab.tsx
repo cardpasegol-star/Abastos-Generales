@@ -19,7 +19,8 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
     cocinaAlmuerzos: true,
     bodega: false,
     farmacia: false,
-    frutería: false
+    frutería: false,
+    congelados: true
   });
   const [mostrarAlmuerzos, setMostrarAlmuerzos] = useState<boolean>(config.mostrarAlmuerzos !== false);
   const [modules, setModules] = useState(config.modules || {
@@ -27,6 +28,7 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
     fruteria: config.modules?.fruteria ?? (config.modulosActivos?.frutería ?? false),
     almuerzos: config.modules?.almuerzos ?? (config.modulosActivos?.cocinaAlmuerzos ?? true),
     tienda: config.modules?.tienda ?? (config.modulosActivos?.tiendaAbarrotes ?? true),
+    congelados: config.modules?.congelados ?? true,
   });
   
   const [saving, setSaving] = useState(false);
@@ -232,7 +234,8 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                 { id: 'cocinaAlmuerzos', label: '🍲 Cocina / Almuerzos', desc: 'Platos de comida preparados' },
                 { id: 'bodega', label: '🍷 Bodega', desc: 'Bebidas y licores' },
                 { id: 'farmacia', label: '💊 Farmacia', desc: 'Cuidado y medicamentos' },
-                { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' }
+                { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' },
+                { id: 'congelados', label: '🧊 MÓDULO CONGELADOS Y DISTRIBUIDORA', desc: 'Controla si el cliente puede usar las secciones de Carnes, Congelados, Mariscos y Kits' }
               ].map((mod) => (
                 <div 
                   key={mod.id} 
@@ -281,6 +284,7 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                 { key: 'fruteria', label: '🍎 Módulo Frutería y Verdulería', desc: 'Sección de Frutas y Verduras frescas en la tienda' },
                 { key: 'almuerzos', label: '🍲 Módulo de Almuerzos (Cocina)', desc: 'Sección de platos preparados y Menú del Día' },
                 { key: 'tienda', label: '🏪 Módulo de Tienda (Abarrotes)', desc: 'Sección de víveres, latas, bebidas y snacks' },
+                { key: 'congelados', label: '🧊 MÓDULO DE DISTRIBUIDORA / CONGELADOS (ÁRTICO)', desc: 'Sección de productos helados, pulpas, carnes y mariscos congelados' },
               ].map((m) => (
                 <div key={m.key} className="p-3.5 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-between gap-2.5 transition-all">
                   <div className="space-y-0.5">

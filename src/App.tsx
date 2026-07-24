@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory, normalizeProductForFruteria } from './types';
+import { sanitizeForFirestore } from './utils';
 import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG, getTenantSpecificConfig } from './initDb';
 
 import Header from './components/Header';
@@ -289,7 +290,7 @@ export default function App() {
       const docRef = tenantId
         ? doc(db, 'tenants', tenantId, 'products', id)
         : doc(db, 'products', id);
-      await setDoc(docRef, newProduct);
+      await setDoc(docRef, sanitizeForFirestore(newProduct));
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, tenantId ? `tenants/${tenantId}/products/${id}` : `products/${id}`);
     }
@@ -330,7 +331,7 @@ export default function App() {
       const docRef = tenantId
         ? doc(db, 'tenants', tenantId, 'products', item.id)
         : doc(db, 'products', item.id);
-      await setDoc(docRef, sanitizedProduct);
+      await setDoc(docRef, sanitizeForFirestore(sanitizedProduct));
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, tenantId ? `tenants/${tenantId}/products/${item.id}` : `products/${item.id}`);
     }
@@ -476,6 +477,13 @@ export default function App() {
   };
 
   const handleUpdateConfig = async (newCfg: BusinessConfig) => {
+    setConfig(newCfg);
+    if (tenantId) {
+      localStorage.setItem(`config_${tenantId}`, JSON.stringify(newCfg));
+      if (newCfg.bannerUrl) {
+        localStorage.setItem(`${tenantId}_banner_v1`, newCfg.bannerUrl);
+      }
+    }
     try {
       const docRef = tenantId
         ? doc(db, 'tenants', tenantId, 'config', 'business_info')

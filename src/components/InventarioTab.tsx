@@ -236,13 +236,34 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     'Kits y Huevos'
   ];
 
+  const getArticoCategoriesList = (): string[] => {
+    let list: string[] = [];
+    if (config?.articoCategories && config.articoCategories.length > 0) {
+      list = config.articoCategories;
+    } else if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('artico_categories_data') || localStorage.getItem('artico_categories_v1');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            list = parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    if (list.length === 0) {
+      list = OFFICIAL_ARTICO_CATEGORIES;
+    }
+    return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
+  };
+
   const rawProductCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
   const rawFruteriaCats = config?.fruteriaCategories || OFFICIAL_FRUTERIA_CATEGORIES;
 
-  const isArtico = config?.name?.toLowerCase().includes('ártico') || config?.name?.toLowerCase().includes('artico') || config?.name?.toLowerCase().includes('congelados');
+  const isArtico = invUrlTienda === 'artico' || (config as any)?.storeKey === 'artico' || config?.name?.toLowerCase().includes('ártico') || config?.name?.toLowerCase().includes('artico') || config?.name?.toLowerCase().includes('congelados');
 
   const productCats = isArtico
-    ? Array.from(new Set([...OFFICIAL_ARTICO_CATEGORIES, ...(config?.productCategories || [])]))
+    ? getArticoCategoriesList()
     : isFruteria
       ? Array.from(new Set([...(config?.fruteriaCategories || []), ...OFFICIAL_FRUTERIA_CATEGORIES]))
       : Array.from(new Set([
@@ -255,16 +276,19 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     sku: string;
     name: string;
     category: string;
+    subcategoria?: string;
+    marca?: string;
     stock: string | number;
     price: string | number;
     cost: string | number;
+    precioNeto?: string | number;
     imageUrl: string;
     enOferta: boolean;
     precioOferta: string | number;
     unidadMedida?: 'unidad' | 'kg' | 'g';
   }>({
-    sku: '', name: '', category: defaultCategory,
-    stock: 0, price: '', cost: '', imageUrl: PRESET_IMAGES[0].url,
+    sku: '', name: '', category: defaultCategory, subcategoria: '', marca: '',
+    stock: 0, price: '', cost: '', precioNeto: '', imageUrl: PRESET_IMAGES[0].url,
     enOferta: false, precioOferta: '',
     unidadMedida: isFruteria ? 'kg' : 'unidad'
   });
@@ -288,13 +312,18 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     sku: string;
     name: string;
     category: string;
+    subcategoria?: string;
     stock: number;
     cost: number;
     price: number;
+    precioNeto?: number;
     selected: boolean;
+    marca?: string;
+    imageUrl?: string;
   }
 
   const [showImportModal, setShowImportModal] = useState(false);
+  const [successNotification, setSuccessNotification] = useState<string | null>(null);
   const [importTab, setImportTab] = useState<'excel' | 'pdf' | 'text'>('excel');
   const [pastedText, setPastedText] = useState('');
   
@@ -307,9 +336,13 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     sku: '',
     name: '',
     category: '',
+    subcategoria: '',
     stock: '',
     cost: '',
-    price: ''
+    price: '',
+    precioNeto: '',
+    marca: '',
+    imageUrl: ''
   });
 
   const [candidateProducts, setCandidateProducts] = useState<ImportProduct[]>([]);
@@ -317,6 +350,39 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
   const [importStatus, setImportStatus] = useState<'idle' | 'importing' | 'completed'>('idle');
   const [allSelected, setAllSelected] = useState(true);
+
+  const getArtico3DPlaceholder = (subcat: string = '', name: string = ''): string => {
+    const text = `${subcat} ${name}`.toLowerCase();
+    
+    if (text.includes('ave') || text.includes('pollo') || text.includes('pechuga') || text.includes('truto') || text.includes('ala')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Poultry%20Leg.png';
+    }
+    if (text.includes('vacuno') || text.includes('lomo') || text.includes('asado') || text.includes('filete') || text.includes('churrasco') || text.includes('carne vacuno')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cut%20of%20Meat.png';
+    }
+    if (text.includes('cerdo') || text.includes('panceta') || text.includes('costillar') || text.includes('chuleta') || text.includes('carne')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Meat%20On%20Bone.png';
+    }
+    if (text.includes('hamburguesa') || text.includes('prefrito') || text.includes('papas') || text.includes('empanada')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png';
+    }
+    if (text.includes('pescado') || text.includes('merluza') || text.includes('salmón') || text.includes('salmon') || text.includes('reineta') || text.includes('marisco') || text.includes('camarón') || text.includes('camaron') || text.includes('chorito')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Fish.png';
+    }
+    if (text.includes('pulpa') || text.includes('fruta') || text.includes('hielo') || text.includes('congelado')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png';
+    }
+    if (text.includes('queso') || text.includes('cecina') || text.includes('jamón') || text.includes('jamon') || text.includes('salame') || text.includes('refrigerado')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png';
+    }
+    if (text.includes('huevo')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png';
+    }
+    if (text.includes('kit') || text.includes('caja') || text.includes('pack')) {
+      return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png';
+    }
+    return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png';
+  };
 
   // Carga dinámica de PDF.js desde CDN para evitar cargar el bundle en runtime innecesariamente
   const loadPdfJs = (): Promise<any> => {
@@ -387,31 +453,69 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       sku: '',
       name: '',
       category: '',
+      subcategoria: '',
       stock: '',
       cost: '',
-      price: ''
+      price: '',
+      precioNeto: '',
+      marca: '',
+      imageUrl: ''
     };
     
     headers.forEach((h: string) => {
-      const lh = h.toLowerCase();
-      if (/(sku|codigo|código|barras|barcode|upc|ean|id)/.test(lh)) {
-        autoMappings.sku = h;
-      } else if (/(nombre|name|producto|desc|descripcion|art|articulo|artículo|item)/.test(lh)) {
-        autoMappings.name = h;
-      } else if (/(categoria|categoría|category|grupo|familia|tipo)/.test(lh)) {
-        autoMappings.category = h;
-      } else if (/(stock|cantidad|cant|qty|quantity|inventario|uds|unidades)/.test(lh)) {
-        autoMappings.stock = h;
-      } else if (/(costo|cost|compra|cost_price|precio compra|valor compra)/.test(lh)) {
-        autoMappings.cost = h;
-      } else if (/(precio|price|venta|retail|precio venta|valor venta|pvp)/.test(lh)) {
-        autoMappings.price = h;
+      const lh = h.toLowerCase().trim();
+      if (isArtico) {
+        if (lh === 'subcategoria' || lh === 'subcategoría') {
+          autoMappings.subcategoria = h;
+          if (!autoMappings.category) autoMappings.category = h;
+        } else if (lh === 'producto' || lh === 'nombre' || lh === 'descripcion' || lh === 'descripción') {
+          autoMappings.name = h;
+        } else if (lh === 'con iva' || lh === 'precio con iva' || lh === 'p.venta' || lh === 'precio' || lh === 'pvp') {
+          autoMappings.price = h;
+        } else if (lh === 'precio neto' || lh === 'neto' || lh === 'valor neto') {
+          autoMappings.precioNeto = h;
+        } else if (lh === 'marca') {
+          autoMappings.marca = h;
+        } else if (lh === 'categoria' || lh === 'categoría') {
+          autoMappings.category = h;
+        } else if (/(sku|codigo|código|barras|barcode|upc|ean|id)/.test(lh)) {
+          if (!autoMappings.sku) autoMappings.sku = h;
+        } else if (/(stock|cantidad|cant|qty|quantity|inventario|uds|unidades|estado)/.test(lh)) {
+          if (!autoMappings.stock) autoMappings.stock = h;
+        } else if (/(costo|cost|compra|cost_price|precio compra|valor compra)/.test(lh)) {
+          if (!autoMappings.cost) autoMappings.cost = h;
+        } else if (/(imagen|url|foto|picture|img)/.test(lh)) {
+          if (!autoMappings.imageUrl) autoMappings.imageUrl = h;
+        }
+      } else {
+        if (/(sku|codigo|código|barras|barcode|upc|ean|id)/.test(lh)) {
+          if (!autoMappings.sku) autoMappings.sku = h;
+        } else if (/(nombre|name|producto|desc|descripcion|art|articulo|artículo|item)/.test(lh)) {
+          if (!autoMappings.name) autoMappings.name = h;
+        } else if (/(categoria|categoría|category|grupo|familia|tipo)/.test(lh)) {
+          if (!autoMappings.category) autoMappings.category = h;
+        } else if (/(stock|cantidad|cant|qty|quantity|inventario|uds|unidades)/.test(lh)) {
+          if (!autoMappings.stock) autoMappings.stock = h;
+        } else if (/(costo|cost|compra|cost_price|precio compra|valor compra)/.test(lh)) {
+          if (!autoMappings.cost) autoMappings.cost = h;
+        } else if (/(precio|price|venta|retail|precio venta|valor venta|pvp)/.test(lh)) {
+          if (!autoMappings.price) autoMappings.price = h;
+        }
       }
     });
 
-    if (!autoMappings.sku) autoMappings.sku = headers.find(h => /(sku|cod)/i.test(h)) || headers[0] || '';
-    if (!autoMappings.name) autoMappings.name = headers.find(h => /(nom|prod|desc)/i.test(h)) || headers[1] || '';
-    if (!autoMappings.price) autoMappings.price = headers.find(h => /(prec|val|vent)/i.test(h)) || headers[2] || '';
+    if (isArtico) {
+      if (!autoMappings.name) autoMappings.name = headers.find(h => /(producto|nombre|nom|desc)/i.test(h)) || headers[1] || '';
+      if (!autoMappings.category) autoMappings.category = headers.find(h => /(categoria|categoría|subcategoria|subcategoría)/i.test(h)) || headers[0] || '';
+      if (!autoMappings.price) autoMappings.price = headers.find(h => /(con iva|precio|val|vent)/i.test(h)) || headers[2] || '';
+      if (!autoMappings.precioNeto) autoMappings.precioNeto = headers.find(h => /(precio neto|neto)/i.test(h)) || '';
+      if (!autoMappings.subcategoria) autoMappings.subcategoria = headers.find(h => /(subcategoria|subcategoría)/i.test(h)) || '';
+      if (!autoMappings.marca) autoMappings.marca = headers.find(h => /(marca|brand)/i.test(h)) || '';
+    } else {
+      if (!autoMappings.sku) autoMappings.sku = headers.find(h => /(sku|cod)/i.test(h)) || headers[0] || '';
+      if (!autoMappings.name) autoMappings.name = headers.find(h => /(nom|prod|desc)/i.test(h)) || headers[1] || '';
+      if (!autoMappings.price) autoMappings.price = headers.find(h => /(prec|val|vent)/i.test(h)) || headers[2] || '';
+    }
     
     setMappings(autoMappings);
     generateCandidatesFromExcel(rawRows, headerIndex + 1, autoMappings);
@@ -423,10 +527,16 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     const skuIdx = headers.indexOf(currentMappings.sku);
     const nameIdx = headers.indexOf(currentMappings.name);
     const categoryIdx = headers.indexOf(currentMappings.category);
+    const subcatIdx = headers.indexOf(currentMappings.subcategoria);
     const stockIdx = headers.indexOf(currentMappings.stock);
     const costIdx = headers.indexOf(currentMappings.cost);
     const priceIdx = headers.indexOf(currentMappings.price);
+    const precioNetoIdx = headers.indexOf(currentMappings.precioNeto);
+    const marcaIdx = headers.indexOf(currentMappings.marca);
+    const imageUrlIdx = headers.indexOf(currentMappings.imageUrl);
     
+    const altCategoryIdx = headers.findIndex(h => /(categoria|categoría)/i.test(h));
+
     const candidates: ImportProduct[] = [];
     
     for (let i = dataStartIdx; i < rawRows.length; i++) {
@@ -435,23 +545,63 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       
       const rawSku = skuIdx !== -1 ? String(row[skuIdx] ?? '').trim() : '';
       const rawName = nameIdx !== -1 ? String(row[nameIdx] ?? '').trim() : '';
-      const rawCategory = categoryIdx !== -1 ? String(row[categoryIdx] ?? '').trim() : '';
-      const rawStock = stockIdx !== -1 ? Number(row[stockIdx]) : NaN;
-      const rawCost = costIdx !== -1 ? Number(row[costIdx]) : NaN;
-      const rawPrice = priceIdx !== -1 ? Number(row[priceIdx]) : NaN;
+      let rawCategory = categoryIdx !== -1 ? String(row[categoryIdx] ?? '').trim() : '';
+      const rawSubcat = subcatIdx !== -1 ? String(row[subcatIdx] ?? '').trim() : '';
+      const rawAltCategory = altCategoryIdx !== -1 && altCategoryIdx !== categoryIdx ? String(row[altCategoryIdx] ?? '').trim() : '';
+      
+      const rawStockVal = stockIdx !== -1 ? row[stockIdx] : undefined;
+      const rawCostVal = costIdx !== -1 ? row[costIdx] : undefined;
+      const rawPriceVal = priceIdx !== -1 ? row[priceIdx] : undefined;
+      const rawNetoVal = precioNetoIdx !== -1 ? row[precioNetoIdx] : undefined;
+      const rawMarca = marcaIdx !== -1 ? String(row[marcaIdx] ?? '').trim() : '';
+      const rawImageUrl = imageUrlIdx !== -1 ? String(row[imageUrlIdx] ?? '').trim() : '';
       
       if (!rawSku && !rawName) continue;
       
       const finalSku = rawSku || 'SKU-' + Math.floor(1000 + Math.random() * 9000);
       const finalName = rawName || 'Producto sin Nombre';
       
+      // Smart AGOTADO check
+      const combinedCatStr = `${rawCategory} ${rawSubcat} ${rawAltCategory}`.toUpperCase();
+      let isAgotado = combinedCatStr.includes('AGOTADO');
+      if (typeof rawStockVal === 'string' && rawStockVal.toUpperCase().includes('AGOTADO')) {
+        isAgotado = true;
+      }
+
+      let stock = 10;
+      if (isAgotado) {
+        stock = 0;
+      } else if (rawStockVal !== undefined && rawStockVal !== null && rawStockVal !== '') {
+        const parsedStock = Number(rawStockVal);
+        if (!isNaN(parsedStock)) {
+          stock = parsedStock;
+        }
+      }
+
+      // Clean "AGOTADO" text from category
+      let cleanRawCat = rawCategory.replace(/AGOTADO/gi, '').replace(/[-/]/g, '').trim();
+      if (!cleanRawCat && rawSubcat) {
+        cleanRawCat = rawSubcat.replace(/AGOTADO/gi, '').replace(/[-/]/g, '').trim();
+      }
+      if (!cleanRawCat && rawAltCategory) {
+        cleanRawCat = rawAltCategory.replace(/AGOTADO/gi, '').replace(/[-/]/g, '').trim();
+      }
+
       let finalCategory = defaultCategory;
-      if (rawCategory) {
-        const matchedCat = productCats.find(c => c.toLowerCase() === rawCategory.toLowerCase());
+      if (cleanRawCat) {
+        const cleanSelected = cleanRawCat.toLowerCase();
+        const matchedCat = productCats.find(c => {
+          const cClean = c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+          return cClean === cleanSelected || c.toLowerCase() === cleanSelected;
+        });
         if (matchedCat) {
           finalCategory = matchedCat;
         } else {
-          finalCategory = defaultCategory;
+          const partialCat = productCats.find(c => {
+            const cClean = c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+            return cClean.includes(cleanSelected) || cleanSelected.includes(cClean);
+          });
+          finalCategory = partialCat || cleanRawCat || defaultCategory;
         }
       } else {
         const detected = detectCategory([finalName]);
@@ -459,17 +609,48 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         finalCategory = matchedDetected || defaultCategory;
       }
       
-      const stock = isNaN(rawStock) ? 10 : rawStock;
-      const price = isNaN(rawPrice) ? 0 : rawPrice;
-      const cost = isNaN(rawCost) ? Math.round(price * 0.7) : rawCost;
+      // Parse CLP price & cost sanitization
+      const parseClpVal = (val: any): number => {
+        if (val === null || val === undefined) return NaN;
+        if (typeof val === 'number') return isNaN(val) ? NaN : Math.round(val);
+        const str = String(val).trim();
+        if (!str) return NaN;
+        const cleaned = str.replace(/[$\s.]/g, '').replace(',', '.');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? NaN : Math.round(num);
+      };
+
+      const parsedPrice = parseClpVal(rawPriceVal);
+      const parsedNeto = parseClpVal(rawNetoVal);
+
+      let price = isNaN(parsedPrice) ? 0 : parsedPrice;
+      let precioNeto = isNaN(parsedNeto) ? 0 : parsedNeto;
+
+      if (price === 0 && precioNeto > 0) {
+        price = Math.round(precioNeto * 1.19);
+      } else if (precioNeto === 0 && price > 0) {
+        precioNeto = Math.round(price / 1.19);
+      }
+
+      const parsedCost = parseClpVal(rawCostVal);
+      const cost = isNaN(parsedCost) ? (precioNeto > 0 ? Math.round(precioNeto * 0.7) : (price > 0 ? Math.round(price * 0.6) : 0)) : parsedCost;
       
+      let imageToUse = rawImageUrl;
+      if (!imageToUse || !imageToUse.startsWith('http')) {
+        imageToUse = isArtico ? getArtico3DPlaceholder(finalCategory, finalName) : PRESET_IMAGES[0].url;
+      }
+
       candidates.push({
         sku: finalSku,
         name: finalName,
         category: finalCategory,
+        subcategoria: rawSubcat || undefined,
         stock: stock,
         cost: cost,
         price: price,
+        precioNeto: precioNeto || undefined,
+        marca: rawMarca,
+        imageUrl: imageToUse,
         selected: true
       });
     }
@@ -706,7 +887,19 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const handleUpdateCandidateField = (index: number, field: keyof ImportProduct, val: any) => {
     setCandidateProducts(prev => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: val };
+      const item = { ...next[index], [field]: val };
+      if (field === 'precioNeto') {
+        const numNeto = Number(val);
+        if (!isNaN(numNeto) && numNeto >= 0) {
+          item.price = Math.round(numNeto * 1.19);
+        }
+      } else if (field === 'price') {
+        const numPrice = Number(val);
+        if (!isNaN(numPrice) && numPrice >= 0) {
+          item.precioNeto = Math.round(numPrice / 1.19);
+        }
+      }
+      next[index] = item;
       return next;
     });
   };
@@ -721,6 +914,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setCandidateProducts(prev => prev.map(p => ({ ...p, selected: nextVal })));
   };
 
+  const handleCloseImportModal = () => {
+    setShowImportModal(false);
+    handleResetImport();
+  };
+
   const handleExecuteImport = async () => {
     const active = candidateProducts.filter(p => p.selected);
     if (active.length === 0) {
@@ -732,24 +930,92 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setImportProgress({ current: 0, total: active.length });
 
     try {
-      for (let i = 0; i < active.length; i++) {
-        const item = active[i];
-        
-        const toAdd = {
-          sku: item.sku.trim(),
-          name: item.name.trim(),
-          category: item.category,
-          stock: Number(item.stock) || 0,
-          cost: Number(item.cost) || 0,
-          price: Number(item.price) || 0,
-          imageUrl: PRESET_IMAGES[0].url
-        };
+      const storeName = config?.name || (isArtico ? 'Ártico Congelados' : 'Tienda Virtual');
+      const newlyAddedProducts: Product[] = [];
 
-        await onAddProduct(toAdd);
-        setImportProgress({ current: i + 1, total: active.length });
+      // Process items in chunks for rapid UI feedback and non-blocking execution
+      const BATCH_SIZE = 10;
+      let processedCount = 0;
+
+      for (let i = 0; i < active.length; i += BATCH_SIZE) {
+        const chunk = active.slice(i, i + BATCH_SIZE);
+        await Promise.all(chunk.map(async (item) => {
+          const cleanName = item.name.trim().toLowerCase();
+          const cleanSku = item.sku.trim().toLowerCase();
+
+          const existingProduct = products.find(p => 
+            (p.name && p.name.trim().toLowerCase() === cleanName) ||
+            (p.sku && p.sku.trim().toLowerCase() === cleanSku)
+          );
+          
+          const imageToUse = item.imageUrl && item.imageUrl.trim().length > 0
+            ? item.imageUrl.trim()
+            : (existingProduct?.imageUrl || (isArtico ? getArtico3DPlaceholder(item.category, item.name) : PRESET_IMAGES[0].url));
+
+          const subcat = item.subcategoria?.trim() || existingProduct?.subcategoria?.trim() || '';
+          const submarca = item.marca?.trim() || existingProduct?.marca?.trim() || '';
+          const pNeto = Number(item.precioNeto) || (item.price ? Math.round(Number(item.price) / 1.19) : 0);
+
+          const toAdd: any = {
+            ...(existingProduct ? { id: existingProduct.id } : {}),
+            sku: item.sku.trim(),
+            name: item.name.trim(),
+            category: item.category,
+            stock: Number(item.stock) >= 0 ? Number(item.stock) : 0,
+            cost: Number(item.cost) || 0,
+            price: Number(item.price) || 0,
+            imageUrl: imageToUse,
+            store: isFruteria ? 'fruteria' : (isArtico ? 'artico' : 'turco')
+          };
+          if (subcat) toAdd.subcategoria = subcat;
+          if (submarca) toAdd.marca = submarca;
+          if (pNeto) toAdd.precioNeto = pNeto;
+
+          await onAddProduct(toAdd);
+          newlyAddedProducts.push({
+            id: toAdd.id || ('SKU-' + item.sku.trim()),
+            ...toAdd
+          } as Product);
+        }));
+
+        processedCount += chunk.length;
+        setImportProgress({ current: Math.min(processedCount, active.length), total: active.length });
       }
-      
-      setImportStatus('completed');
+
+      // Persist directly into local storage keys for instant zero-latency UI re-render
+      try {
+        const cachedExisting = localStorage.getItem('artico_inventory') || localStorage.getItem('APP_PRODUCTS_DATA');
+        let currentArr: any[] = [];
+        if (cachedExisting) {
+          try { currentArr = JSON.parse(cachedExisting); } catch (e) {}
+        }
+        if (!Array.isArray(currentArr)) currentArr = [];
+
+        const mergedMap = new Map();
+        [...currentArr, ...products, ...newlyAddedProducts].forEach(p => {
+          if (p && p.id) mergedMap.set(p.id, p);
+          else if (p && p.sku) mergedMap.set(p.sku, p);
+        });
+        const mergedList = Array.from(mergedMap.values());
+
+        localStorage.setItem('artico_inventory', JSON.stringify(mergedList));
+        localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(mergedList));
+        localStorage.setItem('FRUTERIA_DATA', JSON.stringify(mergedList));
+      } catch (e) {
+        console.warn('LocalStorage bulk sync error:', e);
+      }
+
+      // 1. Success notification Toast
+      const successMessage = `¡${active.length} productos cargados con éxito en ${storeName}!`;
+      setSuccessNotification(successMessage);
+      setTimeout(() => setSuccessNotification(null), 7000);
+
+      // 2. Clean internal preview state and reset form
+      handleResetImport();
+
+      // 3. EXPLICITLY CLOSE MODAL
+      setShowImportModal(false);
+
     } catch (err) {
       console.error("Error doing bulk import:", err);
       alert("Hubo un error durante la carga de productos.");
@@ -1069,7 +1335,14 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase()) ||
       product.sku.toLowerCase().includes(search.toLowerCase());
-    const matchesCat = selectedCategory === 'Todos' || product.category === selectedCategory;
+    const catRaw = product.category || '';
+    const cleanSelected = selectedCategory.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+    const cleanCatRaw = catRaw.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+
+    const matchesCat = selectedCategory === 'Todos' ||
+      selectedCategory === 'Todo' ||
+      catRaw === selectedCategory ||
+      cleanCatRaw === cleanSelected;
     return matchesSearch && matchesCat;
   });
 
@@ -1080,7 +1353,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setSuggestionError(null);
     setFormData({
       sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
-      name: '', category: defaultCategory, stock: 12, price: '', cost: '',
+      name: '', category: defaultCategory, subcategoria: '', marca: '', stock: 12, price: '', cost: '',
+      precioNeto: '',
       imageUrl: PRESET_IMAGES[0].url,
       enOferta: false,
       precioOferta: '',
@@ -1094,9 +1368,21 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setProductFetchMsg('');
     setGeminiSuggestion(null);
     setSuggestionError(null);
+    const initPrice = product.price !== undefined && product.price !== null ? String(product.price) : '';
+    const initNeto = product.precioNeto !== undefined && product.precioNeto !== null
+      ? String(product.precioNeto)
+      : (product.price ? String(Math.round(Number(product.price) / 1.19)) : '');
+
     setFormData({
-      sku: product.sku, name: product.name, category: product.category,
-      stock: product.stock, price: product.price, cost: product.cost,
+      sku: product.sku,
+      name: product.name,
+      category: product.category,
+      subcategoria: product.subcategoria || '',
+      marca: product.marca || '',
+      stock: product.stock,
+      price: initPrice,
+      cost: product.cost,
+      precioNeto: initNeto,
       imageUrl: product.imageUrl || PRESET_IMAGES[0].url,
       enOferta: product.enOferta || false,
       precioOferta: product.precioOferta !== undefined && product.precioOferta !== null ? String(product.precioOferta) : '',
@@ -1162,21 +1448,27 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setLoading(true);
     try {
       const isFrut = isFruteria || getModuleForCategory(formData.category || defaultCategory) === 'frutería';
-      const parsedData = {
+      const parsedPrice = parseFloat(String(formData.price)) || 0;
+      const parsedNeto = parseFloat(String(formData.precioNeto)) || (parsedPrice ? Math.round(parsedPrice / 1.19) : 0);
+
+      const parsedData: any = {
         sku: formData.sku || '',
         name: formData.name || '',
         category: formData.category || defaultCategory,
         stock: isFrut ? (parseFloat(String(formData.stock)) || 0) : (parseInt(String(formData.stock), 10) || 0),
-        price: parseFloat(String(formData.price)) || 0,
+        price: parsedPrice,
+        precioNeto: parsedNeto,
         cost: parseFloat(String(formData.cost)) || 0,
         imageUrl: formData.imageUrl || PRESET_IMAGES[0].url,
         enOferta: formData.enOferta ? true : false,
         esOferta: formData.enOferta ? true : false,
         precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null,
         unidadMedida: isFrut ? (formData.unidadMedida || 'kg') : 'unidad',
-        store: isFruteria ? 'fruteria' : 'turco',
+        store: isFruteria ? 'fruteria' : (isArtico ? 'artico' : 'turco'),
         module: isFruteria ? 'fruteria' : 'tiendaAbarrotes'
       };
+      if (formData.subcategoria?.trim()) parsedData.subcategoria = formData.subcategoria.trim();
+      if (formData.marca?.trim()) parsedData.marca = formData.marca.trim();
       if (editingItem) {
         await onEditProduct({ ...editingItem, ...parsedData, updatedAt: new Date().toISOString() });
       } else {
@@ -1252,6 +1544,23 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
   return (
     <div className="space-y-5 pb-24">
+
+      {/* ── NOTIFICACIÓN EXÍTOSA ── */}
+      {successNotification && (
+        <div className="p-4 bg-emerald-600 text-white rounded-2xl font-black text-sm flex items-center justify-between shadow-xl border-2 border-emerald-400 animate-in fade-in slide-in-from-top-3 duration-300">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-6 h-6 stroke-[2.5] text-emerald-100" />
+            <span>{successNotification}</span>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => setSuccessNotification(null)} 
+            className="text-white hover:bg-emerald-700 p-1.5 rounded-xl font-bold transition-colors cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ── STATS ── */}
       <section className="grid grid-cols-3 gap-3 mt-1">
@@ -1591,18 +1900,47 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               )}
             </div>
 
-            {/* Categoría */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Categoría *</label>
-              <select name="category" className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
-                value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
-                {Array.from(new Set([...productCats, ...(formData.category ? [formData.category] : [])])).map(cat => (
-                  <option key={cat} value={cat}>
-                    {getCategoryIconEmoji(cat, config)} {cat}
-                  </option>
-                ))}
-              </select>
+            {/* Categoría y Subcategoría (Si es Ártico) */}
+            <div className={`grid ${isArtico ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Categoría *</label>
+                <select name="category" className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
+                  value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                  {Array.from(new Set([...productCats, ...(formData.category ? [formData.category] : [])])).map(cat => (
+                    <option key={cat} value={cat}>
+                      {getCategoryIconEmoji(cat, config)} {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {isArtico && (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Subcategoría</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Pollo, Vacuno, Pulpas..."
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+                    value={formData.subcategoria || ''}
+                    onChange={(e) => setFormData({ ...formData, subcategoria: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
+
+            {/* MARCA (Solo en Ártico) */}
+            {isArtico && (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Marca / Fabricante</label>
+                <input
+                  type="text"
+                  placeholder="Ej. ÁRTICO CONGELADOS, SUPER BEEF, RECETA DEL ABUELO"
+                  className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+                  value={formData.marca || ''}
+                  onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+                />
+              </div>
+            )}
 
             {/* Unidad de Medida (Solo para Frutería y Verdulería) */}
             {getModuleForCategory(formData.category || defaultCategory) === 'frutería' && (
@@ -1618,22 +1956,120 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               </div>
             )}
 
-            {/* Stock / Costo / Precio */}
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Stock', key: 'stock', type: 'number', step: getModuleForCategory(formData.category || defaultCategory) === 'frutería' ? '0.001' : '1' },
-                { label: 'Costo ($)', key: 'cost', type: 'number', step: '0.01' },
-                { label: 'Precio ($)', key: 'price', type: 'number', step: '0.01' },
-              ].map(({ label, key, type, step }) => (
-                <div key={key} className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">{label}</label>
-                   <input type={type} step={step} min="0"
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-2 py-3.5 text-sm text-center outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
-                     value={(formData as any)[key]}
-                     onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} />
+            {/* Precios y Stock (Separación entre Ártico y Comercio General) */}
+            {isArtico ? (
+              <div className="space-y-3 p-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl">
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                  💵 Precios y Stock (Ártico)
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
+                      Precio Neto ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="Sin IVA"
+                      className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 py-3 text-sm text-center outline-none font-extrabold text-slate-900 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
+                      value={formData.precioNeto || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const numNeto = parseFloat(val);
+                        if (!isNaN(numNeto) && numNeto >= 0) {
+                          setFormData(prev => ({
+                            ...prev,
+                            precioNeto: val,
+                            price: String(Math.round(numNeto * 1.19))
+                          }));
+                        } else {
+                          setFormData(prev => ({ ...prev, precioNeto: val }));
+                        }
+                      }}
+                    />
+                    <span className="text-[10px] text-slate-500 font-bold block text-center">Sin IVA (+19%)</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-emerald-800 uppercase tracking-wider block">
+                      Precio Con IVA ($) *
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="Precio Final Venta"
+                      className="w-full bg-white border-2 border-emerald-400 rounded-xl px-3 py-3 text-sm text-center outline-none font-black text-emerald-800 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
+                      value={formData.price}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const numConIva = parseFloat(val);
+                        if (!isNaN(numConIva) && numConIva >= 0) {
+                          setFormData(prev => ({
+                            ...prev,
+                            price: val,
+                            precioNeto: String(Math.round(numConIva / 1.19))
+                          }));
+                        } else {
+                          setFormData(prev => ({ ...prev, price: val }));
+                        }
+                      }}
+                    />
+                    <span className="text-[10px] text-emerald-600 font-black block text-center">Venta Final</span>
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
+                      Costo Compra ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="Costo"
+                      className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 py-2.5 text-xs text-center outline-none font-bold text-slate-900 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
+                      value={formData.cost}
+                      onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
+                      Stock Inicial
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="Unidades"
+                      className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 py-2.5 text-xs text-center outline-none font-bold text-slate-900 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600"
+                      value={formData.stock}
+                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Stock', key: 'stock', type: 'number', step: getModuleForCategory(formData.category || defaultCategory) === 'frutería' ? '0.001' : '1' },
+                  { label: 'Costo ($)', key: 'cost', type: 'number', step: '0.01' },
+                  { label: 'Precio ($)', key: 'price', type: 'number', step: '0.01' },
+                ].map(({ label, key, type, step }) => (
+                  <div key={key} className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">{label}</label>
+                     <input type={type} step={step} min="0"
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-2 py-3.5 text-sm text-center outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+                       value={(formData as any)[key]}
+                       onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} />
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Sección Ofertas / Remates */}
             <div className="p-3.5 bg-rose-50/70 border-2 border-rose-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
@@ -1785,7 +2221,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               </div>
               <button
                 type="button"
-                onClick={() => setShowImportModal(false)}
+                onClick={handleCloseImportModal}
                 className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
               >
                 <X className="w-5.5 h-5.5" />
@@ -1872,14 +2308,14 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                           <div className="flex flex-col gap-2.5 bg-slate-100/50 p-3 rounded-2xl border border-slate-100">
                             <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500">Mapeo de Columnas</h5>
                             
-                            {(['sku', 'name', 'category', 'stock', 'cost', 'price'] as const).map((field) => (
+                            {(isArtico ? (['sku', 'name', 'category', 'subcategoria', 'marca', 'stock', 'cost', 'precioNeto', 'price'] as const) : (['sku', 'name', 'category', 'stock', 'cost', 'price'] as const)).map((field) => (
                               <div key={field} className="flex flex-col gap-0.5">
                                 <label className="text-[10px] font-bold text-slate-600 capitalize">
-                                  {field === 'sku' ? 'Código / SKU *' : field === 'name' ? 'Nombre Producto *' : field === 'category' ? 'Categoría' : field === 'stock' ? 'Stock Inicial' : field === 'cost' ? 'Costo Compra' : 'Precio Venta *'}
+                                  {field === 'marca' ? 'Marca / Fabricante' : field === 'subcategoria' ? 'Subcategoría' : field === 'precioNeto' ? 'Precio Neto ($)' : field === 'sku' ? 'Código / SKU *' : field === 'name' ? 'Nombre Producto *' : field === 'category' ? 'Categoría' : field === 'stock' ? 'Stock Inicial' : field === 'cost' ? 'Costo Compra' : 'Precio con IVA (Venta) *'}
                                 </label>
                                 <select
-                                  value={mappings[field]}
-                                  onChange={(e) => handleMappingChange(field, e.target.value)}
+                                  value={mappings[field as keyof typeof mappings] || ''}
+                                  onChange={(e) => handleMappingChange(field as keyof typeof mappings, e.target.value)}
                                   className="w-full text-xs font-bold bg-white border border-slate-200 px-2 py-1.5 rounded-lg outline-none text-slate-700"
                                 >
                                   <option value="">-- Omitir / Auto --</option>
@@ -1994,10 +2430,12 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                                 <th className="p-3 w-10 text-center">Sel.</th>
                                 <th className="p-3 w-28">Código / SKU</th>
                                 <th className="p-3">Nombre del Producto</th>
-                                <th className="p-3 w-32">Categoría</th>
+                                {isArtico && <th className="p-3 w-28">Marca</th>}
+                                <th className="p-3 w-28">Categoría</th>
+                                {isArtico && <th className="p-3 w-28">Subcategoría</th>}
                                 <th className="p-3 w-16 text-right">Stock</th>
-                                <th className="p-3 w-20 text-right">Costo</th>
-                                <th className="p-3 w-20 text-right">Precio</th>
+                                {isArtico && <th className="p-3 w-20 text-right">P. Neto</th>}
+                                <th className="p-3 w-20 text-right">{isArtico ? 'Con IVA' : 'Precio'}</th>
                                 <th className="p-3 w-10 text-center">Acción</th>
                               </tr>
                             </thead>
@@ -2028,6 +2466,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                                       className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-2 py-1.5 rounded-lg outline-none font-extrabold text-slate-800"
                                     />
                                   </td>
+                                  {isArtico && (
+                                    <td className="p-2.5">
+                                      <input
+                                        type="text"
+                                        placeholder="Marca"
+                                        value={p.marca || ''}
+                                        onChange={(e) => handleUpdateCandidateField(idx, 'marca', e.target.value)}
+                                        className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none font-bold text-indigo-800 text-[11px]"
+                                      />
+                                    </td>
+                                  )}
                                   <td className="p-2.5">
                                     <select
                                       value={p.category}
@@ -2039,6 +2488,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                                       ))}
                                     </select>
                                   </td>
+                                  {isArtico && (
+                                    <td className="p-2.5">
+                                      <input
+                                        type="text"
+                                        placeholder="Subcat."
+                                        value={p.subcategoria || ''}
+                                        onChange={(e) => handleUpdateCandidateField(idx, 'subcategoria', e.target.value)}
+                                        className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none font-bold text-slate-700 text-[11px]"
+                                      />
+                                    </td>
+                                  )}
                                   <td className="p-2.5">
                                     <input
                                       type="number"
@@ -2047,20 +2507,23 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                                       className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-black"
                                     />
                                   </td>
-                                  <td className="p-2.5">
-                                    <input
-                                      type="number"
-                                      value={p.cost}
-                                      onChange={(e) => handleUpdateCandidateField(idx, 'cost', parseFloat(e.target.value) || 0)}
-                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-bold text-emerald-800"
-                                    />
-                                  </td>
+                                  {isArtico && (
+                                    <td className="p-2.5">
+                                      <input
+                                        type="number"
+                                        placeholder="Neto"
+                                        value={p.precioNeto || ''}
+                                        onChange={(e) => handleUpdateCandidateField(idx, 'precioNeto', parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-bold text-slate-700"
+                                      />
+                                    </td>
+                                  )}
                                   <td className="p-2.5">
                                     <input
                                       type="number"
                                       value={p.price}
                                       onChange={(e) => handleUpdateCandidateField(idx, 'price', parseFloat(e.target.value) || 0)}
-                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-black text-indigo-900"
+                                      className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-150 px-1.5 py-1.5 rounded-lg outline-none text-right font-black text-emerald-800"
                                     />
                                   </td>
                                   <td className="p-2.5 text-center">
@@ -2119,10 +2582,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowImportModal(false);
-                      handleResetImport();
-                    }}
+                    onClick={handleCloseImportModal}
                     className="mt-6 w-full bg-emerald-600 text-white font-black py-3.5 rounded-2xl text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-md cursor-pointer border border-emerald-500"
                   >
                     Entendido, Volver al Inventario
@@ -2140,7 +2600,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowImportModal(false)}
+                    onClick={handleCloseImportModal}
                     className="bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 font-extrabold px-4.5 py-2.5 rounded-xl text-xs active:scale-95 transition-all cursor-pointer"
                   >
                     Cancelar

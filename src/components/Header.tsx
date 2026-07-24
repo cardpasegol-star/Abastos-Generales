@@ -10,7 +10,16 @@ interface HeaderProps {
 }
 
 export default function Header({ config, currentEmployee, onLogout, onOpenAdmin }: HeaderProps) {
-  const bannerImage = config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800';
+  const isArtico = config.name?.toLowerCase().includes('ártico') || config.name?.toLowerCase().includes('artico') || config.name?.toLowerCase().includes('congelados');
+  const isFruteria = config.name?.toLowerCase().includes('frutería') || config.name?.toLowerCase().includes('fruteria') || config.name?.toLowerCase().includes('gales');
+
+  const defaultBanner = isArtico
+    ? 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800'
+    : isFruteria
+    ? 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800'
+    : 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800';
+
+  const bannerImage = config.bannerUrl || defaultBanner;
 
   return (
     <div className="w-full relative bg-slate-900 overflow-hidden shadow-md border-b border-slate-250">

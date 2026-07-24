@@ -503,6 +503,20 @@ export default function MantTab({
     farmacia: true,
     frutería: true
   });
+
+  const [articoActiveModules, setArticoActiveModules] = useState<{
+    congeladosPulpas: boolean;
+    carnesChurrascos: boolean;
+    mariscosPescados: boolean;
+    refrigeradosCecinas: boolean;
+    kitsCajasCerradas: boolean;
+  }>({
+    congeladosPulpas: true,
+    carnesChurrascos: true,
+    mariscosPescados: true,
+    refrigeradosCecinas: true,
+    kitsCajasCerradas: true
+  });
   
   // SII Integration states
   const [siiEnabled, setSiiEnabled] = useState(config.siiEnabled || false);
@@ -721,7 +735,19 @@ export default function MantTab({
     setWhatsapp(config.whatsapp || '+5491112345678');
     setGps(config.gps || 'Calle Principal #123');
     setAdminPinField(config.adminPin || '1234');
-    setLocalBannerUrl(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
+    
+    // Store Isolation for Banner URL
+    const activeStore = getActiveStoreInfo();
+    const storeBannerKey = `${activeStore.key}_banner_v1`;
+    const cachedStoreBanner = localStorage.getItem(storeBannerKey) || localStorage.getItem(`${activeStore.key}_store_banner`);
+    let defaultBannerForStore = 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800';
+    if (activeStore.key === 'artico') {
+      defaultBannerForStore = 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800';
+    } else if (activeStore.key === 'fruteria') {
+      defaultBannerForStore = 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800';
+    }
+    const finalBanner = cachedStoreBanner || config.bannerUrl || defaultBannerForStore;
+    setLocalBannerUrl(finalBanner);
     setIvaPercentInput(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
 
     // State Isolation for Minimarket (Donde el Turco)
@@ -774,12 +800,12 @@ export default function MantTab({
 
     // State Isolation for Ártico Congelados
     const OFFICIAL_ARTICO_DEFAULTS = [
-      '🥩 Carnes y Churrascos',
-      '🍔 Hamburguesas y Prefritos',
-      '🧊 Congelados y Pulpas',
-      '🦐 Mariscos y Pescados',
-      '🧀 Refrigerados y Cecinas',
-      '📦 Kits y Huevos'
+      'Carnes y Churrascos',
+      'Hamburguesas y Prefritos',
+      'Congelados y Pulpas',
+      'Mariscos y Pescados',
+      'Refrigerados y Cecinas',
+      'Kits y Huevos'
     ];
     const cachedArtico = localStorage.getItem('artico_categories_data') || localStorage.getItem('artico_categories_v1');
     let initialArticoCats = [...OFFICIAL_ARTICO_DEFAULTS];
@@ -787,13 +813,13 @@ export default function MantTab({
       try {
         const parsed = JSON.parse(cachedArtico);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          initialArticoCats = parsed;
+          initialArticoCats = parsed.map((c: string) => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean);
         }
       } catch (e) {
         console.error("Error parsing cached artico categories:", e);
       }
     } else if (config.articoCategories && config.articoCategories.length > 0) {
-      initialArticoCats = config.articoCategories;
+      initialArticoCats = config.articoCategories.map((c: string) => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean);
     }
     setArticoCategoriesList(initialArticoCats);
     localStorage.setItem('artico_categories_data', JSON.stringify(initialArticoCats));
@@ -822,6 +848,28 @@ export default function MantTab({
       farmacia: true,
       frutería: true
     });
+
+    const cachedArticoMods = localStorage.getItem('artico_active_modules');
+    if (cachedArticoMods) {
+      try {
+        setArticoActiveModules(JSON.parse(cachedArticoMods));
+      } catch (e) {
+        console.error("Error parsing artico_active_modules:", e);
+      }
+    } else if (config.articoActiveModules) {
+      setArticoActiveModules(config.articoActiveModules as any);
+    } else {
+      const defaultArticoMods = {
+        congeladosPulpas: true,
+        carnesChurrascos: true,
+        mariscosPescados: true,
+        refrigeradosCecinas: true,
+        kitsCajasCerradas: true
+      };
+      setArticoActiveModules(defaultArticoMods);
+      localStorage.setItem('artico_active_modules', JSON.stringify(defaultArticoMods));
+    }
+
     setRutasCamion(config.rutasCamion || DEFAULT_RUTAS_CAMION);
   }, [config]);
 
@@ -994,7 +1042,7 @@ export default function MantTab({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
+      const img = new window.Image();
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -1011,6 +1059,8 @@ export default function MantTab({
           // Compress high resolution files to light JPEG representation
           const compressed = canvas.toDataURL('image/jpeg', 0.65);
           setLocalBannerUrl(compressed);
+          const activeStore = getActiveStoreInfo();
+          localStorage.setItem(`${activeStore.key}_banner_v1`, compressed);
         }
       };
     };
@@ -1188,8 +1238,10 @@ export default function MantTab({
         siiDigitalCert: siiDigitalCert.trim(),
         siiApiKey: siiApiKey.trim(),
         modulosActivos,
+        articoActiveModules,
         rutasCamion
       });
+      localStorage.setItem('artico_active_modules', JSON.stringify(articoActiveModules));
 
       // Save each employee slot to the config/business_info/empleados subcollection
       for (const emp of employeesList) {
@@ -1212,7 +1264,12 @@ export default function MantTab({
         }
       }
 
-      // Contextual save of categories to isolated localStorage keys according to active store
+      // Contextual save of categories and banner to isolated localStorage keys according to active store
+      const storeBannerKey = `${activeStoreInfo.key}_banner_v1`;
+      if (localBannerUrl.trim()) {
+        localStorage.setItem(storeBannerKey, localBannerUrl.trim());
+      }
+
       if (activeStoreInfo.key === 'turco') {
         localStorage.setItem('turco_categories_v1', JSON.stringify(productCategoriesList));
       } else if (activeStoreInfo.key === 'fruteria') {
@@ -1697,7 +1754,14 @@ export default function MantTab({
                   placeholder="Pegue la URL de la imagen aquí..."
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-indigo-600/10 focus:outline-none focus:bg-white transition-all font-semibold outline-none"
                   value={localBannerUrl.startsWith('data:image/') ? '' : localBannerUrl}
-                  onChange={(e) => setLocalBannerUrl(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLocalBannerUrl(val);
+                    if (val.trim()) {
+                      const activeStore = getActiveStoreInfo();
+                      localStorage.setItem(`${activeStore.key}_banner_v1`, val.trim());
+                    }
+                  }}
                 />
                 <span className="text-[9px] text-gray-400 font-bold block">Sugerencia: puedes copiar un enlace de Unsplash o Imgur.</span>
               </div>
@@ -1719,7 +1783,17 @@ export default function MantTab({
                   {localBannerUrl.startsWith('data:image/') && (
                     <button
                       type="button"
-                      onClick={() => setLocalBannerUrl(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800')}
+                      onClick={() => {
+                        const activeStore = getActiveStoreInfo();
+                        let defaultBannerForStore = 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800';
+                        if (activeStore.key === 'artico') {
+                          defaultBannerForStore = 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800';
+                        } else if (activeStore.key === 'fruteria') {
+                          defaultBannerForStore = 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800';
+                        }
+                        setLocalBannerUrl(defaultBannerForStore);
+                        localStorage.setItem(`${activeStore.key}_banner_v1`, defaultBannerForStore);
+                      }}
                       className="px-3 bg-rose-50 hover:bg-rose-100/80 text-rose-600 border border-rose-100 text-xs font-bold rounded-xl transition-all cursor-pointer"
                     >
                       Restaurar
@@ -1742,69 +1816,134 @@ export default function MantTab({
               Active o desactive los módulos del negocio según sus necesidades. Al apagar un módulo, se ocultará su sección correspondiente en la vitrina del cliente, se deshabilitarán sus filtros y categorías, y no se mostrarán sus productos en oferta.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                { id: 'tiendaAbarrotes', label: '🏪 Tienda de Abarrotes', desc: 'Productos de abasto general' },
-                { id: 'cocinaAlmuerzos', label: '🍲 Cocina / Almuerzos', desc: 'Platos de comida preparados' },
-                { id: 'bodega', label: '🍷 Bodega', desc: 'Bebidas y licores' },
-                { id: 'farmacia', label: '💊 Farmacia', desc: 'Cuidado y medicamentos' },
-                { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' }
-              ].map((mod) => {
-                const permitidos = config.modulosPermitidos || {
-                  tiendaAbarrotes: true,
-                  cocinaAlmuerzos: true,
-                  bodega: false,
-                  farmacia: false,
-                  frutería: true
-                };
-                const isPermitted = mod.id === 'frutería' ? true : (permitidos[mod.id as keyof typeof permitidos] !== false);
-                const isActive = modulosActivos[mod.id as keyof typeof modulosActivos] && isPermitted;
-
-                return (
-                  <div 
-                    key={mod.id} 
-                    className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
-                      !isPermitted
-                        ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
-                        : isActive 
-                          ? 'bg-indigo-50/40 border-indigo-150 text-indigo-950 shadow-3xs' 
-                          : 'bg-gray-50/60 border-gray-150 text-gray-450'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between w-full gap-2">
-                      <div className="space-y-0.5">
-                        <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : ''}`}>
-                          {mod.label}
-                        </span>
-                        <span className="text-[9px] font-bold text-gray-400 block font-sans">
-                          {mod.desc}
-                        </span>
+              {activeStoreInfo.key === 'artico' ? (
+                [
+                  { id: 'congeladosPulpas', label: '🧊 CONGELADOS Y PULPAS', desc: 'Pulpas de fruta y productos helados' },
+                  { id: 'carnesChurrascos', label: '🥩 CARNES Y CHURRASCOS', desc: 'Cortes seleccionados y churrascos' },
+                  { id: 'mariscosPescados', label: '🦐 MARISCOS Y PESCADOS', desc: 'Mariscos frescos y congelados' },
+                  { id: 'refrigeradosCecinas', label: '🧀 REFRIGERADOS Y CECINAS', desc: 'Quesos, cecinas y fiambres' },
+                  { id: 'kitsCajasCerradas', label: '📦 KITS Y CAJAS CERRADAS', desc: 'Packs mayoristas y cajas selladas' }
+                ].map((mod) => {
+                  const permitidos = config.modulosPermitidos || {};
+                  const devModules = config.modules || {};
+                  const isPermitted = (permitidos as Record<string, boolean | undefined>).congelados !== false && (devModules as Record<string, boolean | undefined>).congelados !== false;
+                  const isActive = articoActiveModules[mod.id as keyof typeof articoActiveModules] !== false && isPermitted;
+                  return (
+                    <div 
+                      key={mod.id} 
+                      className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
+                        !isPermitted
+                          ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
+                          : isActive 
+                            ? 'bg-cyan-50/40 border-cyan-200 text-cyan-950 shadow-3xs' 
+                            : 'bg-gray-50/60 border-gray-150 text-gray-450'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between w-full gap-2">
+                        <div className="space-y-0.5">
+                          <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : 'text-cyan-950'}`}>
+                            {mod.label}
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 block font-sans">
+                            {mod.desc}
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            disabled={!isPermitted}
+                            checked={isActive}
+                            onChange={(e) => {
+                              if (!isPermitted) return;
+                              const updated = {
+                                ...articoActiveModules,
+                                [mod.id]: e.target.checked
+                              };
+                              setArticoActiveModules(updated);
+                              localStorage.setItem('artico_active_modules', JSON.stringify(updated));
+                            }}
+                          />
+                          <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-cyan-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
+                            !isPermitted
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'peer-checked:bg-cyan-600'
+                          }`}></div>
+                        </label>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          disabled={!isPermitted}
-                          checked={isActive}
-                          onChange={(e) => setModulosActivos({
-                            ...modulosActivos,
-                            [mod.id]: e.target.checked
-                          })}
-                        />
-                        <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
-                          !isPermitted 
-                            ? 'opacity-50 cursor-not-allowed' 
-                            : 'peer-checked:bg-indigo-600'
-                        }`}></div>
-                      </label>
+                      {!isPermitted && (
+                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
+                          🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
+                        </div>
+                      )}
                     </div>
-                    {!isPermitted && (
-                      <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
-                        🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
+                  );
+                })
+              ) : (
+                [
+                  { id: 'tiendaAbarrotes', label: '🏪 Tienda de Abarrotes', desc: 'Productos de abasto general' },
+                  { id: 'cocinaAlmuerzos', label: '🍲 Cocina / Almuerzos', desc: 'Platos de comida preparados' },
+                  { id: 'bodega', label: '🍷 Bodega', desc: 'Bebidas y licores' },
+                  { id: 'farmacia', label: '💊 Farmacia', desc: 'Cuidado y medicamentos' },
+                  { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' }
+                ].map((mod) => {
+                  const permitidos = config.modulosPermitidos || {
+                    tiendaAbarrotes: true,
+                    cocinaAlmuerzos: true,
+                    bodega: false,
+                    farmacia: false,
+                    frutería: true
+                  };
+                  const isPermitted = mod.id === 'frutería' ? true : (permitidos[mod.id as keyof typeof permitidos] !== false);
+                  const isActive = modulosActivos[mod.id as keyof typeof modulosActivos] && isPermitted;
+
+                  return (
+                    <div 
+                      key={mod.id} 
+                      className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
+                        !isPermitted
+                          ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
+                          : isActive 
+                            ? 'bg-indigo-50/40 border-indigo-150 text-indigo-950 shadow-3xs' 
+                            : 'bg-gray-50/60 border-gray-150 text-gray-450'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between w-full gap-2">
+                        <div className="space-y-0.5">
+                          <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : ''}`}>
+                            {mod.label}
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 block font-sans">
+                            {mod.desc}
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            disabled={!isPermitted}
+                            checked={isActive}
+                            onChange={(e) => setModulosActivos({
+                              ...modulosActivos,
+                              [mod.id]: e.target.checked
+                            })}
+                          />
+                          <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
+                            !isPermitted 
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : 'peer-checked:bg-indigo-600'
+                          }`}></div>
+                        </label>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {!isPermitted && (
+                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
+                          🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -2043,6 +2182,91 @@ export default function MantTab({
                     <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
                       <span>¡Categorías de frutería guardadas con éxito!</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Ártico Congelados Categories */}
+            {activeStoreInfo.key === 'artico' && (
+              <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                <label className="text-[9.5px] font-black text-cyan-700 uppercase tracking-widest block">
+                  🧊 Categorías de Ártico Congelados
+                </label>
+                <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-slate-200 rounded-xl min-h-12 items-center">
+                  {articoCategoriesList.map(cat => (
+                    <span key={cat} className="inline-flex items-center gap-2 bg-slate-100 text-slate-850 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-slate-200 shadow-3xs hover:bg-slate-150 transition-colors">
+                      <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-slate-100 shrink-0">
+                        <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                      </span>
+                      <span className="font-bold">{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveArticoCat(cat)}
+                        className="text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-slate-200"
+                      >
+                        <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    </span>
+                  ))}
+                  {articoCategoriesList.length === 0 && (
+                    <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. Carnes, Mariscos, Congelados..."
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-cyan-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                    value={newArticoCat}
+                    onChange={(e) => setNewArticoCat(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddArticoCat(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddArticoCat}
+                    className={`font-extrabold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-3xs ${
+                      newArticoCat.trim() !== ''
+                        ? 'bg-cyan-600 hover:bg-cyan-700 text-white'
+                        : 'bg-slate-200 text-slate-450 hover:bg-slate-250'
+                    }`}
+                  >
+                    Agregar
+                  </button>
+                </div>
+                {/* Ártico Sticker Selector */}
+                <div className="space-y-1 bg-white p-2.5 rounded-xl border border-slate-150">
+                  <span className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider block">
+                    🎨 Escoge un sticker 3D para asociarlo al rubro nuevo que va a agregar:
+                  </span>
+                  <div className="flex gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-none max-w-full justify-start items-center">
+                    {ARTICO_STICKER_ITEMS.map(item => (
+                      <SelectorStickerItem
+                        key={item.label}
+                        item={item}
+                        selected={articoSelectedEmoji === item.url || articoSelectedEmoji === item.nativeEmoji}
+                        onClick={() => setArticoSelectedEmoji(item.url)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botón de Guardado Específico */}
+                <div className="pt-1.5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveArticoCategories}
+                    disabled={!isUnlocked || loading}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Categorías de Ártico Congelados</span>
+                  </button>
+                  {notifySavedArticoCats && (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
+                      <span>¡Categorías de Ártico Congelados guardadas con éxito!</span>
                     </div>
                   )}
                 </div>

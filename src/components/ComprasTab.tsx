@@ -415,7 +415,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     localStorage.setItem('cliente_comuna', comuna);
   }, [comuna]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'MercadoPago' | 'Efectivo'>('MercadoPago');
+  const [paymentMethod, setPaymentMethod] = useState<'MercadoPago' | 'Webpay' | 'Efectivo'>('MercadoPago');
 
   // Document selection states
   const [documentType, setDocumentType] = useState<'Boleta' | 'Factura'>('Boleta');
@@ -628,8 +628,29 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     'Kits y Huevos'
   ];
 
+  const getArticoCategoriesList = (): string[] => {
+    let list: string[] = [];
+    if (config?.articoCategories && config.articoCategories.length > 0) {
+      list = config.articoCategories;
+    } else if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('artico_categories_data') || localStorage.getItem('artico_categories_v1');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            list = parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    if (list.length === 0) {
+      list = OFFICIAL_ARTICO_CATEGORIES;
+    }
+    return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
+  };
+
   const tiendaCategories = Array.from(new Set(isArtico
-    ? ['Todo', ...OFFICIAL_ARTICO_CATEGORIES, ...uniqueProductCats.filter(c => !OFFICIAL_ARTICO_CATEGORIES.includes(c))]
+    ? ['Todo', ...getArticoCategoriesList()]
     : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')]));
   const fruteriaCategories = Array.from(new Set(isFruteria
     ? ['Todo', ...Array.from(new Set(productosNormalizados.map(p => p.category || (p as any).categoria).filter(Boolean)))]
@@ -640,7 +661,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   // Match items based on filters and search
   const filteredTiendaProducts = isFruteria ? [] : productosComprar.filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
-    if (getModuleForCategory(catRaw) === 'frutería') return false;
+    if (!isArtico && getModuleForCategory(catRaw) === 'frutería') return false;
 
     const searchClean = searchTerm.trim().toLowerCase();
     const productName = (product.name || (product as any).nombre || '').toLowerCase();
@@ -649,7 +670,14 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     const matchesSearch = !searchClean || 
                           productName.includes(searchClean) ||
                           productSku.includes(searchClean);
-    const matchesCategory = selectedProductCategory === 'Todo' || catRaw === selectedProductCategory;
+
+    const cleanSelected = selectedProductCategory.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+    const cleanCatRaw = catRaw.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+
+    const matchesCategory = selectedProductCategory === 'Todo' || 
+                            selectedProductCategory === 'Todos' ||
+                            catRaw === selectedProductCategory ||
+                            cleanCatRaw === cleanSelected;
     return matchesSearch && matchesCategory;
   });
 
@@ -1180,19 +1208,20 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     }
 
     // Determine gateway trigger
-    if (paymentMethod === 'MercadoPago') {
+    if (paymentMethod === 'MercadoPago' || paymentMethod === 'Webpay') {
+      const gatewayName = paymentMethod === 'MercadoPago' ? 'Mercado Pago (Sandbox)' : 'Webpay Plus (Integration)';
       setMpCardNumber('4509 1234 5678 9012');
       setMpCardName(customerName.toUpperCase());
       setMpCardExpiry('12/29');
       setMpCardCvc('123');
       setMpProcessingState('processing');
-      setMpProcessingText('Conectando con Mercado Pago Sandbox...');
+      setMpProcessingText(`Conectando con la pasarela de pago segura (Sandbox)...`);
       setShowMpSimulator(true);
 
-      // Automated sandbox progression
+      // Automated 3-second sandbox progression
       setTimeout(() => {
         setMpProcessingState('success');
-      }, 1500);
+      }, 3000);
     } else {
       // Direct Cash checkout
       handleExecuteAddTransaction('Efectivo');
@@ -1256,7 +1285,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     return `https://www.sii.cl/facturacion_electronica/ejemplo_dte_${tipoDte}.pdf`;
   };
 
-  const handleExecuteAddTransaction = async (finalMethod: 'Efectivo' | 'Tarjeta') => {
+  const handleExecuteAddTransaction = async (finalMethod: 'MercadoPago' | 'Webpay' | 'Efectivo' | string) => {
     setIsCheckingOut(true);
     setValidationError(null);
 
@@ -1278,8 +1307,22 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         };
       });
 
+      let displayMethod = 'Efectivo / Transferencia';
+      let statusText = 'PAGO CONTRA ENTREGA (PRUEBA)';
+      let paymentStatus = 'PENDING';
+
+      if (finalMethod === 'MercadoPago' || finalMethod === 'Mercado Pago (Sandbox)') {
+        displayMethod = 'Mercado Pago (Sandbox)';
+        statusText = 'PAGADO VÍA MERCADO PAGO (PRUEBA)';
+        paymentStatus = 'APPROVED';
+      } else if (finalMethod === 'Webpay' || finalMethod === 'Webpay Plus (Integration)') {
+        displayMethod = 'Webpay Plus (Integration)';
+        statusText = 'PAGADO VÍA WEBPAY PLUS (PRUEBA)';
+        paymentStatus = 'APPROVED';
+      }
+
       let simulatedPdfUrl = '';
-      if (finalMethod === 'Tarjeta' && config?.siiEnabled) {
+      if ((paymentStatus === 'APPROVED' || finalMethod === 'Tarjeta') && config?.siiEnabled) {
         simulatedPdfUrl = await enviarDatosAlSII({
           tipoDocumento: documentType,
           rutEmpresa,
@@ -1297,7 +1340,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         subtotal: parseFloat(subtotalVal.toFixed(2)),
         tax: parseFloat(taxVal.toFixed(2)),
         total: parseFloat(totalCartCost.toFixed(2)),
-        method: finalMethod,
+        method: displayMethod,
+        paymentStatus: paymentStatus,
+        paymentStatusText: statusText,
         createdAt: new Date().toISOString(),
         documentType,
         ...(documentType === 'Factura' ? {
@@ -1411,21 +1456,43 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       }
 
       let msg = '';
-      if (finalMethod === 'Tarjeta') {
+      if (paymentStatus === 'APPROVED') {
         const docText = documentType === 'Factura' ? 'Factura' : 'Boleta';
         const docUrl = simulatedPdfUrl || `https://www.sii.cl/facturacion_electronica/ejemplo_dte_${documentType === 'Factura' ? 33 : 39}.pdf`;
         
+        msg = `💳 *NUEVO PEDIDO CONFIRMADO Y PAGADO* 🔒\n`;
+        msg += `*${config.name || 'Donde el Goyo'}*\n`;
+        msg += `====================================\n\n`;
+        msg += `👤 *Cliente:* ${customerName.trim()}\n`;
+        msg += `📞 *Teléfono:* ${customerPhone.trim()}\n`;
+        msg += `🚚 *Método de Entrega:* ${shippingMethod === 'Domicilio' ? 'A Domicilio 🚀' : 'Retiro en Tienda 🏬'}\n`;
+        
         if (shippingMethod === 'Domicilio') {
-          msg = `¡Hola! Nuevo pedido pagado. Método: Delivery. Dirección de entrega: ${street.trim()} # ${number.trim()}, ${comuna}. Total con envío: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n`;
+          msg += `📍 *Dirección de Despacho:* ${street.trim()} # ${number.trim()}, ${comuna}\n`;
           if (progEntregaLine) {
             msg += progEntregaLine;
           }
-          msg += `\n`;
         } else {
-          msg = `¡Hola! Nuevo pedido pagado. Método: Retiro en Local. Total: $${totalCartCost.toFixed(2)}. Ver documento emitido aquí: ${docUrl}\n\n`;
+          msg += `📍 *Dirección de Retiro:* Retiro en local\n`;
         }
         
-        msg += `📦 *DETALLE DE PRODUCTOS:* \n`;
+        msg += `💳 *Método de Pago:* ${displayMethod}\n`;
+        msg += `🟢 *ESTADO:* ${statusText}\n`;
+
+        if (documentType === 'Factura') {
+          msg += `📄 *Documento:* Factura (RUT: ${rutEmpresa.trim()}) | Razón Social: ${razonSocial.trim()}\n`;
+        } else {
+          msg += `📄 *Documento:* Boleta Electrónica\n`;
+        }
+
+        msg += `🔐 *ID Transacción:* #${txId.toUpperCase()}\n`;
+        
+        if (notes.trim()) {
+          msg += `📝 *Notas:* ${notes.trim()}\n`;
+        }
+
+        msg += `\n📦 *DETALLE DE PRODUCTOS:* \n`;
+        msg += `------------------------------------\n`;
         cart.forEach((item) => {
           const liveProduct = item.type === 'product' ? products.find(p => p.id === item.id) : null;
           const liveFoodItem = item.type === 'meal' ? foodItems.find(f => f.id === item.id) : null;
@@ -1435,17 +1502,22 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
           const price = getItemPrice(item);
           const suffix = item.type === 'product' && liveProduct?.unidadMedida ? (liveProduct.unidadMedida === 'kg' ? ' Kg' : liveProduct.unidadMedida === 'g' ? ' g' : 'x') : 'x';
           if (suffix === 'x') {
-            msg += `• *${item.quantity}x* _${name}_ | Precio c/u: $${price.toFixed(0)}\n`;
+            msg += `• *${item.quantity}x* _${name}_ | $${price.toFixed(0)} c/u -> Sub: $${(price * item.quantity).toFixed(0)}\n`;
           } else {
-            msg += `• *${item.quantity}${suffix}* _${name}_ | Precio ${suffix.trim()}: $${price.toFixed(0)}\n`;
+            msg += `• *${item.quantity}${suffix}* _${name}_ | $${price.toFixed(0)} -> Sub: $${(price * item.quantity).toFixed(0)}\n`;
           }
         });
-        
+        msg += `------------------------------------\n`;
+
         if (shippingMethod === 'Domicilio') {
-          msg += `🚚 *Costo de Envío (Delivery):* $${deliveryFee.toFixed(2)}\n`;
+          msg += `🚚 *Costo de Envío:* $${deliveryFee.toFixed(2)}\n`;
         }
-        
-        msg += `\n_¡Muchas gracias! Comprobante emitido y venta confirmada._`;
+
+        msg += `\n💵 *TOTAL PAGADO: $${totalCartCost.toFixed(2)}*\n`;
+        if (docUrl) {
+          msg += `📥 *Ver Documento SII:* ${docUrl}\n`;
+        }
+        msg += `\n_¡Muchas gracias! Comprobante emitido y venta aprobada en sandbox._`;
       } else {
         msg += `📝 *NUEVO PEDIDO CON PAGO EN EFECTIVO* 🏪\n`;
         msg += `*${config.name || 'Donde el Goyo'}*\n`;
@@ -1463,8 +1535,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
           msg += `📍 *Dirección de Retiro:* Retiro en local\n`;
         }
         
-        msg += `💳 *Método de Pago:* Pago contra Entrega (Efectivo)\n`;
-        msg += `🟢 *Estado de Transacción:* Pendiente de Pago al recibir\n`;
+        msg += `💳 *Método de Pago:* Efectivo / Transferencia al Entregar\n`;
+        msg += `🟡 *ESTADO:* PAGO CONTRA ENTREGA (PRUEBA)\n`;
 
         if (documentType === 'Factura') {
           msg += `📄 *Documento solicitado:* Factura (RUT: ${rutEmpresa.trim()})\n`;
@@ -1709,7 +1781,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
           <img
             src={config.bannerUrl || (isArtico 
               ? 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800'
-              : 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800')}
+              : isFruteria
+              ? 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800'
+              : 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800')}
             alt="Local Banner"
             referrerPolicy="no-referrer"
             className="w-full h-full object-cover filter brightness-[0.4] contrast-110"
@@ -3053,26 +3127,30 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   {/* Selector de Método de Pago */}
                   <div className="space-y-4 bg-white border-2 border-slate-200 p-4 rounded-2xl">
                     <span className="text-xs font-black text-slate-600 uppercase tracking-widest block font-sans">
-                      Elegir Método de Pago
+                      Elegir Pasarela de Pago
                     </span>
 
                     <div className="grid grid-cols-1 gap-2.5">
+                      {/* Mercado Pago */}
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('MercadoPago')}
-                        className={`p-4 rounded-2xl text-left border-2 transition-all flex items-center justify-between cursor-pointer ${
+                        className={`p-3.5 rounded-2xl text-left border-2 transition-all flex items-center justify-between cursor-pointer ${
                           paymentMethod === 'MercadoPago'
-                            ? 'bg-sky-50/70 border-sky-500 shadow-md ring-2 ring-sky-500/10'
+                            ? 'bg-sky-50/80 border-sky-500 shadow-md ring-2 ring-sky-500/10'
                             : 'bg-slate-50 border-slate-300 hover:bg-slate-100'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-sky-500 text-white rounded-xl">
+                          <div className="p-2.5 bg-sky-500 text-white rounded-xl shrink-0 shadow-xs">
                             <CreditCard className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-xs font-black text-slate-950">Tarjeta de Crédito/Débito</p>
-                            <p className="text-[10px] font-extrabold text-sky-700">Simulado Mercado Pago Sandbox 🔒</p>
+                            <p className="text-xs font-black text-slate-950 flex items-center gap-1.5">
+                              <span>💳 Mercado Pago</span>
+                              <span className="bg-sky-100 text-sky-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Sandbox</span>
+                            </p>
+                            <p className="text-[10px] font-bold text-sky-700">Modo Prueba / Sandbox 🔒</p>
                           </div>
                         </div>
                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === 'MercadoPago' ? 'border-sky-500' : 'border-slate-300'}`}>
@@ -3080,22 +3158,50 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                         </div>
                       </button>
 
+                      {/* Webpay Plus */}
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('Efectivo')}
-                        className={`p-4 rounded-2xl text-left border-2 transition-all flex items-center justify-between cursor-pointer ${
-                          paymentMethod === 'Efectivo'
-                            ? 'bg-emerald-50/70 border-emerald-500 shadow-md ring-2 ring-emerald-500/10'
+                        onClick={() => setPaymentMethod('Webpay')}
+                        className={`p-3.5 rounded-2xl text-left border-2 transition-all flex items-center justify-between cursor-pointer ${
+                          paymentMethod === 'Webpay'
+                            ? 'bg-indigo-50/80 border-indigo-500 shadow-md ring-2 ring-indigo-500/10'
                             : 'bg-slate-50 border-slate-300 hover:bg-slate-100'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                          <div className="p-2.5 bg-indigo-600 text-white rounded-xl shrink-0 shadow-xs">
+                            <CreditCard className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-slate-950 flex items-center gap-1.5">
+                              <span>💳 Webpay Plus - Transbank</span>
+                              <span className="bg-indigo-100 text-indigo-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase font-mono">Integration</span>
+                            </p>
+                            <p className="text-[10px] font-bold text-indigo-700">Modo Prueba / Integration 🛡️</p>
+                          </div>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === 'Webpay' ? 'border-indigo-500' : 'border-slate-300'}`}>
+                          {paymentMethod === 'Webpay' && <div className="w-2 h-2 rounded-full bg-indigo-600" />}
+                        </div>
+                      </button>
+
+                      {/* Efectivo / Transferencia */}
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('Efectivo')}
+                        className={`p-3.5 rounded-2xl text-left border-2 transition-all flex items-center justify-between cursor-pointer ${
+                          paymentMethod === 'Efectivo'
+                            ? 'bg-emerald-50/80 border-emerald-500 shadow-md ring-2 ring-emerald-500/10'
+                            : 'bg-slate-50 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-emerald-600 text-white rounded-xl shrink-0 shadow-xs">
                             <Send className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-xs font-black text-slate-950">Efectivo / Transferencia</p>
-                            <p className="text-[10px] font-extrabold text-emerald-700">Pago contra entrega al recibir</p>
+                            <p className="text-xs font-black text-slate-950">💵 Efectivo / Transferencia al Entregar</p>
+                            <p className="text-[10px] font-bold text-emerald-700">Pago contra entrega al recibir</p>
                           </div>
                         </div>
                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === 'Efectivo' ? 'border-emerald-500' : 'border-slate-300'}`}>
@@ -3123,7 +3229,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     </p>
                   </div>
 
-                   {paymentMethod === 'MercadoPago' && config?.siiEnabled && successTx?.siiPdfUrl && (
+                   {(paymentMethod === 'MercadoPago' || paymentMethod === 'Webpay') && config?.siiEnabled && successTx?.siiPdfUrl && (
                     <div className="bg-sky-50 border-2 border-sky-250 p-4 rounded-2xl space-y-2.5 font-sans">
                       <div className="flex items-center gap-2">
                         <FileText className="w-5 h-5 text-sky-600" />
@@ -3190,12 +3296,17 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     {paymentMethod === 'MercadoPago' ? (
                       <>
                         <CreditCard className="w-5 h-5 text-white" />
-                        <span>💳 Proceder al Pago Seguro</span>
+                        <span>💳 Pagar con Mercado Pago Sandbox</span>
+                      </>
+                    ) : paymentMethod === 'Webpay' ? (
+                      <>
+                        <CreditCard className="w-5 h-5 text-white" />
+                        <span>💳 Pagar con Webpay Plus Sandbox</span>
                       </>
                     ) : (
                       <>
                         <Check className="w-5 h-5 text-white stroke-[3]" />
-                        <span>Confirmar por WhatsApp</span>
+                        <span>Confirmar Pedido (Pago al Recibir)</span>
                       </>
                     )}
                   </button>
@@ -3494,15 +3605,17 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         </div>
       )}
 
-      {/* Mercado Pago Sandbox Interactive Simulator Modal */}
+      {/* Payment Gateway Sandbox Interactive Simulator Modal */}
       {showMpSimulator && (
         <div className="fixed inset-0 z-[999999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border-2 border-slate-800 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-250 flex flex-col p-6 space-y-6 text-center">
+          <div className="bg-slate-900 border-2 border-slate-800 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-250 flex flex-col p-6 space-y-6 text-center font-sans">
             
             {/* Header branding */}
             <div className="flex items-center justify-center gap-2">
               <Lock className="w-5 h-5 text-sky-500 animate-pulse" />
-              <h3 className="font-black text-xs tracking-widest text-white uppercase font-sans">Mercado Pago Sandbox</h3>
+              <h3 className="font-black text-xs tracking-widest text-white uppercase font-sans">
+                {paymentMethod === 'MercadoPago' ? 'Mercado Pago Sandbox' : 'Webpay Plus Transbank Integration'}
+              </h3>
             </div>
 
             {/* Content depends on state */}
@@ -3513,9 +3626,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   <div className="absolute inset-0 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-white font-black text-xs uppercase tracking-wider font-sans">Pasarela Segura</h4>
+                  <h4 className="text-white font-black text-xs uppercase tracking-wider font-sans">Pasarela de Pago Segura</h4>
                   <p className="text-xs text-sky-400 font-extrabold font-mono animate-pulse">
-                    Conectando con Mercado Pago Sandbox...
+                    Conectando con la pasarela de pago segura (Sandbox)...
                   </p>
                 </div>
               </div>
@@ -3527,29 +3640,32 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   <Check className="w-8 h-8 stroke-[3.5] animate-bounce" />
                 </div>
                 <div className="space-y-2">
-                  <h4 className="text-emerald-400 font-black text-xs uppercase tracking-wider font-sans">¡PAGO PROCESADO!</h4>
-                  <p className="text-slate-200 text-xs font-black font-sans leading-relaxed">
-                    ¡Pago Aprobado con Éxito! Tarjeta de prueba procesada.
+                  <div className="inline-block bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                    STATUS: APPROVED
+                  </div>
+                  <h4 className="text-emerald-400 font-black text-xs uppercase tracking-wider font-sans">¡PAGO PROCESADO Y APROBADO!</h4>
+                  <p className="text-slate-200 text-xs font-bold font-sans leading-relaxed">
+                    Transacción de prueba procesada con éxito vía {paymentMethod === 'MercadoPago' ? 'Mercado Pago (Sandbox)' : 'Webpay Plus (Integration)'}.
                   </p>
                 </div>
 
-                <div className="w-full pt-4 flex gap-2">
+                <div className="w-full pt-2 flex gap-2">
                   <button
                     type="button"
                     onClick={() => setShowMpSimulator(false)}
                     className="flex-1 py-3 px-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs transition-colors cursor-pointer font-sans"
                   >
-                    Cerrar
+                    Cancelar
                   </button>
                   <button
                     type="button"
                     onClick={async () => {
                       setShowMpSimulator(false);
-                      await handleExecuteAddTransaction('Tarjeta');
+                      await handleExecuteAddTransaction(paymentMethod);
                     }}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-4 rounded-xl text-xs transition-colors cursor-pointer shadow-md shadow-emerald-600/10 border border-emerald-550 font-sans"
                   >
-                    Avanzar 🚀
+                    Generar Comprobante 🚀
                   </button>
                 </div>
               </div>

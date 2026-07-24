@@ -449,6 +449,14 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
         'Refrigerados y Cecinas',
         'Kits y Huevos'
       ],
+      articoCategories: [
+        'Carnes y Churrascos',
+        'Hamburguesas y Prefritos',
+        'Congelados y Pulpas',
+        'Mariscos y Pescados',
+        'Refrigerados y Cecinas',
+        'Kits y Huevos'
+      ],
       categoryIcons: {
         'Carnes y Churrascos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cut%20of%20Meat.png',
         'Hamburguesas y Prefritos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png',
