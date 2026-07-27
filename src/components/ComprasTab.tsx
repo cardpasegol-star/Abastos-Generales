@@ -402,15 +402,12 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
   // Modern Independent Feature Flags (Todo o Nada)
   const flagRutasCamion = config?.modules?.rutasCamion ?? (config?.rutasCamion ? true : false);
-  const flagFruteria = config?.modules?.fruteria ?? (config?.modulosActivos?.frutería ?? true);
+  const flagFruteria = isModuleActive('frutería', config);
   
-  const isKitchenActive = !isFruteria && (
-    config?.modules?.almuerzos ?? 
-    (config?.modulosActivos?.cocinaAlmuerzos ?? (config?.mostrarAlmuerzos !== false))
-  );
+  const isKitchenActive = !isFruteria && isModuleActive('cocinaAlmuerzos', config);
   const showKitchenModule = isKitchenActive;
   const flagAlmuerzos = isKitchenActive;
-  const flagTienda = true;
+  const flagTienda = isModuleActive('tiendaAbarrotes', config);
 
   useEffect(() => {
     localStorage.setItem('cliente_comuna', comuna);
@@ -682,7 +679,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     return matchesSearch && matchesCategory;
   });
 
-  let filteredFruteriaProducts = (isFruteria ? productosNormalizados : productosComprar).filter(product => {
+  let filteredFruteriaProducts = !flagFruteria ? [] : (isFruteria ? productosNormalizados : productosComprar).filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
     if (!isFruteria && getModuleForCategory(catRaw) !== 'frutería') return false;
 
@@ -2320,7 +2317,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       )}
 
       {/* SECTION 2B: PRODUCTOS DE FRUTERÍA Y VERDULERÍA */}
-      {(isFruteriaStore || filteredFruteriaProducts.length > 0) && (
+      {(flagFruteria && (isFruteriaStore || filteredFruteriaProducts.length > 0)) && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
             <div className="space-y-1">

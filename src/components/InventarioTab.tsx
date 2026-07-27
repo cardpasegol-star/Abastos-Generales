@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check, UploadCloud, ChevronRight, FileSpreadsheet, FileText, Clipboard, CheckCircle2, Trash2, ArrowRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Product, BusinessConfig, isModuleActive, getModuleForCategory } from '../types';
-import { getCategoryPlaceholder, handleImageError } from '../utils';
+import { getCategoryPlaceholder, handleImageError, safeLocalStorageSetItem } from '../utils';
 import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
@@ -307,6 +307,60 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   useEffect(() => {
     setImageError(false);
   }, [formData.imageUrl]);
+
+  const compressImageFile = (file: File, maxWidth = 400, maxHeight = 400, quality = 0.75): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const reader = new FileReader();
+        reader.onerror = (err) => reject(err);
+        reader.onload = (e) => {
+          try {
+            const img = new window.Image();
+            img.onerror = (err) => reject(err);
+            img.onload = () => {
+              try {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                  if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                  }
+                } else {
+                  if (height > maxHeight) {
+                    width = Math.round((width * maxHeight) / height);
+                    height = maxHeight;
+                  }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width || 300;
+                canvas.height = height || 300;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                  resolve(e.target?.result as string);
+                  return;
+                }
+
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(dataUrl);
+              } catch (canvasErr) {
+                reject(canvasErr);
+              }
+            };
+            img.src = e.target?.result as string;
+          } catch (readerErr) {
+            reject(readerErr);
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (initErr) {
+        reject(initErr);
+      }
+    });
+  };
 
   // ── ESTADOS Y CLASES PARA CARGA MASIVA ──
   interface ImportProduct {
@@ -999,9 +1053,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         });
         const mergedList = Array.from(mergedMap.values());
 
-        localStorage.setItem('artico_inventory', JSON.stringify(mergedList));
-        localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(mergedList));
-        localStorage.setItem('FRUTERIA_DATA', JSON.stringify(mergedList));
+        safeLocalStorageSetItem('artico_inventory', JSON.stringify(mergedList));
+        safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(mergedList));
+        safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(mergedList));
       } catch (e) {
         console.warn('LocalStorage bulk sync error:', e);
       }
@@ -1500,45 +1554,40 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     }
   };
 
-  const handleGalleryImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadingImage(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new window.Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 400; // Optimal width for product grid thumbnails
-        let width = img.width;
-        let height = img.height;
-        if (width > MAX_WIDTH) {
-          const scale = MAX_WIDTH / width;
-          width = MAX_WIDTH;
-          height = height * scale;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.7);
-          setFormData(prev => ({ ...prev, imageUrl: compressed }));
-        } else {
-          setFormData(prev => ({ ...prev, imageUrl: event.target?.result as string }));
-        }
-        setUploadingImage(false);
-      };
-      img.onerror = () => {
-        setUploadingImage(false);
-      };
-    };
-    reader.onerror = () => {
+    setImageError(false);
+
+    try {
+      if (!file.type.startsWith('image/')) {
+        throw new Error("El archivo seleccionado no es una imagen válida.");
+      }
+
+      // Safe client compression to max 400x400 to prevent Base64 memory bloat
+      const compressedBase64 = await compressImageFile(file, 400, 400, 0.75);
+
+      if (compressedBase64 && compressedBase64.length < 500000) {
+        setFormData(prev => ({ ...prev, imageUrl: compressedBase64 }));
+      } else {
+        const fallback = isArtico
+          ? getArtico3DPlaceholder(formData.category, formData.name)
+          : getCategoryPlaceholder(formData.category);
+        setFormData(prev => ({ ...prev, imageUrl: fallback }));
+      }
+    } catch (err: any) {
+      console.warn("Error seguro al procesar imagen cargada:", err);
+      const fallback = isArtico
+        ? getArtico3DPlaceholder(formData.category, formData.name)
+        : getCategoryPlaceholder(formData.category);
+      setFormData(prev => ({ ...prev, imageUrl: fallback }));
+      setImageError(true);
+    } finally {
       setUploadingImage(false);
-    };
-    reader.readAsDataURL(file);
+      e.target.value = '';
+    }
   };
 
   const categories = ['Todos', ...productCats];

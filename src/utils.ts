@@ -51,6 +51,12 @@ export function getCategoryPlaceholder(category?: string): string {
 
 export function handleImageError(e: React.SyntheticEvent<HTMLImageElement, Event>, category?: string): void {
   const target = e.currentTarget;
+  if (!target) return;
+  if (target.getAttribute('data-fallback-tried') === 'true') {
+    target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-size="10">Sin Imagen</text></svg>';
+    return;
+  }
+  target.setAttribute('data-fallback-tried', 'true');
   const fallback = getCategoryPlaceholder(category);
   if (target.src !== fallback) {
     target.src = fallback;

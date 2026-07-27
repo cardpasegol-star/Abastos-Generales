@@ -240,10 +240,12 @@ export function isModuleActive(category: string, config?: BusinessConfig): boole
 
   const moduleKey = getModuleForCategory(category);
 
+  // Check optional module toggle in config.modules if present
+  let isOptActive = true;
   if (config.modules) {
-    if (moduleKey === 'frutería') return config.modules.fruteria;
-    if (moduleKey === 'cocinaAlmuerzos') return config.modules.almuerzos;
-    if (moduleKey === 'tiendaAbarrotes') return config.modules.tienda;
+    if (moduleKey === 'frutería') isOptActive = config.modules.fruteria !== false;
+    else if (moduleKey === 'cocinaAlmuerzos') isOptActive = config.modules.almuerzos !== false;
+    else if (moduleKey === 'tiendaAbarrotes') isOptActive = config.modules.tienda !== false;
   }
 
   const modulos = config.modulosActivos || {
@@ -262,5 +264,5 @@ export function isModuleActive(category: string, config?: BusinessConfig): boole
   };
   const isPermitted = permitidos[moduleKey] !== false;
   const isActive = modulos[moduleKey] !== false;
-  return isPermitted && isActive;
+  return isOptActive && isPermitted && isActive;
 }

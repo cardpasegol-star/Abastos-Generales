@@ -99,6 +99,23 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [config, setConfig] = useState<BusinessConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
+  const [storageNotification, setStorageNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleStorageOptimized = (e: Event) => {
+      const customEvt = e as CustomEvent;
+      if (customEvt.detail?.message) {
+        setStorageNotification(customEvt.detail.message);
+        setTimeout(() => {
+          setStorageNotification(null);
+        }, 5000);
+      }
+    };
+    window.addEventListener('app_storage_optimized', handleStorageOptimized);
+    return () => {
+      window.removeEventListener('app_storage_optimized', handleStorageOptimized);
+    };
+  }, []);
 
   // States for Delivery Simulation
   const [adminDeliveryActive, setAdminDeliveryActive] = useState(false);
@@ -279,10 +296,10 @@ export default function App() {
       const filtered = prev.filter((p) => p.id !== id);
       const updated = [...filtered, newProduct];
       if (tenantId) {
-        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
-      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -320,10 +337,10 @@ export default function App() {
     setProducts((prev) => {
       const updated = prev.map((p) => (p.id === item.id ? sanitizedProduct : p));
       if (tenantId) {
-        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
-      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -342,10 +359,10 @@ export default function App() {
     setProducts((prev) => {
       const updated = prev.filter((p) => p.id !== id);
       if (tenantId) {
-        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
-      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -435,10 +452,10 @@ export default function App() {
     setProducts((prev) => {
       const updated = prev.map((p) => p.id === id ? { ...p, stock: sanitizedStock, updatedAt: new Date().toISOString() } : p);
       if (tenantId) {
-        localStorage.setItem(`products_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
-      localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      localStorage.setItem('FRUTERIA_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
+      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
       return updated;
     });
 
@@ -460,7 +477,7 @@ export default function App() {
     setFoodItems((prev) => {
       const updated = prev.map((f) => f.id === id ? { ...f, stock: sanitizedStock } : f);
       if (tenantId) {
-        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`foodItems_${tenantId}`, JSON.stringify(updated));
       }
       return updated;
     });
@@ -479,9 +496,9 @@ export default function App() {
   const handleUpdateConfig = async (newCfg: BusinessConfig) => {
     setConfig(newCfg);
     if (tenantId) {
-      localStorage.setItem(`config_${tenantId}`, JSON.stringify(newCfg));
+      safeLocalStorageSetItem(`config_${tenantId}`, JSON.stringify(newCfg));
       if (newCfg.bannerUrl) {
-        localStorage.setItem(`${tenantId}_banner_v1`, newCfg.bannerUrl);
+        safeLocalStorageSetItem(`${tenantId}_banner_v1`, newCfg.bannerUrl);
       }
     }
     try {
@@ -508,7 +525,7 @@ export default function App() {
       const filtered = prev.filter((d) => d.id !== id);
       const updated = [...filtered, newDish];
       if (tenantId) {
-        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`foodItems_${tenantId}`, JSON.stringify(updated));
       }
       return updated;
     });
@@ -534,7 +551,7 @@ export default function App() {
     setFoodItems((prev) => {
       const updated = prev.map((d) => (d.id === f.id ? sanitizedDish : d));
       if (tenantId) {
-        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`foodItems_${tenantId}`, JSON.stringify(updated));
       }
       return updated;
     });
@@ -554,7 +571,7 @@ export default function App() {
     setFoodItems((prev) => {
       const updated = prev.filter((d) => d.id !== id);
       if (tenantId) {
-        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(updated));
+        safeLocalStorageSetItem(`foodItems_${tenantId}`, JSON.stringify(updated));
       }
       return updated;
     });
@@ -643,7 +660,15 @@ export default function App() {
 
   // 4. Primary client layout canvas with persistent bottom nav
   return (
-    <div className="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased text-body-md select-none">
+    <div className="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased text-body-md select-none relative">
+      {storageNotification && (
+        <div className="fixed top-4 right-4 z-[9999] bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 border border-slate-700 animate-in fade-in slide-in-from-top duration-300 max-w-sm">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 font-bold text-sm">
+            ✓
+          </div>
+          <p className="text-xs font-semibold leading-tight">{storageNotification}</p>
+        </div>
+      )}
       {/* Dynamic top bar */}
       <Header 
         config={config} 
