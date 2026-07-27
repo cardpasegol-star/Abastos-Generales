@@ -392,6 +392,10 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
         };
       });
 
+      const PLATFORM_FEE_PERCENTAGE = 0.08;
+      const marketplaceFee = Math.round(total * PLATFORM_FEE_PERCENTAGE);
+      const storeNetAmount = Math.round(total - marketplaceFee);
+
       const transactionPayload: Omit<Transaction, 'id'> = {
         type: transactionType,
         items: txItems,
@@ -399,6 +403,9 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
         tax: parseFloat(tax.toFixed(2)),
         total: parseFloat(total.toFixed(2)),
         method: paymentMethod,
+        marketplaceFee: marketplaceFee,
+        storeNetAmount: storeNetAmount,
+        marketplaceFeePercentage: PLATFORM_FEE_PERCENTAGE,
         createdAt: new Date().toISOString(),
       };
 
@@ -711,9 +718,19 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
                   </div>
                 ))}
               </div>
-              <div className="border-t border-gray-150 pt-2 flex justify-between font-black text-sm text-gray-1000">
-                <span>Total Cobrado:</span>
-                <span className="text-emerald-600 text-base">${successTx.total.toFixed(2)}</span>
+              <div className="border-t border-gray-150 pt-2 space-y-1">
+                <div className="flex justify-between font-black text-sm text-gray-1000">
+                  <span>💳 Total Cobrado:</span>
+                  <span className="text-emerald-600 text-base">${successTx.total.toFixed(2)} CLP</span>
+                </div>
+                <div className="flex justify-between text-xs font-bold text-slate-600">
+                  <span>🛡️ Fee Plataforma (8%):</span>
+                  <span className="text-indigo-600 font-mono">${(successTx.marketplaceFee ?? Math.round(successTx.total * 0.08)).toLocaleString('es-CL')} CLP</span>
+                </div>
+                <div className="flex justify-between text-xs font-black text-slate-800">
+                  <span>🏪 Neto Tienda:</span>
+                  <span className="text-slate-900 font-mono">${(successTx.storeNetAmount ?? Math.round(successTx.total * 0.92)).toLocaleString('es-CL')} CLP</span>
+                </div>
               </div>
               <div className="text-[10px] text-slate-400 text-center pt-2 italic font-extrabold uppercase tracking-wider">
                 Pago realizado mediante: {successTx.method}

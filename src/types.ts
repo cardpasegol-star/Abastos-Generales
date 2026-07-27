@@ -54,6 +54,9 @@ export interface Transaction {
   deliveryFee?: number;
   paymentStatus?: 'APPROVED' | 'PENDING' | string;
   paymentStatusText?: string;
+  marketplaceFee?: number;
+  storeNetAmount?: number;
+  marketplaceFeePercentage?: number;
 }
 
 export interface Empleado {

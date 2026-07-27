@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check, UploadCloud, ChevronRight, FileSpreadsheet, FileText, Clipboard, CheckCircle2, Trash2, ArrowRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Product, BusinessConfig, isModuleActive, getModuleForCategory } from '../types';
+import { getCategoryPlaceholder, handleImageError } from '../utils';
 import BarcodeScanner from './BarcodeScanner';
 
 interface InventarioTabProps {
@@ -1686,9 +1687,10 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <div className="relative h-44 w-full bg-slate-100 shrink-0">
                 <img
                   alt={p.name}
+                  loading="lazy"
                   className="w-full h-full object-contain p-2.5 bg-white transition-transform duration-500 hover:scale-[1.01]"
-                  src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}
-                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'; }}
+                  src={p.imageUrl || getCategoryPlaceholder(p.category)}
+                  onError={(e) => handleImageError(e, p.category)}
                   referrerPolicy="no-referrer"
                 />
                 {isOutOfStock && (

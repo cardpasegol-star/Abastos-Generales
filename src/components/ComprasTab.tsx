@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory, SectorConfig } from '../types';
+import { getCategoryPlaceholder, handleImageError } from '../utils';
 import { jsPDF } from 'jspdf';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
@@ -1311,10 +1312,31 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       let statusText = 'PAGO CONTRA ENTREGA (PRUEBA)';
       let paymentStatus = 'PENDING';
 
+      // SPLIT PAYMENT Calculation for Platform Fee (8%)
+      const PLATFORM_FEE_PERCENTAGE = 0.08;
+      const marketplaceFee = Math.round(totalCartCost * PLATFORM_FEE_PERCENTAGE);
+      const storeNetAmount = Math.round(totalCartCost - marketplaceFee);
+
       if (finalMethod === 'MercadoPago' || finalMethod === 'Mercado Pago (Sandbox)') {
         displayMethod = 'Mercado Pago (Sandbox)';
         statusText = 'PAGADO VÍA MERCADO PAGO (PRUEBA)';
         paymentStatus = 'APPROVED';
+
+        // Mercado Pago Split Payment Preference Object Structure
+        const mpPreferencePayload = {
+          items: txItems.map(item => ({
+            title: item.name,
+            quantity: item.qty,
+            unit_price: item.price,
+            currency_id: 'CLP'
+          })),
+          marketplace_fee: marketplaceFee,
+          metadata: {
+            store_id: config?.name || 'principal',
+            platform_commission: marketplaceFee
+          }
+        };
+        console.log("=== MERCADO PAGO PREFERENCE PAYLOAD (SPLIT PAYMENT) ===", JSON.stringify(mpPreferencePayload, null, 2));
       } else if (finalMethod === 'Webpay' || finalMethod === 'Webpay Plus (Integration)') {
         displayMethod = 'Webpay Plus (Integration)';
         statusText = 'PAGADO VÍA WEBPAY PLUS (PRUEBA)';
@@ -1343,6 +1365,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         method: displayMethod,
         paymentStatus: paymentStatus,
         paymentStatusText: statusText,
+        marketplaceFee: marketplaceFee,
+        storeNetAmount: storeNetAmount,
+        marketplaceFeePercentage: PLATFORM_FEE_PERCENTAGE,
         createdAt: new Date().toISOString(),
         documentType,
         ...(documentType === 'Factura' ? {
@@ -2179,12 +2204,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
                   <div className="h-32 bg-white relative flex items-center justify-center p-2 mt-6">
                     <img
-                      src={itemOffer.imageUrl || (itemOffer.type === 'product' 
-                        ? 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=100'
-                        : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=100'
-                      )}
+                      src={itemOffer.imageUrl || getCategoryPlaceholder(itemOffer.category)}
                       alt={itemOffer.name}
+                      loading="lazy"
                       referrerPolicy="no-referrer"
+                      onError={(e) => handleImageError(e, itemOffer.category)}
                       className="max-h-full max-w-full object-contain filter hover:scale-105 transition-transform duration-300"
                     />
                   </div>

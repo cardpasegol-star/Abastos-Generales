@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory, normalizeProductForFruteria } from './types';
-import { sanitizeForFirestore } from './utils';
+import { sanitizeForFirestore, safeLocalStorageSetItem } from './utils';
 import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG, getTenantSpecificConfig } from './initDb';
 
 import Header from './components/Header';
@@ -213,9 +213,9 @@ export default function App() {
           prodList.push(isFrut ? normalizeProductForFruteria(item) : item);
         });
         setProducts(prodList);
-        localStorage.setItem(`products_${tenantId}`, JSON.stringify(prodList));
-        localStorage.setItem('APP_PRODUCTS_DATA', JSON.stringify(prodList));
-        localStorage.setItem('FRUTERIA_DATA', JSON.stringify(prodList));
+        safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(prodList));
+        safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(prodList));
+        safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(prodList));
         setLoading(false);
       }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/products`));
 
@@ -227,7 +227,7 @@ export default function App() {
           dishList.push(d.data() as FoodItem);
         });
         setFoodItems(dishList);
-        localStorage.setItem(`foodItems_${tenantId}`, JSON.stringify(dishList));
+        safeLocalStorageSetItem(`foodItems_${tenantId}`, JSON.stringify(dishList));
       }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/foodItems`));
 
       // Listen to Transactions logs

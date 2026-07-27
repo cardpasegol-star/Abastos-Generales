@@ -531,6 +531,25 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
                   </div>
                 </div>
 
+                {/* Split Payment Breakdown (Admin Control) */}
+                <div className="border-t border-dashed border-slate-200 pt-2.5 pb-2.5 space-y-1 bg-slate-50 p-2.5 rounded-xl my-2">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                    📊 Desglose Split Payment
+                  </p>
+                  <div className="flex justify-between text-xs font-bold text-slate-700 font-sans">
+                    <span>💳 Total Cobrado:</span>
+                    <span className="font-mono font-black text-slate-900">${selectedSale.total.toFixed(2)} CLP</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-bold text-indigo-700 font-sans">
+                    <span>🛡️ Fee Plataforma (8%):</span>
+                    <span className="font-mono font-black">${(selectedSale.marketplaceFee ?? Math.round(selectedSale.total * 0.08)).toLocaleString('es-CL')} CLP</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-extrabold text-emerald-800 font-sans">
+                    <span>🏪 Neto Tienda:</span>
+                    <span className="font-mono font-black">${(selectedSale.storeNetAmount ?? Math.round(selectedSale.total * 0.92)).toLocaleString('es-CL')} CLP</span>
+                  </div>
+                </div>
+
                 {/* Final Totals summary */}
                 <div className="border-t border-dashed border-slate-200 pt-3 text-xs space-y-1.5 font-medium text-slate-650">
                   <div className="flex justify-between font-sans">
