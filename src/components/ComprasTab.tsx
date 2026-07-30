@@ -2686,25 +2686,29 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
       {/* Persistent Shopping Cart Sticky Floating Action Button at bottom */}
       {totalItemsCount > 0 && (
-        <div className="fixed bottom-18 left-4 right-4 z-40 max-w-md mx-auto">
+        <div className="fixed bottom-20 left-4 right-4 z-40 max-w-md mx-auto pointer-events-auto">
           <button
             onClick={() => {
               setValidationError(null);
               setCheckoutStep('form');
               setShowCartModal(true);
             }}
-            className="w-full bg-emerald-650 hover:bg-emerald-700 text-white font-black p-4 rounded-2xl flex items-center justify-between shadow-2xl transition-all duration-200 active:scale-98 border-2 border-emerald-500 cursor-pointer"
+            className="w-full bg-[#19191C] hover:bg-[#232328] text-white font-black p-4 rounded-2xl flex items-center justify-between shadow-2xl transition-all duration-200 active:scale-98 border-2 border-[#E2BA62] cursor-pointer opacity-100 ring-2 ring-black/20"
           >
             <div className="flex items-center gap-3">
-              <div className="bg-white text-emerald-700 text-xs font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md animate-pulse">
+              <div className="bg-[#E2BA62] text-[#111113] text-xs font-black w-7 h-7 rounded-full flex items-center justify-center shadow-md animate-pulse border border-amber-300">
                 {totalItemsCount}
               </div>
-              <span className="text-sm font-black tracking-tight uppercase">VER MI CARRITO</span>
+              <span className="text-sm font-black tracking-wider uppercase text-white font-sans">
+                VER MI CARRITO
+              </span>
             </div>
             
             <div className="flex items-center gap-2">
-              <span className="text-xs font-extrabold text-emerald-100">Total:</span>
-              <span className="text-base font-black text-white">${totalCartCost.toFixed(2)}</span>
+              <span className="text-xs font-extrabold text-slate-300 uppercase">Total:</span>
+              <span className="text-base font-black text-[#E2BA62] font-mono tracking-tight">
+                ${totalCartCost.toLocaleString('es-CL')}
+              </span>
             </div>
           </button>
         </div>
@@ -3600,7 +3604,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     <span className="font-black text-xs text-slate-950 uppercase font-sans">
                       {successTx.method === 'Tarjeta' ? 'TOTAL PAGADO:' : 'TOTAL A PAGAR:'}
                     </span>
-                    <span className="font-mono font-black text-base text-emerald-650 font-sans">
+                    <span className="font-mono font-black text-base text-emerald-600 font-sans">
                       ${successTx.total.toFixed(2)}
                     </span>
                   </div>
