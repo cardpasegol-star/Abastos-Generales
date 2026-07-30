@@ -195,10 +195,54 @@ export const DEFAULT_CONFIG: BusinessConfig = {
     frutería: false
   },
   modules: {
-    rutasCamion: false,
+    rutasCamion: true,
     fruteria: false,
     almuerzos: true,
     tienda: true
+  },
+  rutasCamion: {
+    comunasDiarias: {
+      name: "Comunas Diarias",
+      comunas: ["Estación Central", "Independencia", "Quinta Normal", "Recoleta", "San Miguel"],
+      days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
+      fee: 3400
+    },
+    ejeCentral: {
+      name: "Eje Central",
+      comunas: ["Santiago Centro", "Ñuñoa", "Providencia"],
+      days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+      fee: 3400
+    },
+    norte: {
+      name: "Sector Norte",
+      comunas: ["Lampa", "Quilicura", "Renca", "Conchalí", "Huechuraba"],
+      days: ["Lunes", "Jueves", "Sábado"],
+      fee: 3400
+    },
+    poniente: {
+      name: "Sector Poniente",
+      comunas: ["Pedro Aguirre Cerda", "Cerrillos", "Pudahuel", "Maipú"],
+      days: ["Lunes", "Jueves"],
+      fee: 3400
+    },
+    sur: {
+      name: "Sector Sur",
+      comunas: ["Buin", "El Bosque", "San Bernardo", "La Cisterna"],
+      days: ["Martes", "Viernes", "Sábado"],
+      fee: 3400
+    },
+    oriente: {
+      name: "Sector Oriente",
+      comunas: ["Vitacura", "Las Condes", "Lo Barnechea", "La Reina", "Peñalolén"],
+      days: ["Martes", "Miércoles", "Viernes"],
+      fee: 3400
+    },
+    surOriente: {
+      name: "Sector Sur Oriente",
+      comunas: ["Macul", "La Florida", "San Joaquín"],
+      days: ["Miércoles", "Sábado"],
+      fee: 3400
+    }
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory, SectorConfig } from '../types';
 import { getCategoryPlaceholder, handleImageError } from '../utils';
@@ -111,82 +111,81 @@ function CategoryIcon({ cat, config, sizeClass = "w-5 h-5 object-contain inline-
   return <span className="select-none">{icon && icon.startsWith('http') ? getFallbackEmoji(cat) : (icon || '📦')}</span>;
 }
 
-const RM_COMUNAS = [
-  "La Florida",
-  "La Pintana",
-  "Puente Alto",
-  "San Ramón",
-  "La Granja",
-  "Macul",
-  "Peñalolén",
-  "San Joaquín",
-  "Santiago Centro",
-  "Las Condes",
-  "Providencia",
-  "Ñuñoa",
-  "Maipú",
-  "San Bernardo",
-  "Pudahuel",
-  "Quilicura",
-  "Recoleta",
-  "Estación Central",
-  "San Miguel",
-  "Pedro Aguirre Cerda",
-  "Cerrillos",
-  "Lo Espejo",
-  "El Bosque",
-  "La Cisterna",
-  "Independencia",
-  "Quinta Normal",
-  "Renca",
-  "Cerro Navia",
-  "Lo Prado",
-  "Conchalí",
-  "Huechuraba",
-  "Vitacura",
-  "Lo Barnechea"
-];
-
 const DEFAULT_RUTAS_CAMION: Record<string, SectorConfig> = {
-  sur: {
-    name: "Sector Sur",
-    comunas: ["la florida", "la pintana", "san bernardo", "puente alto", "el bosque", "san miguel", "pedro aguirre cerda", "cisterna", "la cisterna", "san ramón", "san ramon", "lo espejo", "buin"],
-    days: ["Martes", "Viernes"],
+  comunasDiarias: {
+    name: "Comunas Diarias",
+    comunas: ["Estación Central", "Independencia", "Quinta Normal", "Recoleta", "San Miguel"],
+    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
     fee: 3400
   },
-  oriente: {
-    name: "Sector Oriente",
-    comunas: ["macul", "peñalolén", "peñalolen", "la reina", "ñuñoa", "nunoa", "providencia", "las condes", "vitacura", "lo barnechea"],
-    days: ["Miércoles", "Sábado"],
+  ejeCentral: {
+    name: "Eje Central",
+    comunas: ["Santiago Centro", "Ñuñoa", "Providencia"],
+    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
     fee: 3400
   },
   norte: {
     name: "Sector Norte",
-    comunas: ["lampa", "quilicura", "renca", "conchalí", "conchali", "huechuraba", "recoleta", "independencia"],
-    days: ["Lunes", "Jueves"],
+    comunas: ["Lampa", "Quilicura", "Renca", "Conchalí", "Huechuraba"],
+    days: ["Lunes", "Jueves", "Sábado"],
     fee: 3400
   },
   poniente: {
     name: "Sector Poniente",
-    comunas: ["maipú", "maipu", "pudahuel", "cerrillos", "estación central", "estacion central", "quinta normal", "cerro navia", "lo prado"],
+    comunas: ["Pedro Aguirre Cerda", "Cerrillos", "Pudahuel", "Maipú"],
     days: ["Lunes", "Jueves"],
     fee: 3400
   },
-  centro: {
-    name: "Eje Central",
-    comunas: ["santiago centro", "santiago"],
-    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+  sur: {
+    name: "Sector Sur",
+    comunas: ["Buin", "El Bosque", "San Bernardo", "La Cisterna"],
+    days: ["Martes", "Viernes", "Sábado"],
+    fee: 3400
+  },
+  oriente: {
+    name: "Sector Oriente",
+    comunas: ["Vitacura", "Las Condes", "Lo Barnechea", "La Reina", "Peñalolén"],
+    days: ["Martes", "Miércoles", "Viernes"],
+    fee: 3400
+  },
+  surOriente: {
+    name: "Sector Sur Oriente",
+    comunas: ["Macul", "La Florida", "San Joaquín"],
+    days: ["Miércoles", "Sábado"],
     fee: 3400
   }
 };
 
+function getAllComunasFromRutas(rutas?: Record<string, SectorConfig>): string[] {
+  const currentRutas = (rutas && Object.keys(rutas).length > 0) ? rutas : DEFAULT_RUTAS_CAMION;
+  const set = new Set<string>();
+  Object.values(currentRutas).forEach(sector => {
+    if (sector && Array.isArray(sector.comunas)) {
+      sector.comunas.forEach(c => {
+        const trimmed = c.trim();
+        if (trimmed) {
+          const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+          set.add(capitalized);
+        }
+      });
+    }
+  });
+  set.add("Lampa");
+  set.add("Buin");
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+const RM_COMUNAS = getAllComunasFromRutas();
+
 function getSectorForComuna(comunaName: string, configRutas?: Record<string, SectorConfig>): SectorConfig | null {
+  if (!comunaName) return null;
   const normalized = comunaName.trim().toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // strip accents
   
-  const rutas = configRutas || DEFAULT_RUTAS_CAMION;
+  const rutas = (configRutas && Object.keys(configRutas).length > 0) ? configRutas : DEFAULT_RUTAS_CAMION;
   
   for (const [key, sector] of Object.entries(rutas)) {
+    if (!sector || !Array.isArray(sector.comunas)) continue;
     const matched = sector.comunas.some((com: string) => {
       const comNorm = com.trim().toLowerCase()
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -197,8 +196,51 @@ function getSectorForComuna(comunaName: string, configRutas?: Record<string, Sec
     }
   }
   
-  // Return center as absolute fallback
-  return rutas.centro || DEFAULT_RUTAS_CAMION.centro;
+  return rutas.ejeCentral || rutas.comunasDiarias || Object.values(rutas)[0] || null;
+}
+
+function getEffectiveDeliveryFee(comunaName: string, sector?: SectorConfig | null): number {
+  if (!comunaName) return sector?.fee ?? 3400;
+  const norm = comunaName.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (norm.includes('lampa')) {
+    return 3900;
+  }
+  if (norm.includes('buin')) {
+    return 4900;
+  }
+  return sector?.fee ?? 3400;
+}
+
+function getUpcomingDeliveryDatesForDays(allowedDays: string[]): { iso: string; formatted: string }[] {
+  const dayMap: Record<string, number> = {
+    'domingo': 0, 'lunes': 1, 'martes': 2, 'miércoles': 3, 'miercoles': 3,
+    'jueves': 4, 'viernes': 5, 'sábado': 6, 'sabado': 6
+  };
+
+  const targetDayIndices = (allowedDays || []).map(d => dayMap[d.trim().toLowerCase()]).filter(idx => idx !== undefined);
+  if (targetDayIndices.length === 0) return [];
+
+  const results: { iso: string; formatted: string }[] = [];
+  const today = new Date();
+  
+  for (let i = 1; i <= 21; i++) {
+    const candidate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    const dayOfWeek = candidate.getDay();
+    if (targetDayIndices.includes(dayOfWeek)) {
+      const year = candidate.getFullYear();
+      const month = String(candidate.getMonth() + 1).padStart(2, '0');
+      const date = String(candidate.getDate()).padStart(2, '0');
+      const dayName = candidate.toLocaleDateString('es-CL', { weekday: 'long' });
+      const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+      
+      results.push({
+        iso: `${year}-${month}-${date}`,
+        formatted: `${capitalizedDay} ${date}/${month}/${year}`
+      });
+      if (results.length >= 4) break;
+    }
+  }
+  return results;
 }
 
 function getStoreOriginComuna(): string {
@@ -365,6 +407,10 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const [comuna, setComuna] = useState(() => localStorage.getItem('cliente_comuna') || 'La Florida');
   const [showRutasModal, setShowRutasModal] = useState(false);
 
+  const activeComunasList = useMemo(() => {
+    return getAllComunasFromRutas(config?.rutasCamion);
+  }, [config?.rutasCamion]);
+
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const urlTienda = urlParams?.get('tienda') || urlParams?.get('id_tienda') || urlParams?.get('modulo');
   const isFruteriaByUrl = urlTienda === 'fruteria' || urlTienda === 'frutería' || urlTienda === 'fruteria_principe_gales';
@@ -525,31 +571,28 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       const timer = setTimeout(() => {
         setIsQuotingDelivery(false);
         
-        // MÓDULO FRUTERÍA: omit GPS ring fee calculation entirely!
-        if (config?.modulosActivos?.frutería === true) {
-          const matchedSector = getSectorForComuna(comuna, config?.rutasCamion);
-          if (matchedSector) {
-            setDeliveryFee(matchedSector.fee);
-          } else {
-            setDeliveryFee(3400); // base fallback
-          }
+        const matchedSector = getSectorForComuna(comuna, config?.rutasCamion);
+        const effectiveFee = getEffectiveDeliveryFee(comuna, matchedSector);
+
+        // Priority 1: Truck route / sector or frutería module or default comuna fee
+        if (config?.modulosActivos?.frutería === true || matchedSector) {
+          setDeliveryFee(effectiveFee);
           return;
         }
 
-        // Priority 1: Short Distance by GPS ONLY. Must be <= 500m AND checked.
+        // Priority 2: Short Distance by GPS ONLY. Must be <= 500m AND checked.
         if (gpsDistance !== null && gpsDistance <= 500 && isManualShortDistance) {
           setDeliveryFee(1000);
           return;
         }
         
-        // Priority 2: Fallback to Comuna
+        // Priority 3: Fallback to Comuna fee calculation
         if (street.trim() && comuna) {
-          const fee = getDeliveryFeeForComuna(comuna, getStoreOriginComuna());
-          setDeliveryFee(fee);
+          setDeliveryFee(effectiveFee);
         } else {
           setDeliveryFee(0);
         }
-      }, 1200);
+      }, 500);
       return () => clearTimeout(timer);
     } else {
       setDeliveryFee(0);
@@ -2934,30 +2977,29 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                               onChange={(e) => setComuna(e.target.value)}
                               className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950 cursor-pointer"
                             >
-                              {RM_COMUNAS.map((c) => (
+                              {activeComunasList.map((c) => (
                                 <option key={c} value={c}>
                                   {c}
                                 </option>
                               ))}
                             </select>
 
-                            {/* Dynamic Delivery sector banner for Módulo Frutería */}
-                            {config?.modulosActivos?.frutería === true && (
-                              (() => {
-                                const sector = getSectorForComuna(comuna, config?.rutasCamion);
-                                if (!sector) return null;
-                                return (
-                                  <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl space-y-1 animate-in fade-in duration-200 mt-2.5">
-                                    <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-900">
-                                      🚚 Ruta de Camión ({sector.name})
-                                    </span>
-                                    <p className="text-xs font-bold text-indigo-950 leading-relaxed">
-                                      Despachamos a tu zona los días <span className="text-indigo-600 underline decoration-indigo-300 font-extrabold">{sector.days.join(' y ')}</span>. Costo de envío: <span className="text-indigo-700 font-black font-mono">${sector.fee.toLocaleString()} CLP</span>.
-                                    </p>
-                                  </div>
-                                );
-                              })()
-                            )}
+                            {/* Dynamic Delivery sector banner */}
+                            {(() => {
+                              const sector = getSectorForComuna(comuna, config?.rutasCamion);
+                              if (!sector) return null;
+                              const effectiveFee = getEffectiveDeliveryFee(comuna, sector);
+                              return (
+                                <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl space-y-1 animate-in fade-in duration-200 mt-2.5">
+                                  <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-900">
+                                    🚚 Ruta de Camión ({sector.name}) - {comuna}
+                                  </span>
+                                  <p className="text-xs font-bold text-indigo-950 leading-relaxed">
+                                    Despachamos a tu zona los días <span className="text-indigo-600 underline decoration-indigo-300 font-extrabold">{sector.days.join(' y ')}</span>. Costo de envío: <span className="text-indigo-700 font-black font-mono">${effectiveFee.toLocaleString('es-CL')} CLP</span>.
+                                  </p>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Manual Delivery Corto Selector (Only for other stores / when frutería module is NOT active) */}
@@ -3745,18 +3787,32 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   <div key={key} className="bg-slate-50 border-2 border-slate-200 p-3.5 rounded-2xl space-y-1.5">
                     <div className="flex justify-between items-center">
                       <span className="font-extrabold text-slate-900 uppercase text-[10px] tracking-wide">
-                        {sector.name}
+                        📍 {sector.name}
                       </span>
                       <span className="bg-indigo-50 text-indigo-800 text-[10px] font-black px-2.5 py-0.5 rounded-md border border-indigo-100">
                         {sector.days.join(' y ')}
+                        {key === 'norte' && <span className="text-amber-800 font-extrabold ml-1.5 text-[9px]">(Lampa: Lun y Jue)</span>}
+                        {key === 'sur' && <span className="text-amber-800 font-extrabold ml-1.5 text-[9px]">(Buin: Mar y Vie)</span>}
                       </span>
                     </div>
                     <p className="text-slate-750 font-semibold leading-relaxed text-[11px]">
                       <span className="font-bold text-slate-900">Comunas:</span> {sector.comunas.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}
                     </p>
-                    <div className="flex justify-between items-center text-[10px] text-slate-550 pt-1 border-t border-slate-200 border-dashed">
-                      <span>Costo de envío (Flete):</span>
-                      <span className="font-black text-slate-900">${sector.fee.toLocaleString('es-CL')} CLP</span>
+                    <div className="flex justify-between items-center text-[10px] text-slate-550 pt-1.5 border-t border-slate-200 border-dashed">
+                      <span className="font-bold text-slate-600">Costo de envío (Flete):</span>
+                      <div className="text-right">
+                        {key === 'norte' ? (
+                          <span className="font-black text-slate-900">
+                            Base: ${sector.fee.toLocaleString('es-CL')} CLP <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-black text-[9.5px] border border-amber-200 ml-1">Lampa: $3.900 CLP</span>
+                          </span>
+                        ) : key === 'sur' ? (
+                          <span className="font-black text-slate-900">
+                            Base: ${sector.fee.toLocaleString('es-CL')} CLP <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-black text-[9.5px] border border-amber-200 ml-1">Buin: $4.900 CLP</span>
+                          </span>
+                        ) : (
+                          <span className="font-black text-slate-900">${sector.fee.toLocaleString('es-CL')} CLP</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

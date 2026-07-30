@@ -417,34 +417,46 @@ interface MantTabProps {
 }
 
 const DEFAULT_RUTAS_CAMION: Record<string, SectorConfig> = {
-  sur: {
-    name: "Sector Sur",
-    comunas: ["La Florida", "La Pintana", "San Bernardo", "Puente Alto", "El Bosque", "San Miguel", "Pedro Aguirre Cerda", "Cisterna", "San Ramón", "Lo Espejo", "Buin"],
-    days: ["Martes", "Viernes"],
+  comunasDiarias: {
+    name: "Comunas Diarias",
+    comunas: ["Estación Central", "Independencia", "Quinta Normal", "Recoleta", "San Miguel"],
+    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
     fee: 3400
   },
-  oriente: {
-    name: "Sector Oriente",
-    comunas: ["Macul", "Peñalolén", "La Reina", "Ñuñoa", "Providencia", "Las Condes", "Vitacura", "Lo Barnechea"],
-    days: ["Miércoles", "Sábado"],
+  ejeCentral: {
+    name: "Eje Central",
+    comunas: ["Santiago Centro", "Ñuñoa", "Providencia"],
+    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
     fee: 3400
   },
   norte: {
     name: "Sector Norte",
-    comunas: ["Lampa", "Quilicura", "Renca", "Conchalí", "Huechuraba", "Recoleta", "Independencia"],
-    days: ["Lunes", "Jueves"],
+    comunas: ["Lampa", "Quilicura", "Renca", "Conchalí", "Huechuraba"],
+    days: ["Lunes", "Jueves", "Sábado"],
     fee: 3400
   },
   poniente: {
     name: "Sector Poniente",
-    comunas: ["Maipú", "Pudahuel", "Cerrillos", "Estación Central", "Quinta Normal", "Cerro Navia", "Lo Prado"],
+    comunas: ["Pedro Aguirre Cerda", "Cerrillos", "Pudahuel", "Maipú"],
     days: ["Lunes", "Jueves"],
     fee: 3400
   },
-  centro: {
-    name: "Eje Central",
-    comunas: ["Santiago Centro"],
-    days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+  sur: {
+    name: "Sector Sur",
+    comunas: ["Buin", "El Bosque", "San Bernardo", "La Cisterna"],
+    days: ["Martes", "Viernes", "Sábado"],
+    fee: 3400
+  },
+  oriente: {
+    name: "Sector Oriente",
+    comunas: ["Vitacura", "Las Condes", "Lo Barnechea", "La Reina", "Peñalolén"],
+    days: ["Martes", "Miércoles", "Viernes"],
+    fee: 3400
+  },
+  surOriente: {
+    name: "Sector Sur Oriente",
+    comunas: ["Macul", "La Florida", "San Joaquín"],
+    days: ["Miércoles", "Sábado"],
     fee: 3400
   }
 };
@@ -870,7 +882,16 @@ export default function MantTab({
       localStorage.setItem('artico_active_modules', JSON.stringify(defaultArticoMods));
     }
 
-    setRutasCamion(config.rutasCamion || DEFAULT_RUTAS_CAMION);
+    const cachedRutas = localStorage.getItem('rutas_camion_v1');
+    if (cachedRutas) {
+      try {
+        setRutasCamion(JSON.parse(cachedRutas));
+      } catch (e) {
+        setRutasCamion(config.rutasCamion || DEFAULT_RUTAS_CAMION);
+      }
+    } else {
+      setRutasCamion(config.rutasCamion || DEFAULT_RUTAS_CAMION);
+    }
   }, [config]);
 
   // Fetch employees list from config/business_info/empleados subcollection
@@ -1242,6 +1263,9 @@ export default function MantTab({
         rutasCamion
       });
       localStorage.setItem('artico_active_modules', JSON.stringify(articoActiveModules));
+      if (rutasCamion) {
+        localStorage.setItem('rutas_camion_v1', JSON.stringify(rutasCamion));
+      }
 
       // Save each employee slot to the config/business_info/empleados subcollection
       for (const emp of employeesList) {
@@ -2528,11 +2552,11 @@ export default function MantTab({
             )}
 
             {/* Truck Route Delivery Logistics Config */}
-            {modulosActivos?.frutería === true && (
+            {(modulosActivos?.frutería === true || activeStoreInfo.key === 'artico' || activeStoreInfo.key === 'fruteria' || config?.modules?.rutasCamion !== false) && (
               <div className="space-y-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 mt-4">
                 <div>
                   <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest block">
-                    🚚 CONFIGURACIÓN DE RUTAS DE CAMIÓN (Módulo Frutería)
+                    🚚 CONFIGURACIÓN DE RUTAS DE CAMIÓN
                   </h4>
                   <p className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">
                     Configura los días que el camión visita cada zona de Santiago y el costo del flete.
@@ -2551,6 +2575,8 @@ export default function MantTab({
                             </span>
                             <span className="text-[9px] text-slate-400 font-semibold block leading-normal max-w-sm mt-0.5">
                               Comunas: {sector.comunas.join(', ')}
+                              {key === 'norte' && <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-black text-[9px] border border-amber-200 ml-1.5 inline-block">Lampa: $3.900 CLP (Lun y Jue)</span>}
+                              {key === 'sur' && <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-black text-[9px] border border-amber-200 ml-1.5 inline-block">Buin: $4.900 CLP (Mar y Vie)</span>}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
