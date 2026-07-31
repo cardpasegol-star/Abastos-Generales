@@ -100,3 +100,72 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
   }
 }
 
+import { ScheduleConfig } from './types';
+
+export const SPANISH_DAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+export interface StoreOpenStatus {
+  isOpen: boolean;
+  statusText: string;
+  isForced: boolean;
+  reason?: string;
+}
+
+export function checkStoreOpenStatus(schedule?: ScheduleConfig): StoreOpenStatus {
+  const mode = schedule?.mode || 'auto';
+
+  if (mode === 'forced_open') {
+    return {
+      isOpen: true,
+      statusText: 'Abierto',
+      isForced: true,
+      reason: 'Forzado manualmente a Abierto'
+    };
+  }
+
+  if (mode === 'forced_closed') {
+    return {
+      isOpen: false,
+      statusText: 'Cerrado',
+      isForced: true,
+      reason: 'Forzado manualmente a Cerrado'
+    };
+  }
+
+  // Automatic calculation based on Chilean / local system day and time
+  const now = new Date();
+  const currentDayIndex = now.getDay();
+  const currentDayName = SPANISH_DAYS[currentDayIndex];
+
+  const daysOpen = schedule?.daysOpen && schedule.daysOpen.length > 0
+    ? schedule.daysOpen
+    : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+  if (!daysOpen.includes(currentDayName)) {
+    return {
+      isOpen: false,
+      statusText: 'Cerrado',
+      isForced: false,
+      reason: `Cerrado hoy (${currentDayName})`
+    };
+  }
+
+  const openTime = schedule?.openTime || "08:00";
+  const closeTime = schedule?.closeTime || "20:00";
+
+  const currentHours = now.getHours().toString().padStart(2, '0');
+  const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+  const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+  const isOpen = currentTimeStr >= openTime && currentTimeStr < closeTime;
+
+  return {
+    isOpen,
+    statusText: isOpen ? 'Abierto' : 'Cerrado',
+    isForced: false,
+    reason: isOpen
+      ? `Horario: ${openTime} - ${closeTime}`
+      : `Fuera de horario (${openTime} - ${closeTime})`
+  };
+}
+

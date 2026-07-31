@@ -13,6 +13,7 @@ type PeriodType = 'Diario' | 'Semanal' | 'Mensual';
 export default function ReportesTab({ transactions, config }: ReportesTabProps) {
   const [period, setPeriod] = useState<PeriodType>('Diario');
   const [selectedSale, setSelectedSale] = useState<Transaction | null>(null);
+  const [filterSource, setFilterSource] = useState<'todos' | 'digital' | 'fisico'>('todos');
 
   const downloadReceiptPDF = (tx: Transaction) => {
     // Height estimation of 80mm ticket
@@ -152,6 +153,26 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
   // Filter transactions based on type 'Venta' (or include returns if needed, but Venta represents income)
   const sales = transactions.filter(t => t.type === 'Venta');
 
+  const isDigitalSale = (t: Transaction) => 
+    t.source === 'digital' || 
+    t.origen === 'digital' || 
+    !!t.shippingMethod || 
+    ['Mercado Pago (Sandbox)', 'Webpay Plus (Integration)'].includes(t.method) || 
+    t.method.includes('Mercado') || 
+    t.method.includes('Webpay');
+
+  const digitalSales = sales.filter(isDigitalSale);
+  const physicalSales = sales.filter(t => !isDigitalSale(t));
+
+  const digitalSalesSum = digitalSales.reduce((acc, t) => acc + t.total, 0);
+  const physicalSalesSum = physicalSales.reduce((acc, t) => acc + t.total, 0);
+
+  const displayedSales = sales.filter(t => {
+    if (filterSource === 'digital') return isDigitalSale(t);
+    if (filterSource === 'fisico') return !isDigitalSale(t);
+    return true;
+  });
+
   // Base dynamic stats calculations
   const totalSalesSum = sales.reduce((acc, t) => acc + t.total, 0);
   const transactionCount = sales.length;
@@ -261,6 +282,53 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
             <h3 className="text-2xl font-black text-slate-950">${avgTicket.toFixed(2)}</h3>
           </div>
         </div>
+
+        {/* Metric Separation: Ventas Digitales (App) vs Ventas en Mesón (Físico) */}
+        <div className="col-span-2 bg-slate-900 p-5 rounded-3xl text-white space-y-3 shadow-sm border-2 border-slate-800">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            <h3 className="font-black text-xs uppercase tracking-widest text-slate-300 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              <span>Desglose por Origen de Venta</span>
+            </h3>
+            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-extrabold uppercase font-mono">
+              Stock Unificado
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Ventas Digitales (App) */}
+            <div className="bg-slate-950/80 border border-indigo-500/30 p-3.5 rounded-2xl space-y-1">
+              <div className="flex items-center justify-between text-indigo-300 font-black text-[11px] uppercase tracking-wider">
+                <span>📱 Ventas Digitales (App)</span>
+                <span className="bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded text-[10px]">
+                  {digitalSales.length}
+                </span>
+              </div>
+              <p className="text-xl font-black text-white font-mono">
+                ${digitalSalesSum.toFixed(2)}
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold">
+                {sales.length > 0 ? `${((digitalSalesSum / (totalSalesSum || 1)) * 100).toFixed(0)}% del total` : '0% del total'}
+              </p>
+            </div>
+
+            {/* Ventas en Mesón (Físico) */}
+            <div className="bg-slate-950/80 border border-emerald-500/30 p-3.5 rounded-2xl space-y-1">
+              <div className="flex items-center justify-between text-emerald-300 font-black text-[11px] uppercase tracking-wider">
+                <span>🏪 Ventas Mesón (Físico)</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]">
+                  {physicalSales.length}
+                </span>
+              </div>
+              <p className="text-xl font-black text-white font-mono">
+                ${physicalSalesSum.toFixed(2)}
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold">
+                {sales.length > 0 ? `${((physicalSalesSum / (totalSalesSum || 1)) * 100).toFixed(0)}% del total` : '0% del total'}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 3. Custom CSS/SVG Interactive Bar Chart block */}
@@ -308,12 +376,49 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
 
       {/* 4. Complete Transactions Records Feed list */}
       <section className="space-y-4">
-        <h3 className="text-base font-black text-slate-950">Historial de Cobros</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h3 className="text-base font-black text-slate-950">Historial de Cobros</h3>
+          
+          {/* Source filter buttons */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto text-xs font-bold">
+            <button
+              onClick={() => setFilterSource('todos')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                filterSource === 'todos'
+                  ? 'bg-white text-slate-900 font-black shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Todas ({sales.length})
+            </button>
+            <button
+              onClick={() => setFilterSource('digital')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                filterSource === 'digital'
+                  ? 'bg-indigo-600 text-white font-black shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              📱 Digitales ({digitalSales.length})
+            </button>
+            <button
+              onClick={() => setFilterSource('fisico')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                filterSource === 'fisico'
+                  ? 'bg-emerald-600 text-white font-black shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              🏪 Mesón ({physicalSales.length})
+            </button>
+          </div>
+        </div>
         
         <div className="space-y-3">
-          {sales.map((tx) => {
+          {displayedSales.map((tx) => {
             const isCash = tx.method === 'Efectivo';
             const itemsSize = tx.items.reduce((acc, item) => acc + item.qty, 0);
+            const isDigital = isDigitalSale(tx);
 
             // Time format
             let timeStr = 'Ayer';
@@ -330,23 +435,32 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
               >
                 {/* Method icon */}
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border-2 ${
-                  isCash 
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-250' 
+                  isDigital 
+                    ? 'bg-indigo-50 text-indigo-800 border-indigo-250' 
                     : 'bg-emerald-50 text-emerald-800 border-emerald-250'
                 }`}>
                   {isCash ? <Banknote className="w-6 h-6 stroke-[2]" /> : <CreditCard className="w-6 h-6 stroke-[2]" />}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                    <span className="font-extrabold text-slate-950 text-base tracking-tight truncate">
-                      Venta #{tx.id.replace('tx-', '')}
-                    </span>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-extrabold text-slate-950 text-base tracking-tight truncate">
+                        Venta #{tx.id.replace('tx-', '')}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-md font-black text-[10px] uppercase border shrink-0 ${
+                        isDigital 
+                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200' 
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}>
+                        {isDigital ? '📱 Digital' : '🏪 Mesón'}
+                      </span>
+                    </div>
                     <span className="text-base font-black text-emerald-600 shrink-0">
                       ${tx.total.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mt-1 uppercase tracking-tight">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mt-1 uppercase tracking-tight flex-wrap">
                     <span>{timeStr}</span>
                     <span>•</span>
                     <span>{itemsSize} {itemsSize === 1 ? 'item' : 'items'}</span>
@@ -368,7 +482,7 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
             );
           })}
 
-          {sales.length === 0 && (
+          {displayedSales.length === 0 && (
             <div className="py-16 flex flex-col items-center justify-center text-center text-slate-400 space-y-3">
               <RefreshCw className="w-10 h-10 stroke-1 text-slate-300 animate-spin" />
               <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Aún no hay transacciones</p>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory, SectorConfig } from '../types';
-import { getCategoryPlaceholder, handleImageError } from '../utils';
+import { getCategoryPlaceholder, handleImageError, checkStoreOpenStatus } from '../utils';
 import { jsPDF } from 'jspdf';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
@@ -1398,6 +1398,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
       const transactionPayload: Omit<Transaction, 'id'> = {
         type: 'Venta',
+        source: 'digital',
+        origen: 'digital',
         items: txItems,
         subtotal: parseFloat(subtotalVal.toFixed(2)),
         tax: parseFloat(taxVal.toFixed(2)),
@@ -1835,6 +1837,32 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
           </button>
         )}
       </div>
+
+      {/* Closed Store Notice Banner */}
+      {(() => {
+        const storeStatus = checkStoreOpenStatus(config?.schedule);
+        if (!storeStatus.isOpen) {
+          return (
+            <div className="bg-rose-50 border-2 border-rose-200 text-rose-900 p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-xs animate-in fade-in duration-300">
+              <div className="flex items-center gap-2.5">
+                <div className="w-3 h-3 bg-rose-500 rounded-full shrink-0 animate-pulse" />
+                <div>
+                  <div className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+                    <span>Local Cerrado</span>
+                    <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md border border-rose-200">
+                      {storeStatus.reason}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-semibold text-rose-800 leading-tight mt-0.5">
+                    Puedes revisar los productos y preparar tu pedido. Se procesará cuando la tienda vuelva a abrir.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Visual Header Banner */}
       <div className={`relative rounded-2xl overflow-hidden shadow-md h-36 text-white flex items-center p-5 border-2 ${

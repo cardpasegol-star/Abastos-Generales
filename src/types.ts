@@ -35,6 +35,8 @@ export interface TransactionItem {
 export interface Transaction {
   id: string;
   type: 'Venta' | 'Compra';
+  source?: 'fisico' | 'digital';
+  origen?: 'fisico' | 'digital';
   items: TransactionItem[];
   subtotal: number;
   tax: number; // IVA 15%
@@ -109,6 +111,13 @@ export interface SectorConfig {
   fee: number;
 }
 
+export interface ScheduleConfig {
+  openTime: string; // HH:mm e.g., "09:00"
+  closeTime: string; // HH:mm e.g., "20:00"
+  daysOpen?: string[]; // e.g., ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+  mode?: 'auto' | 'forced_open' | 'forced_closed';
+}
+
 export interface BusinessConfig {
   id: string;
   name: string;
@@ -122,6 +131,7 @@ export interface BusinessConfig {
   fruteriaCategories?: string[];
   articoCategories?: string[];
   categoryIcons?: Record<string, string>;
+  schedule?: ScheduleConfig;
   licenseExpirationDate?: string; // YYYY-MM-DD
   licenseStatus?: 'active' | 'suspended'; // 'active' | 'suspended'
   licenseMessage?: string; // Custom block screen message

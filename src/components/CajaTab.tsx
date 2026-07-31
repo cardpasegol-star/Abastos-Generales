@@ -398,6 +398,8 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
 
       const transactionPayload: Omit<Transaction, 'id'> = {
         type: transactionType,
+        source: 'fisico',
+        origen: 'fisico',
         items: txItems,
         subtotal: parseFloat(subtotal.toFixed(2)),
         tax: parseFloat(tax.toFixed(2)),
@@ -444,6 +446,26 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
 
   return (
     <div id="caja-container" className="space-y-6 pb-24">
+      {/* Title Header: Caja Física / Mesón */}
+      <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-sm border-2 border-slate-800 flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="p-2 bg-emerald-500 text-white rounded-xl shadow-xs text-sm">
+              <Scan className="w-5 h-5 stroke-[2.5]" />
+            </span>
+            <h2 className="text-xl font-black tracking-tight text-white font-sans">
+              Caja Física / Mesón
+            </h2>
+          </div>
+          <p className="text-xs text-slate-300 font-bold">
+            Registro de ventas de mostrador en tiempo real con lector de código de barras
+          </p>
+        </div>
+        <span className="hidden sm:inline-flex bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+          Stock Unificado
+        </span>
+      </div>
+
       {/* 1. Barcode Laser Scanner Camera Container */}
       <section className="mt-2 text-center">
         <div 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen, Copy, QrCode, Download, ExternalLink, Check } from 'lucide-react';
+import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen, Copy, QrCode, Download, ExternalLink, Check, Clock } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive, SectorConfig } from '../types';
+import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive, SectorConfig, ScheduleConfig } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
+import { checkStoreOpenStatus } from '../utils';
 
 const FOOD_PRESET_IMAGES = [
   { label: 'Salada', url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200' },
@@ -500,6 +501,15 @@ export default function MantTab({
   const [adminPinField, setAdminPinField] = useState(config.adminPin || '1234');
   const [localBannerUrl, setLocalBannerUrl] = useState(config.bannerUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800');
   const [ivaPercentInput, setIvaPercentInput] = useState(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
+  
+  // Schedule state
+  const [scheduleMode, setScheduleMode] = useState<'auto' | 'forced_open' | 'forced_closed'>(config.schedule?.mode || 'auto');
+  const [scheduleOpenTime, setScheduleOpenTime] = useState<string>(config.schedule?.openTime || '08:00');
+  const [scheduleCloseTime, setScheduleCloseTime] = useState<string>(config.schedule?.closeTime || '20:00');
+  const [scheduleDaysOpen, setScheduleDaysOpen] = useState<string[]>(
+    config.schedule?.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+  );
+
   const [rutasCamion, setRutasCamion] = useState<Record<string, SectorConfig>>(config.rutasCamion || DEFAULT_RUTAS_CAMION);
   const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
   const [modulosActivos, setModulosActivos] = useState<{
@@ -761,6 +771,29 @@ export default function MantTab({
     const finalBanner = cachedStoreBanner || config.bannerUrl || defaultBannerForStore;
     setLocalBannerUrl(finalBanner);
     setIvaPercentInput(config.ivaPercentage !== undefined ? config.ivaPercentage : 15);
+
+    // Schedule per store key isolation
+    const scheduleKey = `${activeStore.key}_schedule_v1`;
+    const cachedScheduleStr = localStorage.getItem(scheduleKey);
+    if (cachedScheduleStr) {
+      try {
+        const cachedSched = JSON.parse(cachedScheduleStr);
+        setScheduleMode(cachedSched.mode || 'auto');
+        setScheduleOpenTime(cachedSched.openTime || '08:00');
+        setScheduleCloseTime(cachedSched.closeTime || '20:00');
+        setScheduleDaysOpen(cachedSched.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
+      } catch (e) {
+        setScheduleMode(config.schedule?.mode || 'auto');
+        setScheduleOpenTime(config.schedule?.openTime || '08:00');
+        setScheduleCloseTime(config.schedule?.closeTime || '20:00');
+        setScheduleDaysOpen(config.schedule?.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
+      }
+    } else {
+      setScheduleMode(config.schedule?.mode || 'auto');
+      setScheduleOpenTime(config.schedule?.openTime || '08:00');
+      setScheduleCloseTime(config.schedule?.closeTime || '20:00');
+      setScheduleDaysOpen(config.schedule?.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
+    }
 
     // State Isolation for Minimarket (Donde el Turco)
     const cachedTurco = localStorage.getItem('turco_categories_v1');
@@ -1241,6 +1274,13 @@ export default function MantTab({
   const handleSaveConfig = async () => {
     setLoading(true);
     try {
+      const scheduleObj: ScheduleConfig = {
+        mode: scheduleMode,
+        openTime: scheduleOpenTime,
+        closeTime: scheduleCloseTime,
+        daysOpen: scheduleDaysOpen
+      };
+
       await onUpdateConfig({
         id: config.id || 'business_info',
         name: localName.trim(),
@@ -1249,6 +1289,7 @@ export default function MantTab({
         adminPin: adminPinField.trim(),
         bannerUrl: localBannerUrl.trim(),
         ivaPercentage: Number(ivaPercentInput),
+        schedule: scheduleObj,
         productCategories: productCategoriesList,
         foodItemCategories: foodItemCategoriesList,
         fruteriaCategories: fruteriaCategoriesList,
@@ -1266,6 +1307,7 @@ export default function MantTab({
       if (rutasCamion) {
         localStorage.setItem('rutas_camion_v1', JSON.stringify(rutasCamion));
       }
+      localStorage.setItem(`${activeStoreInfo.key}_schedule_v1`, JSON.stringify(scheduleObj));
 
       // Save each employee slot to the config/business_info/empleados subcollection
       for (const emp of employeesList) {
@@ -1725,6 +1767,140 @@ export default function MantTab({
             <span className="text-[9px] text-gray-400 font-bold block">
               Se utilizará este porcentaje para calcular los impuestos (IVA) automática y dinámicamente al momento de confirmar ventas y generar tickets de respaldo.
             </span>
+          </div>
+
+          {/* ⏰ Horario de Funcionamiento y Estado de Tienda */}
+          <div className="space-y-3.5 border-t border-gray-100 pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-[10.5px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span>HORARIO DE ATENCIÓN Y ESTADO AUTOMÁTICO</span>
+                </label>
+                <span className="text-[9.5px] text-gray-500 font-semibold block leading-tight mt-0.5">
+                  Define el horario de la tienda para que el distintivo superior cambie automáticamente a "ABIERTO" o "CERRADO".
+                </span>
+              </div>
+            </div>
+
+            {/* Modo de Operación Selection */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Modo de Operación:</span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setScheduleMode('auto')}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border cursor-pointer text-center ${
+                    scheduleMode === 'auto'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  ⚡ Automático
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScheduleMode('forced_open')}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border cursor-pointer text-center ${
+                    scheduleMode === 'forced_open'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  🟢 Forzar Abierto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScheduleMode('forced_closed')}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all border cursor-pointer text-center ${
+                    scheduleMode === 'forced_closed'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  🔴 Forzar Cerrado
+                </button>
+              </div>
+            </div>
+
+            {/* Time inputs */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Hora Apertura</label>
+                <input
+                  type="time"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-black text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-600/10 outline-none"
+                  value={scheduleOpenTime}
+                  onChange={(e) => setScheduleOpenTime(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Hora Cierre</label>
+                <input
+                  type="time"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-black text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-600/10 outline-none"
+                  value={scheduleCloseTime}
+                  onChange={(e) => setScheduleCloseTime(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Days of week selection */}
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Días de Atención:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => {
+                  const isChecked = scheduleDaysOpen.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        if (isChecked) {
+                          setScheduleDaysOpen(prev => prev.filter(d => d !== day));
+                        } else {
+                          setScheduleDaysOpen(prev => [...prev, day]);
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-lg border text-[10px] font-black cursor-pointer transition-all select-none ${
+                        isChecked
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-3xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      {day.substring(0, 2)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Realtime Live Calculated Status Box */}
+            {(() => {
+              const currentCalculatedStatus = checkStoreOpenStatus({
+                mode: scheduleMode,
+                openTime: scheduleOpenTime,
+                closeTime: scheduleCloseTime,
+                daysOpen: scheduleDaysOpen
+              });
+              return (
+                <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-extrabold ${
+                  currentCalculatedStatus.isOpen
+                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50/70 border-rose-200 text-rose-900'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      currentCalculatedStatus.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                    }`} />
+                    <span>
+                      Estado Calculado: <strong>{currentCalculatedStatus.isOpen ? 'ABIERTO' : 'CERRADO'}</strong>
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold opacity-80">{currentCalculatedStatus.reason}</span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Banner Selector Component */}

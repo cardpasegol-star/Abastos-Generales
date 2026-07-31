@@ -176,6 +176,12 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   productCategories: ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'],
   foodItemCategories: ['Almuerzos', 'Sopas', 'Postres', 'Bebidas'],
   fruteriaCategories: ['Frutas', 'Verduras', 'Frutos Secos', 'Semillas', 'Huevos', 'Mermeladas', 'Miel', 'Abarrotes / Varios'],
+  schedule: {
+    openTime: '08:00',
+    closeTime: '20:00',
+    daysOpen: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+    mode: 'auto'
+  },
   licenseExpirationDate: '2026-12-31',
   licenseStatus: 'active',
   licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.',

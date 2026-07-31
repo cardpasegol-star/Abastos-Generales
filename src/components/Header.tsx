@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Store, Phone, LogOut } from 'lucide-react';
 import { BusinessConfig, Empleado } from '../types';
+import { checkStoreOpenStatus } from '../utils';
 
 interface HeaderProps {
   config: BusinessConfig;
@@ -20,6 +21,17 @@ export default function Header({ config, currentEmployee, onLogout, onOpenAdmin 
     : 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800';
 
   const bannerImage = config.bannerUrl || defaultBanner;
+
+  // Real-time calculated store status (Open / Closed)
+  const [openStatus, setOpenStatus] = useState(() => checkStoreOpenStatus(config.schedule));
+
+  useEffect(() => {
+    setOpenStatus(checkStoreOpenStatus(config.schedule));
+    const timer = setInterval(() => {
+      setOpenStatus(checkStoreOpenStatus(config.schedule));
+    }, 15000); // Check every 15s
+    return () => clearInterval(timer);
+  }, [config.schedule]);
 
   return (
     <div className="w-full relative bg-slate-900 overflow-hidden shadow-md border-b border-slate-250">
@@ -46,10 +58,23 @@ export default function Header({ config, currentEmployee, onLogout, onOpenAdmin 
               <Store className="w-5 h-5 text-white stroke-[2.5]" />
             </div>
             
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-550/30 backdrop-blur-sm text-emerald-300 rounded-full border border-emerald-400/30 text-[10px] font-black uppercase tracking-widest select-none shadow-xs">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping shrink-0" style={{ animationDuration: '2s' }}></div>
-              <span>Abierto</span>
-            </div>
+            {openStatus.isOpen ? (
+              <div 
+                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-550/30 backdrop-blur-sm text-emerald-300 rounded-full border border-emerald-400/30 text-[10px] font-black uppercase tracking-widest select-none shadow-xs"
+                title={openStatus.reason}
+              >
+                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping shrink-0" style={{ animationDuration: '2s' }}></div>
+                <span>Abierto</span>
+              </div>
+            ) : (
+              <div 
+                className="flex items-center gap-1.5 px-3 py-1 bg-rose-950/70 backdrop-blur-sm text-rose-300 rounded-full border border-rose-500/40 text-[10px] font-black uppercase tracking-widest select-none shadow-xs"
+                title={openStatus.reason}
+              >
+                <div className="w-2 h-2 bg-rose-500 rounded-full shrink-0"></div>
+                <span>Cerrado</span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 items-center">
