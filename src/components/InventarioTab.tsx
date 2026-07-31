@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { Product, BusinessConfig, isModuleActive, getModuleForCategory } from '../types';
 import { getCategoryPlaceholder, handleImageError, safeLocalStorageSetItem } from '../utils';
 import BarcodeScanner from './BarcodeScanner';
+import { isPharmacyApp, fetchPharmacyBarcodeProduct } from '../lib/pharmacyBarcodeApi';
 
 interface InventarioTabProps {
   products: Product[];
@@ -1175,6 +1176,31 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       setProductFetchMsg(`✅ Encontrado en inventario local: ${localMatch.name}`);
       setFetchingProduct(false);
       return;
+    }
+
+    // Nivel EXCLUSIVO FARMACIA: Búsqueda en API pública de Farmacia, Salud y Cuidado Personal
+    const isPharmacy = isPharmacyApp(config, invUrlTienda);
+    if (isPharmacy) {
+      setProductFetchMsg('💊 Consultando catálogo público de Farmacia, Salud & Cuidado Personal...');
+      try {
+        const pharmRes = await fetchPharmacyBarcodeProduct(barcode, true);
+        if (pharmRes.found && pharmRes.name) {
+          setFormData(prev => ({
+            ...prev,
+            sku: barcode,
+            name: pharmRes.name,
+            imageUrl: pharmRes.imageUrl || prev.imageUrl,
+            category: pharmRes.category || prev.category,
+            marca: pharmRes.brand || prev.marca || ''
+          }));
+          setProductFetchMsg(`✅ Producto de Farmacia autocompletado: "${pharmRes.name}"`);
+          setFetchingProduct(false);
+          fetchGeminiPriceSuggestion(pharmRes.name, barcode);
+          return;
+        }
+      } catch (pharmErr) {
+        console.warn('Fallo no bloqueante en catálogo de Farmacia:', pharmErr);
+      }
     }
 
     let found = false;

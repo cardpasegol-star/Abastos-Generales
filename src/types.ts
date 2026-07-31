@@ -128,6 +128,7 @@ export interface ScheduleConfig {
 
 export interface BusinessConfig {
   id: string;
+  storeKey?: string;
   name: string;
   whatsapp: string;
   gps: string;

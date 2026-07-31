@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, ShoppingBag, Zap, RefreshCw, X } from 'lucide-react';
 import { Product, CartItem, Transaction, BusinessConfig } from '../types';
 import BarcodeScanner from './BarcodeScanner';
+import { isPharmacyApp, fetchPharmacyBarcodeProduct } from '../lib/pharmacyBarcodeApi';
 
 const CATEGORY_ICONS: Record<string, string> = {
   'Bebidas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beverage%20Box.png',
@@ -157,6 +158,30 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
       setIsQueryingAPI(true);
       setErrorMessage('');
       
+      // EXCLUSIVE PHARMACY LOOKUP
+      const isPharmacy = isPharmacyApp(config);
+      if (isPharmacy) {
+        try {
+          const pharmRes = await fetchPharmacyBarcodeProduct(barcode, true);
+          if (pharmRes.found && pharmRes.name) {
+            setIsQueryingAPI(false);
+            setApiScannedProduct({
+              sku: barcode,
+              name: pharmRes.name,
+              category: (pharmRes.category as any) || 'Farmacia / Salud',
+              imageUrl: pharmRes.imageUrl || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600',
+              stock: 10,
+              cost: 1000,
+              price: 1500
+            });
+            setScanSuccessMsg(`💊 Producto de Farmacia autocompletado: "${pharmRes.name}"`);
+            return;
+          }
+        } catch (pharmErr) {
+          console.warn('Pharmacy barcode lookup fallback in Caja:', pharmErr);
+        }
+      }
+
       let apiFound = false;
       let pName = '';
       let pImg = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
