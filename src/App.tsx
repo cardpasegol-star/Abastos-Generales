@@ -98,6 +98,13 @@ export default function App() {
   });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [config, setConfig] = useState<BusinessConfig>(DEFAULT_CONFIG);
+  const [selectedComuna, setSelectedComuna] = useState<string>(() => {
+    try {
+      return localStorage.getItem('cliente_comuna') || 'La Florida';
+    } catch {
+      return 'La Florida';
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [storageNotification, setStorageNotification] = useState<string | null>(null);
 
@@ -680,6 +687,13 @@ export default function App() {
         config={config} 
         currentEmployee={currentEmployee} 
         onLogout={handleLogout} 
+        selectedComuna={selectedComuna}
+        onSelectComuna={(newComuna) => {
+          setSelectedComuna(newComuna);
+          try {
+            localStorage.setItem('cliente_comuna', newComuna);
+          } catch {}
+        }}
         onOpenAdmin={() => {
           setAdminDeliveryActive(false);
           setActiveTab('Mant.');
@@ -770,6 +784,13 @@ export default function App() {
                 productos={products}
                 foodItems={foodItems}
                 config={config}
+                selectedComuna={selectedComuna}
+                onSelectComuna={(newComuna) => {
+                  setSelectedComuna(newComuna);
+                  try {
+                    localStorage.setItem('cliente_comuna', newComuna);
+                  } catch {}
+                }}
                 onAddTransaction={handleAddTransaction}
                 onUpdateProductStock={handleUpdateProductStock}
                 onUpdateFoodItemStock={handleUpdateFoodItemStock}

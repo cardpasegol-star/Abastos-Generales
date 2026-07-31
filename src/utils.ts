@@ -111,6 +111,53 @@ export interface StoreOpenStatus {
   reason?: string;
 }
 
+export function getChileCurrentTimeAndDay(): { currentTimeStr: string; currentDayName: string } {
+  const now = new Date();
+  
+  // Format current time strictly in America/Santiago (Chile timezone)
+  const timeFormatter = new Intl.DateTimeFormat('es-CL', {
+    timeZone: 'America/Santiago',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    hourCycle: 'h23'
+  });
+  
+  const timeParts = timeFormatter.formatToParts(now);
+  let hourStr = '00';
+  let minuteStr = '00';
+  for (const part of timeParts) {
+    if (part.type === 'hour') hourStr = part.value.padStart(2, '0');
+    if (part.type === 'minute') minuteStr = part.value.padStart(2, '0');
+  }
+  if (hourStr === '24') hourStr = '00';
+  const currentTimeStr = `${hourStr}:${minuteStr}`;
+
+  // Format current day of week strictly in America/Santiago
+  const dayFormatter = new Intl.DateTimeFormat('es-CL', {
+    timeZone: 'America/Santiago',
+    weekday: 'long'
+  });
+
+  const rawDayName = dayFormatter.format(now).toLowerCase().trim();
+  
+  const dayMap: Record<string, string> = {
+    'lunes': 'Lunes',
+    'martes': 'Martes',
+    'miércoles': 'Miércoles',
+    'miercoles': 'Miércoles',
+    'jueves': 'Jueves',
+    'viernes': 'Viernes',
+    'sábado': 'Sábado',
+    'sabado': 'Sábado',
+    'domingo': 'Domingo'
+  };
+
+  const currentDayName = dayMap[rawDayName] || SPANISH_DAYS[now.getDay()] || 'Lunes';
+
+  return { currentTimeStr, currentDayName };
+}
+
 export function checkStoreOpenStatus(schedule?: ScheduleConfig): StoreOpenStatus {
   const mode = schedule?.mode || 'auto';
 
@@ -132,11 +179,43 @@ export function checkStoreOpenStatus(schedule?: ScheduleConfig): StoreOpenStatus
     };
   }
 
-  // Automatic calculation based on Chilean / local system day and time
-  const now = new Date();
-  const currentDayIndex = now.getDay();
-  const currentDayName = SPANISH_DAYS[currentDayIndex];
+  // Automatic calculation based strictly on Chile time zone (America/Santiago)
+  const { currentTimeStr, currentDayName } = getChileCurrentTimeAndDay();
 
+  // Check per-day schedule first if defined
+  const daySched = schedule?.weeklySchedule?.[currentDayName];
+  if (daySched) {
+    if (!daySched.isOpen) {
+      return {
+        isOpen: false,
+        statusText: 'Cerrado',
+        isForced: false,
+        reason: `Cerrado hoy (${currentDayName})`
+      };
+    }
+
+    const openTime = daySched.openTime || "08:00";
+    const closeTime = daySched.closeTime || "20:00";
+
+    let isOpen = false;
+    if (openTime <= closeTime) {
+      isOpen = currentTimeStr >= openTime && currentTimeStr < closeTime;
+    } else {
+      // Overnight schedule (e.g., 20:00 to 02:00)
+      isOpen = currentTimeStr >= openTime || currentTimeStr < closeTime;
+    }
+
+    return {
+      isOpen,
+      statusText: isOpen ? 'Abierto' : 'Cerrado',
+      isForced: false,
+      reason: isOpen
+        ? `Horario Chile (${currentDayName}): ${openTime} - ${closeTime}`
+        : `Fuera de horario Chile (${openTime} - ${closeTime})`
+    };
+  }
+
+  // General fallback if no weeklySchedule defined for this day
   const daysOpen = schedule?.daysOpen && schedule.daysOpen.length > 0
     ? schedule.daysOpen
     : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -153,19 +232,20 @@ export function checkStoreOpenStatus(schedule?: ScheduleConfig): StoreOpenStatus
   const openTime = schedule?.openTime || "08:00";
   const closeTime = schedule?.closeTime || "20:00";
 
-  const currentHours = now.getHours().toString().padStart(2, '0');
-  const currentMinutes = now.getMinutes().toString().padStart(2, '0');
-  const currentTimeStr = `${currentHours}:${currentMinutes}`;
-
-  const isOpen = currentTimeStr >= openTime && currentTimeStr < closeTime;
+  let isOpen = false;
+  if (openTime <= closeTime) {
+    isOpen = currentTimeStr >= openTime && currentTimeStr < closeTime;
+  } else {
+    isOpen = currentTimeStr >= openTime || currentTimeStr < closeTime;
+  }
 
   return {
     isOpen,
     statusText: isOpen ? 'Abierto' : 'Cerrado',
     isForced: false,
     reason: isOpen
-      ? `Horario: ${openTime} - ${closeTime}`
-      : `Fuera de horario (${openTime} - ${closeTime})`
+      ? `Horario Chile: ${openTime} - ${closeTime}`
+      : `Fuera de horario Chile (${openTime} - ${closeTime})`
   };
 }
 

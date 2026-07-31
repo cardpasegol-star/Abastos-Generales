@@ -2,7 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plus, X, Laptop, KeyRound, Lock, Image, Camera, PackageOpen, Copy, QrCode, Download, ExternalLink, Check, Clock } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive, SectorConfig, ScheduleConfig } from '../types';
+import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive, SectorConfig, ScheduleConfig, DaySchedule } from '../types';
+
+const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+const DEFAULT_WEEKLY_SCHEDULE: Record<string, DaySchedule> = {
+  'Lunes': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
+  'Martes': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
+  'Miércoles': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
+  'Jueves': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
+  'Viernes': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
+  'Sábado': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
+  'Domingo': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
+};
 import { checkStoreOpenStatus } from '../utils';
 
 const FOOD_PRESET_IMAGES = [
@@ -504,8 +516,25 @@ export default function MantTab({
   const [scheduleOpenTime, setScheduleOpenTime] = useState<string>(config.schedule?.openTime || '08:00');
   const [scheduleCloseTime, setScheduleCloseTime] = useState<string>(config.schedule?.closeTime || '20:00');
   const [scheduleDaysOpen, setScheduleDaysOpen] = useState<string[]>(
-    config.schedule?.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    config.schedule?.daysOpen || DAYS_OF_WEEK
   );
+  const [weeklySchedule, setWeeklySchedule] = useState<Record<string, DaySchedule>>(() => {
+    if (config.schedule?.weeklySchedule) {
+      return { ...DEFAULT_WEEKLY_SCHEDULE, ...config.schedule.weeklySchedule };
+    }
+    const openT = config.schedule?.openTime || '08:00';
+    const closeT = config.schedule?.closeTime || '20:00';
+    const daysO = config.schedule?.daysOpen || DAYS_OF_WEEK;
+    const initSched: Record<string, DaySchedule> = {};
+    DAYS_OF_WEEK.forEach(day => {
+      initSched[day] = {
+        isOpen: daysO.includes(day),
+        openTime: openT,
+        closeTime: closeT
+      };
+    });
+    return initSched;
+  });
 
   const [rutasCamion, setRutasCamion] = useState<Record<string, SectorConfig>>(config.rutasCamion || DEFAULT_RUTAS_CAMION);
   const [uploadMethod, setUploadMethod] = useState<'link' | 'gallery'>('link');
@@ -778,18 +807,66 @@ export default function MantTab({
         setScheduleMode(cachedSched.mode || 'auto');
         setScheduleOpenTime(cachedSched.openTime || '08:00');
         setScheduleCloseTime(cachedSched.closeTime || '20:00');
-        setScheduleDaysOpen(cachedSched.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
+        setScheduleDaysOpen(cachedSched.daysOpen || DAYS_OF_WEEK);
+        if (cachedSched.weeklySchedule) {
+          setWeeklySchedule({ ...DEFAULT_WEEKLY_SCHEDULE, ...cachedSched.weeklySchedule });
+        } else {
+          const openT = cachedSched.openTime || '08:00';
+          const closeT = cachedSched.closeTime || '20:00';
+          const daysO = cachedSched.daysOpen || DAYS_OF_WEEK;
+          const initSched: Record<string, DaySchedule> = {};
+          DAYS_OF_WEEK.forEach(day => {
+            initSched[day] = {
+              isOpen: daysO.includes(day),
+              openTime: openT,
+              closeTime: closeT
+            };
+          });
+          setWeeklySchedule(initSched);
+        }
       } catch (e) {
         setScheduleMode(config.schedule?.mode || 'auto');
         setScheduleOpenTime(config.schedule?.openTime || '08:00');
         setScheduleCloseTime(config.schedule?.closeTime || '20:00');
-        setScheduleDaysOpen(config.schedule?.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
+        setScheduleDaysOpen(config.schedule?.daysOpen || DAYS_OF_WEEK);
+        if (config.schedule?.weeklySchedule) {
+          setWeeklySchedule({ ...DEFAULT_WEEKLY_SCHEDULE, ...config.schedule.weeklySchedule });
+        } else {
+          const openT = config.schedule?.openTime || '08:00';
+          const closeT = config.schedule?.closeTime || '20:00';
+          const daysO = config.schedule?.daysOpen || DAYS_OF_WEEK;
+          const initSched: Record<string, DaySchedule> = {};
+          DAYS_OF_WEEK.forEach(day => {
+            initSched[day] = {
+              isOpen: daysO.includes(day),
+              openTime: openT,
+              closeTime: closeT
+            };
+          });
+          setWeeklySchedule(initSched);
+        }
       }
     } else {
       setScheduleMode(config.schedule?.mode || 'auto');
       setScheduleOpenTime(config.schedule?.openTime || '08:00');
       setScheduleCloseTime(config.schedule?.closeTime || '20:00');
-      setScheduleDaysOpen(config.schedule?.daysOpen || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
+      setScheduleDaysOpen(config.schedule?.daysOpen || DAYS_OF_WEEK);
+      if (config.schedule?.weeklySchedule) {
+        setWeeklySchedule({ ...DEFAULT_WEEKLY_SCHEDULE, ...config.schedule.weeklySchedule });
+      } else {
+        const openT = config.schedule?.openTime || '08:00';
+        const closeT = config.schedule?.closeTime || '20:00';
+        const daysO = config.schedule?.daysOpen || DAYS_OF_WEEK;
+        const initSched: Record<string, DaySchedule> = {};
+        DAYS_OF_WEEK.forEach(day => {
+          initSched[day] = {
+            isOpen: daysO.includes(day),
+            openTime: openT,
+            closeTime: closeT
+          };
+        });
+        setWeeklySchedule(initSched);
+      }
     }
 
     // State Isolation for Minimarket (Donde el Turco)
@@ -1271,11 +1348,13 @@ export default function MantTab({
   const handleSaveConfig = async () => {
     setLoading(true);
     try {
+      const activeDays = DAYS_OF_WEEK.filter(d => weeklySchedule[d]?.isOpen);
       const scheduleObj: ScheduleConfig = {
         mode: scheduleMode,
-        openTime: scheduleOpenTime,
-        closeTime: scheduleCloseTime,
-        daysOpen: scheduleDaysOpen
+        openTime: weeklySchedule['Lunes']?.openTime || scheduleOpenTime || '08:00',
+        closeTime: weeklySchedule['Lunes']?.closeTime || scheduleCloseTime || '20:00',
+        daysOpen: activeDays,
+        weeklySchedule: weeklySchedule
       };
 
       await onUpdateConfig({
@@ -1799,65 +1878,14 @@ export default function MantTab({
               </div>
             </div>
 
-            {/* Time inputs */}
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Hora Apertura</label>
-                <input
-                  type="time"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-black text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-600/10 outline-none"
-                  value={scheduleOpenTime}
-                  onChange={(e) => setScheduleOpenTime(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Hora Cierre</label>
-                <input
-                  type="time"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-black text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-600/10 outline-none"
-                  value={scheduleCloseTime}
-                  onChange={(e) => setScheduleCloseTime(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Days of week selection */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Días de Atención:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => {
-                  const isChecked = scheduleDaysOpen.includes(day);
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => {
-                        if (isChecked) {
-                          setScheduleDaysOpen(prev => prev.filter(d => d !== day));
-                        } else {
-                          setScheduleDaysOpen(prev => [...prev, day]);
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-lg border text-[10px] font-black cursor-pointer transition-all select-none ${
-                        isChecked
-                          ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-3xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
-                      }`}
-                    >
-                      {day.substring(0, 2)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Realtime Live Calculated Status Box */}
             {(() => {
               const currentCalculatedStatus = checkStoreOpenStatus({
                 mode: scheduleMode,
                 openTime: scheduleOpenTime,
                 closeTime: scheduleCloseTime,
-                daysOpen: scheduleDaysOpen
+                daysOpen: DAYS_OF_WEEK.filter(d => weeklySchedule[d]?.isOpen),
+                weeklySchedule: weeklySchedule
               });
               return (
                 <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-extrabold ${
@@ -1870,13 +1898,164 @@ export default function MantTab({
                       currentCalculatedStatus.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                     }`} />
                     <span>
-                      Estado Calculado: <strong>{currentCalculatedStatus.isOpen ? 'ABIERTO' : 'CERRADO'}</strong>
+                      Estado Actual Calculado: <strong>{currentCalculatedStatus.isOpen ? 'ABIERTO' : 'CERRADO'}</strong>
                     </span>
                   </div>
                   <span className="text-[10px] font-bold opacity-80">{currentCalculatedStatus.reason}</span>
                 </div>
               );
             })()}
+
+            {/* Quick Actions Shortcuts Toolbar */}
+            <div className="pt-2 border-t border-gray-100 space-y-1.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Acciones Rápidas de Horario:</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const lunesOpen = weeklySchedule['Lunes']?.openTime || '08:00';
+                    const lunesClose = weeklySchedule['Lunes']?.closeTime || '20:00';
+                    setWeeklySchedule(prev => {
+                      const next = { ...prev };
+                      DAYS_OF_WEEK.forEach(day => {
+                        if (next[day]) {
+                          next[day] = { ...next[day], openTime: lunesOpen, closeTime: lunesClose };
+                        }
+                      });
+                      return next;
+                    });
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 text-indigo-700 text-[11px] font-extrabold cursor-pointer transition-all flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" /> Copiar Horario de Lunes a Toda la Semana
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWeeklySchedule(prev => {
+                      const next = { ...prev };
+                      DAYS_OF_WEEK.forEach(day => {
+                        next[day] = { isOpen: true, openTime: '09:00', closeTime: '21:00' };
+                      });
+                      return next;
+                    });
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-bold cursor-pointer transition-all"
+                >
+                  ⚡ Aplicar 09:00 - 21:00 (Lunes a Domingo)
+                </button>
+              </div>
+            </div>
+
+            {/* Per-Day Hours Editor */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider block">
+                  Configuración de Horario por Día Individual:
+                </span>
+                <span className="text-[9.5px] font-bold text-slate-400">
+                  Personalice apertura y cierre para cada día
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {DAYS_OF_WEEK.map(day => {
+                  const dayConfig = weeklySchedule[day] || { isOpen: true, openTime: '08:00', closeTime: '20:00' };
+                  return (
+                    <div
+                      key={day}
+                      className={`p-2.5 rounded-2xl border transition-all ${
+                        dayConfig.isOpen
+                          ? 'bg-white border-slate-200/90 shadow-2xs'
+                          : 'bg-slate-50/80 border-slate-200/50 opacity-75'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        {/* Day Label & Toggle Switch */}
+                        <div className="flex items-center gap-2.5 min-w-[130px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setWeeklySchedule(prev => ({
+                                ...prev,
+                                [day]: {
+                                  ...dayConfig,
+                                  isOpen: !dayConfig.isOpen
+                                }
+                              }));
+                            }}
+                            className={`w-8 h-4.5 rounded-full p-0.5 transition-colors cursor-pointer flex items-center ${
+                              dayConfig.isOpen ? 'bg-emerald-500 justify-end' : 'bg-slate-300 justify-start'
+                            }`}
+                          >
+                            <div className="w-3.5 h-3.5 rounded-full bg-white shadow-2xs" />
+                          </button>
+
+                          <span className="text-xs font-black text-slate-800">
+                            {day}
+                          </span>
+
+                          <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-full border ${
+                            dayConfig.isOpen
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}>
+                            {dayConfig.isOpen ? 'ABIERTO' : 'CERRADO'}
+                          </span>
+                        </div>
+
+                        {/* Hours Inputs */}
+                        {dayConfig.isOpen ? (
+                          <div className="flex items-center gap-2 flex-1 justify-end">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9.5px] font-bold text-slate-400">Abre:</span>
+                              <input
+                                type="time"
+                                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-black text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-600/10 outline-none w-24 text-center"
+                                value={dayConfig.openTime || '08:00'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setWeeklySchedule(prev => ({
+                                    ...prev,
+                                    [day]: {
+                                      ...dayConfig,
+                                      openTime: val
+                                    }
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <span className="text-slate-300 text-xs font-bold">-</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9.5px] font-bold text-slate-400">Cierra:</span>
+                              <input
+                                type="time"
+                                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-black text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-600/10 outline-none w-24 text-center"
+                                value={dayConfig.closeTime || '20:00'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setWeeklySchedule(prev => ({
+                                    ...prev,
+                                    [day]: {
+                                      ...dayConfig,
+                                      closeTime: val
+                                    }
+                                  }));
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 italic pr-1">
+                            Sin atención el día {day}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Banner Selector Component */}

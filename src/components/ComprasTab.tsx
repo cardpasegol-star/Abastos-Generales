@@ -313,6 +313,8 @@ interface ComprasTabProps {
   productos?: Product[];
   foodItems?: FoodItem[];
   config: BusinessConfig;
+  selectedComuna?: string;
+  onSelectComuna?: (comuna: string) => void;
   onAddTransaction: (tx: Omit<Transaction, 'id'>) => Promise<string>;
   onUpdateProductStock: (id: string, newStock: number) => Promise<void>;
   onUpdateFoodItemStock?: (id: string, newStock: number) => Promise<void>;
@@ -328,7 +330,7 @@ interface CartItem {
   quantity: number;
 }
 
-export default function ComprasTab({ products, productos = [], foodItems = [], config, onAddTransaction, onUpdateProductStock, onUpdateFoodItemStock, onBackToMarketplace, onSelectStore }: ComprasTabProps) {
+export default function ComprasTab({ products, productos = [], foodItems = [], config, selectedComuna, onSelectComuna, onAddTransaction, onUpdateProductStock, onUpdateFoodItemStock, onBackToMarketplace, onSelectStore }: ComprasTabProps) {
   // Single Source of Truth: productosComprar is mapped directly to the dynamic products inventory state
   const productosComprar = productos.length > 0 ? productos : products;
 
@@ -404,7 +406,24 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const [customerPhone, setCustomerPhone] = useState('');
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
-  const [comuna, setComuna] = useState(() => localStorage.getItem('cliente_comuna') || 'La Florida');
+  const [comuna, setComunaInternal] = useState(() => selectedComuna || localStorage.getItem('cliente_comuna') || 'La Florida');
+
+  useEffect(() => {
+    if (selectedComuna && selectedComuna !== comuna) {
+      setComunaInternal(selectedComuna);
+    }
+  }, [selectedComuna]);
+
+  const setComuna = (newComuna: string) => {
+    setComunaInternal(newComuna);
+    try {
+      localStorage.setItem('cliente_comuna', newComuna);
+    } catch {}
+    if (onSelectComuna) {
+      onSelectComuna(newComuna);
+    }
+  };
+
   const [showRutasModal, setShowRutasModal] = useState(false);
 
   const activeComunasList = useMemo(() => {
@@ -719,7 +738,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                             selectedProductCategory === 'Todos' ||
                             catRaw === selectedProductCategory ||
                             cleanCatRaw === cleanSelected;
-    return matchesSearch && matchesCategory;
+    const matchesComuna = !product.comunas || product.comunas.length === 0 || product.comunas.some(c => c.toLowerCase().includes((comuna || '').toLowerCase()) || (comuna || '').toLowerCase().includes(c.toLowerCase()));
+
+    return matchesSearch && matchesCategory && matchesComuna;
   });
 
   let filteredFruteriaProducts = !flagFruteria ? [] : (isFruteria ? productosNormalizados : productosComprar).filter(product => {
@@ -732,8 +753,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     
     const matchesSearch = !searchClean || productName.includes(searchClean) || productSku.includes(searchClean);
     const matchesCategory = !selectedFruteriaCategory || selectedFruteriaCategory === 'Todo' || catRaw === selectedFruteriaCategory;
+    const matchesComuna = !product.comunas || product.comunas.length === 0 || product.comunas.some(c => c.toLowerCase().includes((comuna || '').toLowerCase()) || (comuna || '').toLowerCase().includes(c.toLowerCase()));
 
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && matchesComuna;
   });
 
   const filteredFoodItems = !flagAlmuerzos ? [] : foodItems.filter(dish => {
@@ -1726,7 +1748,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       const isTiendaCat = !isFruteriaCat;
       const isAllowed = (isFruteriaCat && flagFruteria) || (isTiendaCat && flagTienda);
 
-      if (isAllowed) {
+      const matchesComuna = !p.comunas || p.comunas.length === 0 || p.comunas.some(c => c.toLowerCase().includes((comuna || '').toLowerCase()) || (comuna || '').toLowerCase().includes(c.toLowerCase()));
+      if (isAllowed && matchesComuna) {
         // Safe computation of precioOferta if null/undefined but has a discount
         const calculatedPrecioOferta = p.precioOferta !== null && p.precioOferta !== undefined && Number(p.precioOferta) > 0
           ? Number(p.precioOferta)
@@ -2224,18 +2247,21 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       {/* SECCIÓN: OFERTAS DEL DÍA */}
       {offerItems.length > 0 && (
         <div className="bg-gradient-to-br from-rose-50 to-orange-50 rounded-3xl border-2 border-rose-150 p-5 shadow-sm space-y-4">
-          <div className="flex justify-between items-center pb-2 border-b border-rose-100">
+          <div className="flex justify-between items-center pb-2 border-b border-rose-100 flex-wrap gap-2">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="p-1.5 bg-rose-600 text-white rounded-xl shadow-sm animate-pulse">
                   <Sparkles className="w-4 h-4 stroke-[2.5]" />
                 </span>
                 <h3 className="font-black text-rose-950 text-lg font-sans tracking-tight">
-                  ⚡ ¡Ofertas del Día!
+                  ⚡ ¡Ofertas del Día para {comuna}!
                 </h3>
+                <span className="bg-rose-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                  Cobertura {comuna}
+                </span>
               </div>
               <p className="text-xs text-rose-800 font-extrabold font-sans">
-                ¡Remates especiales con stock limitado, aprovecha antes de que se agoten!
+                ¡Remates especiales con stock limitado y despacho programado a {comuna}!
               </p>
             </div>
           </div>

@@ -17,6 +17,7 @@ export interface Product {
   precioOferta?: number | null;
   unidadMedida?: 'unidad' | 'kg' | 'g';
   store?: string;
+  comunas?: string[]; // Allowed delivery zones/communes for this product (empty or undefined = available in all zones)
 }
 
 export interface CartItem {
@@ -111,11 +112,18 @@ export interface SectorConfig {
   fee: number;
 }
 
-export interface ScheduleConfig {
+export interface DaySchedule {
+  isOpen: boolean;
   openTime: string; // HH:mm e.g., "09:00"
   closeTime: string; // HH:mm e.g., "20:00"
+}
+
+export interface ScheduleConfig {
+  openTime: string; // HH:mm fallback e.g., "09:00"
+  closeTime: string; // HH:mm fallback e.g., "20:00"
   daysOpen?: string[]; // e.g., ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
   mode?: 'auto' | 'forced_open' | 'forced_closed';
+  weeklySchedule?: Record<string, DaySchedule>;
 }
 
 export interface BusinessConfig {
