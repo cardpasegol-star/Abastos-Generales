@@ -3,7 +3,6 @@ import { ShieldCheck, Edit3, Trash2, Save, MapPin, RefreshCw, AlertTriangle, Plu
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, FoodItem, BusinessConfig, Empleado, isModuleActive, SectorConfig, ScheduleConfig } from '../types';
-import { resetDatabaseToDefault } from '../initDb';
 import { checkStoreOpenStatus } from '../utils';
 
 const FOOD_PRESET_IMAGES = [
@@ -491,8 +490,6 @@ export default function MantTab({
   
   // Custom interactive confirm/alert states
   const [confirmDeleteDish, setConfirmDeleteDish] = useState<{ id: string; name: string } | null>(null);
-  const [confirmResetDb, setConfirmResetDb] = useState(false);
-  const [notifyResetSuccess, setNotifyResetSuccess] = useState(false);
   
   // Dashboard fields state
   const [localName, setLocalName] = useState(config.name || 'Donde el Goyo');
@@ -1391,27 +1388,6 @@ export default function MantTab({
         }
       };
     });
-  };
-
-  const executeResetDb = async () => {
-    setConfirmResetDb(false);
-    setLoading(true);
-    try {
-      await resetDatabaseToDefault(tenantId || 'default');
-      setNotifyResetSuccess(true);
-      setTimeout(() => setNotifyResetSuccess(false), 4000);
-      // Unlocked session restarts
-      onUnlock(false);
-      setPin('');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetDb = () => {
-    setConfirmResetDb(true);
   };
 
   const handleCreateDish = async (e: React.FormEvent) => {
@@ -2926,26 +2902,6 @@ export default function MantTab({
       </section>
       )}
 
-      {/* Section C: Danger Zone database reset */}
-      <section className="space-y-3 pt-5 border-t border-gray-100">
-        <div className="flex items-center gap-2 text-rose-600 px-1">
-          <AlertTriangle className="w-5.5 h-5.5 animate-pulse" />
-          <h3 className="text-sm font-extrabold uppercase tracking-wide">Zona Peligrosa</h3>
-        </div>
-        <div className="bg-rose-50/50 p-4.5 rounded-2xl border border-rose-200/50 text-xs font-medium text-rose-900 space-y-3.5">
-          <p className="text-center leading-relaxed text-rose-850">
-            Esta acción eliminará de forma permanente todos los registros de ventas de la caja, cargará los productos por defecto y restaurará las credenciales a su estado inicial.
-          </p>
-          <button
-            onClick={handleResetDb}
-            disabled={loading}
-            className="w-full bg-rose-600 text-white font-extrabold py-3.5 rounded-xl tracking-tight uppercase shadow-md active:shadow-sm active:scale-[0.98] transition-all disabled:opacity-55 select-none outline-none cursor-pointer"
-          >
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Restablecer Base de Datos'}
-          </button>
-        </div>
-      </section>
-
       {/* Auxiliary modal popup for creating dishes */}
       {showDishModal && config?.modulosActivos?.cocinaAlmuerzos !== false && config?.mostrarAlmuerzos !== false && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
@@ -3159,35 +3115,6 @@ export default function MantTab({
         </div>
       )}
 
-      {/* Database Reset confirmation modal */}
-      {confirmResetDb && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 px-4 animate-in fade-in duration-350">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-xs text-center border border-slate-150 shadow-2xl relative">
-            <div className="w-14 h-14 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-3.5 text-rose-600 border border-rose-100">
-              <AlertTriangle className="w-7 h-7 stroke-[1.8]" />
-            </div>
-            <h3 className="text-base font-extrabold text-slate-900 mb-1">Restablecer Datos</h3>
-            <p className="text-xs text-slate-500 mb-4.5 leading-relaxed">
-              Esta operación es irreversible y borrará el historial de cobros de forma permanente. ¿Desea continuar?
-            </p>
-            <div className="flex gap-2.5">
-              <button
-                onClick={() => setConfirmResetDb(false)}
-                className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs hover:bg-slate-200 outline-none select-none cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={executeResetDb}
-                className="flex-1 bg-rose-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-rose-700 outline-none select-none cursor-pointer"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete food dish item confirmation modal */}
       {confirmDeleteDish && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 px-4 animate-in fade-in duration-350">
@@ -3214,13 +3141,6 @@ export default function MantTab({
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Successful database reset notification card */}
-      {notifyResetSuccess && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-55 w-full max-w-xs p-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-150 text-center text-xs font-bold shadow-xl animate-in fade-in slide-in-from-top-6 duration-350 select-none">
-          Base de datos restablecida correctamente.
         </div>
       )}
     </div>

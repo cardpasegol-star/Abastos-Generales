@@ -218,7 +218,10 @@ export default function App() {
             handleFirestoreError(err, OperationType.WRITE, `tenants/${tenantId}/config/business_info`)
           );
         }
-      }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/config/business_info`));
+      }, err => {
+        handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/config/business_info`);
+        setLoading(false);
+      });
 
       // Listen to products Catalog
       const productsQuery = query(collection(db, 'tenants', tenantId, 'products'), orderBy('sku', 'asc'));
@@ -234,7 +237,10 @@ export default function App() {
         safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(prodList));
         safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(prodList));
         setLoading(false);
-      }, err => handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/products`));
+      }, err => {
+        handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/products`);
+        setLoading(false);
+      });
 
       // Listen to Food Items Catalog
       const foodQuery = query(collection(db, 'tenants', tenantId, 'foodItems'), orderBy('name', 'asc'));
@@ -815,6 +821,7 @@ export default function App() {
                   setIsMasterUnlocked(false);
                   setActiveTab('Mant.');
                 }}
+                tenantId={tenantId || undefined}
               />
             )}
           </>

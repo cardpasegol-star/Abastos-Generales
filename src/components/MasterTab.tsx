@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Calendar, ShieldAlert, CheckCircle2, Lock, Unlock, Clock, Save, LogOut, ArrowRight, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Calendar, ShieldAlert, CheckCircle2, Lock, Unlock, Clock, Save, LogOut, ArrowRight, MessageSquare, AlertTriangle, RefreshCw } from 'lucide-react';
 import { BusinessConfig, Product, Transaction } from '../types';
+import { resetDatabaseToDefault } from '../initDb';
 
 interface MasterTabProps {
   config: BusinessConfig;
@@ -8,9 +9,10 @@ interface MasterTabProps {
   transactions: Transaction[];
   onUpdateConfig: (newCfg: BusinessConfig) => Promise<void>;
   onLockMaster: () => void;
+  tenantId?: string;
 }
 
-export default function MasterTab({ config, products, transactions, onUpdateConfig, onLockMaster }: MasterTabProps) {
+export default function MasterTab({ config, products, transactions, onUpdateConfig, onLockMaster, tenantId }: MasterTabProps) {
   const [status, setStatus] = useState<'active' | 'suspended'>(config.licenseStatus || 'active');
   const [expirationDate, setExpirationDate] = useState(config.licenseExpirationDate || '2026-12-31');
   const [message, setMessage] = useState(config.licenseMessage || 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.');
@@ -34,6 +36,26 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Danger Zone database reset states
+  const [confirmResetDb, setConfirmResetDb] = useState(false);
+  const [notifyResetSuccess, setNotifyResetSuccess] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const executeResetDb = async () => {
+    setConfirmResetDb(false);
+    setResetLoading(true);
+    try {
+      await resetDatabaseToDefault(tenantId || 'default');
+      setNotifyResetSuccess(true);
+      setTimeout(() => setNotifyResetSuccess(false), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg('Error al restablecer base de datos: ' + (err?.message || err));
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   // Intelligent Date Calculators
   const handleExtendDays = (days: number) => {
@@ -367,6 +389,65 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 text-[11px] text-slate-500 font-medium leading-relaxed">
         <strong>💡 Instrucción de uso remoto:</strong> Los cambios aplicados se reflejan en tiempo real en la base de datos Firestore y afectarán de inmediato a todos los iPhones, iPads y dispositivos del cliente conectados. El bloqueo de licencia suspende toda la interfaz de usuario de ventas y administración del punto de venta con el mensaje que usted asigne arriba.
       </div>
+
+      {/* ⚠️ ZONA PELIGROSA - ACCIONES CRÍTICAS (SOLO DESARROLLADOR) */}
+      <section className="space-y-3 pt-5 border-t border-slate-200">
+        <div className="flex items-center gap-2 text-rose-600 px-1">
+          <AlertTriangle className="w-5.5 h-5.5 animate-pulse" />
+          <h3 className="text-sm font-black uppercase tracking-wide">Zona Peligrosa (Solo Desarrollador)</h3>
+        </div>
+        <div className="bg-rose-50/60 p-4.5 rounded-3xl border border-rose-200 text-xs font-medium text-rose-900 space-y-3.5 shadow-xs">
+          <p className="text-center leading-relaxed text-rose-850 font-sans">
+            Esta acción eliminará de forma permanente todos los registros de ventas de la caja, cargará los productos por defecto y restaurará las credenciales a su estado inicial.
+          </p>
+          <button
+            type="button"
+            onClick={() => setConfirmResetDb(true)}
+            disabled={resetLoading}
+            className="w-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3.5 rounded-xl tracking-tight uppercase shadow-md active:shadow-sm active:scale-[0.98] transition-all disabled:opacity-55 select-none outline-none cursor-pointer flex items-center justify-center gap-2"
+          >
+            {resetLoading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Restablecer Base de Datos'}
+          </button>
+        </div>
+      </section>
+
+      {/* Database Reset confirmation modal */}
+      {confirmResetDb && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 px-4 animate-in fade-in duration-350">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-xs text-center border border-slate-150 shadow-2xl relative">
+            <div className="w-14 h-14 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-3.5 text-rose-600 border border-rose-100">
+              <AlertTriangle className="w-7 h-7 stroke-[1.8]" />
+            </div>
+            <h3 className="text-base font-extrabold text-slate-900 mb-1">Restablecer Datos</h3>
+            <p className="text-xs text-slate-500 mb-4.5 leading-relaxed font-sans">
+              Esta operación es irreversible y borrará el historial de cobros de forma permanente. ¿Desea continuar?
+            </p>
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setConfirmResetDb(false)}
+                className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs hover:bg-slate-200 outline-none select-none cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeResetDb}
+                className="flex-1 bg-rose-600 text-white font-bold py-3 rounded-xl text-xs hover:bg-rose-700 outline-none select-none cursor-pointer"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Successful database reset notification card */}
+      {notifyResetSuccess && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-55 w-full max-w-xs p-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-150 text-center text-xs font-bold shadow-xl animate-in fade-in slide-in-from-top-6 duration-350 select-none">
+          Base de datos restablecida correctamente.
+        </div>
+      )}
 
     </div>
   );
