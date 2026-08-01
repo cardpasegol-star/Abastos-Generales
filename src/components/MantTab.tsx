@@ -228,6 +228,22 @@ export const ARTICO_STICKER_ITEMS = [
   { label: 'Pollo y Aves', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Poultry%20Leg.png', nativeEmoji: '🍗' }
 ];
 
+export const FARMACIA_STICKER_ITEMS = [
+  { label: 'Medicamentos 💊', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png', nativeEmoji: '💊' },
+  { label: 'Cuidado Salud 🩺', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png', nativeEmoji: '🩺' },
+  { label: 'Mamá y Bebé 🍼', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baby%20Bottle.png', nativeEmoji: '🍼' },
+  { label: 'Cuidado Personal 🧴', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png', nativeEmoji: '🧴' },
+  { label: 'Jabón / Higiene 🧼', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Soap.png', nativeEmoji: '🧼' },
+  { label: 'Belleza / Cosmética 💄', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lipstick.png', nativeEmoji: '💄' },
+  { label: 'Vitaminas / Suplementos 🧬', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png', nativeEmoji: '🧬' },
+  { label: 'Adulto Mayor 🦯', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png', nativeEmoji: '🦯' },
+  { label: 'Conveniencia 🏪', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png', nativeEmoji: '🏪' },
+  { label: 'Primeros Auxilios 🩹', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Adhesive%20Bandage.png', nativeEmoji: '🩹' },
+  { label: 'Termómetro 🌡️', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Thermometer.png', nativeEmoji: '🌡️' },
+  { label: 'Jeringa 💉', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Syringe.png', nativeEmoji: '💉' },
+  { label: 'Higiene Dental 🪥', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Toothbrush.png', nativeEmoji: '🪥' }
+];
+
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
   'Todo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
@@ -249,6 +265,14 @@ const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Mermeladas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Honey%20Pot.png',
   'Miel': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Honeybee.png',
   'Abarrotes / Varios': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png',
+  'Medicamentos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png',
+  'Cuidado de la Salud': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png',
+  'Mamá y Bebé': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baby%20Bottle.png',
+  'Cuidado Personal': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png',
+  'Belleza': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lipstick.png',
+  'Vitaminas y Suplementos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png',
+  'Adulto Mayor': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png',
+  'Conveniencia': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png',
 };
 
 function getCategoryIcon(cat: string, customIcons?: Record<string, string>): string {
@@ -257,6 +281,15 @@ function getCategoryIcon(cat: string, customIcons?: Record<string, string>): str
   if (DEFAULT_CATEGORY_ICONS[cat]) return DEFAULT_CATEGORY_ICONS[cat];
 
   const lower = cat.toLowerCase();
+  if (lower.includes('medicamento') || lower.includes('remedio') || lower.includes('píldora') || lower.includes('pastilla')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png';
+  if (lower.includes('salud') || lower.includes('médico') || lower.includes('estetoscopio')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png';
+  if (lower.includes('mamá') || lower.includes('bebé') || lower.includes('biberón') || lower.includes('mamadera')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baby%20Bottle.png';
+  if (lower.includes('cuidado personal') || lower.includes('loción') || lower.includes('crema')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png';
+  if (lower.includes('belleza') || lower.includes('cosmética') || lower.includes('maquillaje') || lower.includes('labial')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lipstick.png';
+  if (lower.includes('vitamina') || lower.includes('suplemento') || lower.includes('dna')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png';
+  if (lower.includes('adulto mayor') || lower.includes('bastón') || lower.includes('senior')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png';
+  if (lower.includes('conveniencia') || lower.includes('tienda')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png';
+
   if (lower.includes('carne') || lower.includes('churrasco')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Meat%20On%20Bone.png';
   if (lower.includes('hamburguesa') || lower.includes('prefrito')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hamburger.png';
   if (lower.includes('congelado') || lower.includes('pulpa') || lower.includes('hielo')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png';
@@ -565,6 +598,26 @@ export default function MantTab({
     refrigeradosCecinas: true,
     kitsCajasCerradas: true
   });
+
+  const [farmaciaActiveModules, setFarmaciaActiveModules] = useState<{
+    medicamentos: boolean;
+    cuidadoSalud: boolean;
+    mamaBebe: boolean;
+    cuidadoPersonal: boolean;
+    belleza: boolean;
+    vitaminasSuplementos: boolean;
+    adultoMayor: boolean;
+    conveniencia: boolean;
+  }>({
+    medicamentos: true,
+    cuidadoSalud: true,
+    mamaBebe: true,
+    cuidadoPersonal: true,
+    belleza: true,
+    vitaminasSuplementos: true,
+    adultoMayor: true,
+    conveniencia: true
+  });
   
   // SII Integration states
   const [siiEnabled, setSiiEnabled] = useState(config.siiEnabled || false);
@@ -577,14 +630,17 @@ export default function MantTab({
   const [foodItemCategoriesList, setFoodItemCategoriesList] = useState<string[]>([]);
   const [fruteriaCategoriesList, setFruteriaCategoriesList] = useState<string[]>([]);
   const [articoCategoriesList, setArticoCategoriesList] = useState<string[]>([]);
+  const [farmaciaCategoriesList, setFarmaciaCategoriesList] = useState<string[]>([]);
   const [newProductCat, setNewProductCat] = useState('');
   const [newFoodCat, setNewFoodCat] = useState('');
   const [newFruteriaCat, setNewFruteriaCat] = useState('');
   const [newArticoCat, setNewArticoCat] = useState('');
+  const [newFarmaciaCat, setNewFarmaciaCat] = useState('');
   const [productSelectedEmoji, setProductSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png');
   const [foodSelectedEmoji, setFoodSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pancakes.png');
   const [fruteriaSelectedEmoji, setFruteriaSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png');
   const [articoSelectedEmoji, setArticoSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png');
+  const [farmaciaSelectedEmoji, setFarmaciaSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png');
   const [categoryIconsList, setCategoryIconsList] = useState<Record<string, string>>({});
 
   // Kitchen dish builder form state
@@ -651,6 +707,7 @@ export default function MantTab({
   const [notifySavedKitchenCats, setNotifySavedKitchenCats] = useState(false);
   const [notifySavedFruteriaCats, setNotifySavedFruteriaCats] = useState(false);
   const [notifySavedArticoCats, setNotifySavedArticoCats] = useState(false);
+  const [notifySavedFarmaciaCats, setNotifySavedFarmaciaCats] = useState(false);
 
   const getActiveStoreInfo = () => {
     const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -752,6 +809,32 @@ export default function MantTab({
       setTimeout(() => setNotifySavedArticoCats(false), 3000);
     } catch (err) {
       console.error("Error al guardar categorías de Ártico:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveFarmaciaCategories = async () => {
+    setLoading(true);
+    try {
+      const mergedIcons = {
+        ...config.categoryIcons,
+        ...categoryIconsList
+      };
+      await onUpdateConfig({
+        ...config,
+        farmaciaCategories: farmaciaCategoriesList,
+        categoryIcons: mergedIcons
+      });
+      localStorage.setItem('farmacia_categories_v1', JSON.stringify(farmaciaCategoriesList));
+      localStorage.setItem('category_icons_v1', JSON.stringify(mergedIcons));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('category_icons_updated'));
+      }
+      setNotifySavedFarmaciaCats(true);
+      setTimeout(() => setNotifySavedFarmaciaCats(false), 3000);
+    } catch (err) {
+      console.error("Error al guardar categorías de farmacia:", err);
     } finally {
       setLoading(false);
     }
@@ -944,8 +1027,47 @@ export default function MantTab({
     localStorage.setItem('artico_categories_data', JSON.stringify(initialArticoCats));
     localStorage.setItem('artico_categories_v1', JSON.stringify(initialArticoCats));
 
+    // State Isolation for Farmacia Categories
+    const OFFICIAL_FARMACIA_DEFAULTS = [
+      'Medicamentos',
+      'Cuidado de la Salud',
+      'Mamá y Bebé',
+      'Cuidado Personal',
+      'Belleza',
+      'Vitaminas y Suplementos',
+      'Adulto Mayor',
+      'Conveniencia'
+    ];
+    const cachedFarmacia = localStorage.getItem('farmacia_categories_v1');
+    let initialFarmaciaCats = [...OFFICIAL_FARMACIA_DEFAULTS];
+    if (cachedFarmacia) {
+      try {
+        const parsed = JSON.parse(cachedFarmacia);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          initialFarmaciaCats = parsed;
+        }
+      } catch (e) {
+        console.error("Error parsing cached farmacia categories:", e);
+      }
+    } else if (config.farmaciaCategories && config.farmaciaCategories.length > 0) {
+      initialFarmaciaCats = config.farmaciaCategories;
+    }
+    setFarmaciaCategoriesList(initialFarmaciaCats);
+    localStorage.setItem('farmacia_categories_v1', JSON.stringify(initialFarmaciaCats));
+
     const savedIcons = JSON.parse(localStorage.getItem('category_icons_v1') || '{}');
+    const FARMACIA_DEFAULT_STICKERS: Record<string, string> = {
+      'Medicamentos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png',
+      'Cuidado de la Salud': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png',
+      'Mamá y Bebé': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baby%20Bottle.png',
+      'Cuidado Personal': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png',
+      'Belleza': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lipstick.png',
+      'Vitaminas y Suplementos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png',
+      'Adulto Mayor': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png',
+      'Conveniencia': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png'
+    };
     const initialIcons = {
+      ...FARMACIA_DEFAULT_STICKERS,
       ...(config.categoryIcons || {}),
       ...savedIcons
     };
@@ -955,6 +1077,7 @@ export default function MantTab({
       }
     });
     setCategoryIconsList(initialIcons);
+    localStorage.setItem('category_icons_v1', JSON.stringify(initialIcons));
 
     setSiiEnabled(config.siiEnabled || false);
     setSiiRut(config.siiRut || '');
@@ -987,6 +1110,30 @@ export default function MantTab({
       };
       setArticoActiveModules(defaultArticoMods);
       localStorage.setItem('artico_active_modules', JSON.stringify(defaultArticoMods));
+    }
+
+    const cachedFarmaciaMods = localStorage.getItem('farmacia_active_modules');
+    if (cachedFarmaciaMods) {
+      try {
+        setFarmaciaActiveModules(JSON.parse(cachedFarmaciaMods));
+      } catch (e) {
+        console.error("Error parsing farmacia_active_modules:", e);
+      }
+    } else if (config.farmaciaActiveModules) {
+      setFarmaciaActiveModules(config.farmaciaActiveModules as any);
+    } else {
+      const defaultFarmaciaMods = {
+        medicamentos: true,
+        cuidadoSalud: true,
+        mamaBebe: true,
+        cuidadoPersonal: true,
+        belleza: true,
+        vitaminasSuplementos: true,
+        adultoMayor: true,
+        conveniencia: true
+      };
+      setFarmaciaActiveModules(defaultFarmaciaMods);
+      localStorage.setItem('farmacia_active_modules', JSON.stringify(defaultFarmaciaMods));
     }
 
     const cachedRutas = localStorage.getItem('rutas_camion_v1');
@@ -1122,6 +1269,52 @@ export default function MantTab({
     setCategoryIconsList(prev => {
       const next = { ...prev };
       delete next[cat];
+      return next;
+    });
+  };
+
+  const handleAddFarmaciaCat = () => {
+    const val = newFarmaciaCat.trim();
+    if (!val) return;
+    if (farmaciaCategoriesList.includes(val)) return;
+    const nextList = [...farmaciaCategoriesList, val];
+    setFarmaciaCategoriesList(nextList);
+    localStorage.setItem('farmacia_categories_v1', JSON.stringify(nextList));
+
+    const activeSticker = farmaciaSelectedEmoji || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png';
+    const updatedIcons = {
+      ...categoryIconsList,
+      [val]: activeSticker
+    };
+    setCategoryIconsList(updatedIcons);
+
+    try {
+      const savedIcons = JSON.parse(localStorage.getItem('category_icons_v1') || '{}');
+      savedIcons[val] = activeSticker;
+      localStorage.setItem('category_icons_v1', JSON.stringify(savedIcons));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('category_icons_updated'));
+      }
+    } catch (e) {
+      console.error("Error persisting category_icons_v1:", e);
+    }
+
+    setNewFarmaciaCat('');
+  };
+
+  const handleRemoveFarmaciaCat = (cat: string) => {
+    const nextList = farmaciaCategoriesList.filter(c => c !== cat);
+    setFarmaciaCategoriesList(nextList);
+    localStorage.setItem('farmacia_categories_v1', JSON.stringify(nextList));
+    setCategoryIconsList(prev => {
+      const next = { ...prev };
+      delete next[cat];
+      try {
+        localStorage.setItem('category_icons_v1', JSON.stringify(next));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('category_icons_updated'));
+        }
+      } catch (e) {}
       return next;
     });
   };
@@ -1370,6 +1563,7 @@ export default function MantTab({
         foodItemCategories: foodItemCategoriesList,
         fruteriaCategories: fruteriaCategoriesList,
         articoCategories: articoCategoriesList,
+        farmaciaCategories: farmaciaCategoriesList,
         categoryIcons: categoryIconsList,
         siiEnabled,
         siiRut: siiRut.trim(),
@@ -1377,9 +1571,11 @@ export default function MantTab({
         siiApiKey: siiApiKey.trim(),
         modulosActivos,
         articoActiveModules,
+        farmaciaActiveModules,
         rutasCamion
       });
       localStorage.setItem('artico_active_modules', JSON.stringify(articoActiveModules));
+      localStorage.setItem('farmacia_active_modules', JSON.stringify(farmaciaActiveModules));
       if (rutasCamion) {
         localStorage.setItem('rutas_camion_v1', JSON.stringify(rutasCamion));
       }
@@ -1419,11 +1615,14 @@ export default function MantTab({
       } else if (activeStoreInfo.key === 'artico') {
         localStorage.setItem('artico_categories_data', JSON.stringify(articoCategoriesList));
         localStorage.setItem('artico_categories_v1', JSON.stringify(articoCategoriesList));
+      } else if (activeStoreInfo.key === 'farmacia') {
+        localStorage.setItem('farmacia_categories_v1', JSON.stringify(farmaciaCategoriesList));
       } else {
         localStorage.setItem('turco_categories_v1', JSON.stringify(productCategoriesList));
         localStorage.setItem('fruteria_categories_v1', JSON.stringify(fruteriaCategoriesList));
         localStorage.setItem('artico_categories_data', JSON.stringify(articoCategoriesList));
         localStorage.setItem('artico_categories_v1', JSON.stringify(articoCategoriesList));
+        localStorage.setItem('farmacia_categories_v1', JSON.stringify(farmaciaCategoriesList));
       }
 
       setNotifySaved(true);
@@ -2234,6 +2433,73 @@ export default function MantTab({
                     </div>
                   );
                 })
+              ) : activeStoreInfo.key === 'farmacia' ? (
+                [
+                  { id: 'medicamentos', label: '💊 MEDICAMENTOS Y REMEDIOS', desc: 'Formulaciones, analgésicos, remedios y jarabes' },
+                  { id: 'cuidadoSalud', label: '🩺 CUIDADO DE LA SALUD', desc: 'Primeros auxilios, medición y equipamiento médico' },
+                  { id: 'mamaBebe', label: '🍼 MAMÁ Y BEBÉ', desc: 'Cuidado infantil, biberones, pañales y accesorios' },
+                  { id: 'cuidadoPersonal', label: '🧴 CUIDADO PERSONAL', desc: 'Higiene corporal, dermocuidado, jabones y desodorantes' },
+                  { id: 'belleza', label: '💄 BELLEZA Y COSMÉTICA', desc: 'Cuidado facial, maquillaje, perfumería y cosmética' },
+                  { id: 'vitaminasSuplementos', label: '🧬 VITAMINAS Y SUPLEMENTOS', desc: 'Complejos vitamínicos, nutrición y suplementación' },
+                  { id: 'adultoMayor', label: '🦯 ADULTO MAYOR', desc: 'Ortopedia, pañales para adulto y apoyo a la movilidad' },
+                  { id: 'conveniencia', label: '🏪 CONVENIENCIA', desc: 'Snacks saludables, bebidas y artículos de conveniencia' }
+                ].map((mod) => {
+                  const permitidos = config.modulosPermitidos || {};
+                  const devModules = config.modules || {};
+                  const isPermitted = (permitidos as Record<string, boolean | undefined>).farmacia !== false && (devModules as Record<string, boolean | undefined>).farmacia !== false;
+                  const isActive = farmaciaActiveModules[mod.id as keyof typeof farmaciaActiveModules] !== false && isPermitted;
+
+                  return (
+                    <div 
+                      key={mod.id} 
+                      className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
+                        !isPermitted
+                          ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
+                          : isActive 
+                            ? 'bg-blue-50/40 border-blue-200 text-blue-950 shadow-3xs' 
+                            : 'bg-gray-50/60 border-gray-150 text-gray-450'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between w-full gap-2">
+                        <div className="space-y-0.5">
+                          <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : 'text-blue-950'}`}>
+                            {mod.label}
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 block font-sans">
+                            {mod.desc}
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            disabled={!isPermitted}
+                            checked={isActive}
+                            onChange={(e) => {
+                              if (!isPermitted) return;
+                              const updated = {
+                                ...farmaciaActiveModules,
+                                [mod.id]: e.target.checked
+                              };
+                              setFarmaciaActiveModules(updated);
+                              localStorage.setItem('farmacia_active_modules', JSON.stringify(updated));
+                            }}
+                          />
+                          <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
+                            !isPermitted
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'peer-checked:bg-blue-600'
+                          }`}></div>
+                        </label>
+                      </div>
+                      {!isPermitted && (
+                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
+                          🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 [
                   { id: 'tiendaAbarrotes', label: '🏪 Tienda de Abarrotes', desc: 'Productos de abasto general' },
@@ -2311,8 +2577,8 @@ export default function MantTab({
               Agregue, organice y personalice los rubros ofrecidos para {activeStoreInfo.storeName}. Los cambios se aplicarán al guardar la configuración general.
             </p>
 
-            {/* Product Categories (La Bodega / Minimarket / Farmacia) */}
-            {(activeStoreInfo.key === 'turco' || activeStoreInfo.key === 'farmacia') && modulosActivos?.tiendaAbarrotes !== false && (
+            {/* Product Categories (La Bodega / Minimarket) */}
+            {activeStoreInfo.key === 'turco' && modulosActivos?.tiendaAbarrotes !== false && (
               <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
                 <label className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">
                   🛍️ Categorías de Productos (La Bodega)
@@ -2622,6 +2888,88 @@ export default function MantTab({
                     <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 animate-bounce" />
                       <span>¡Categorías de Ártico Congelados guardadas con éxito!</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Farmacia Categories */}
+            {activeStoreInfo.key === 'farmacia' && (
+              <div className="space-y-2.5 bg-blue-50/50 p-3 rounded-2xl border border-blue-100">
+                <label className="text-[9.5px] font-black text-blue-700 uppercase tracking-widest block">
+                  💊 Categorías de Farmacia
+                </label>
+                <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-blue-200 rounded-xl min-h-12 items-center">
+                  {farmaciaCategoriesList.map(cat => (
+                    <span key={cat} className="inline-flex items-center gap-2 bg-blue-50 text-blue-900 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-blue-200 shadow-3xs hover:bg-blue-100 transition-colors">
+                      <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-blue-100 shrink-0">
+                        <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                      </span>
+                      <span className="font-bold">{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFarmaciaCat(cat)}
+                        className="text-blue-400 hover:text-blue-600 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-blue-200"
+                      >
+                        <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    </span>
+                  ))}
+                  {farmaciaCategoriesList.length === 0 && (
+                    <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. Medicamentos, Cuidado Personal..."
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                    value={newFarmaciaCat}
+                    onChange={(e) => setNewFarmaciaCat(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFarmaciaCat(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddFarmaciaCat}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer shadow-3xs"
+                  >
+                    Agregar
+                  </button>
+                </div>
+
+                {/* Farmacia Sticker Selector */}
+                <div className="space-y-1 bg-white p-2.5 rounded-xl border border-blue-150">
+                  <span className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider block">
+                    🎨 Escoge un sticker 3D para asociarlo a la categoría de farmacia:
+                  </span>
+                  <div className="flex gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-none max-w-full justify-start items-center">
+                    {FARMACIA_STICKER_ITEMS.map(item => (
+                      <SelectorStickerItem
+                        key={item.label}
+                        item={item}
+                        selected={farmaciaSelectedEmoji === item.url}
+                        onClick={() => setFarmaciaSelectedEmoji(item.url)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botón de Guardado Específico */}
+                <div className="pt-1.5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveFarmaciaCategories}
+                    disabled={!isUnlocked || loading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Categorías de Farmacia</span>
+                  </button>
+                  {notifySavedFarmaciaCats && (
+                    <div className="bg-blue-50 border border-blue-200 text-blue-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-blue-600 animate-bounce" />
+                      <span>¡Categorías de farmacia guardadas con éxito!</span>
                     </div>
                   )}
                 </div>

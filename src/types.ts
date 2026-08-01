@@ -139,6 +139,7 @@ export interface BusinessConfig {
   foodItemCategories?: string[];
   fruteriaCategories?: string[];
   articoCategories?: string[];
+  farmaciaCategories?: string[];
   categoryIcons?: Record<string, string>;
   schedule?: ScheduleConfig;
   licenseExpirationDate?: string; // YYYY-MM-DD
@@ -150,6 +151,7 @@ export interface BusinessConfig {
   siiApiKey?: string;
   modulosActivos?: ModulosActivos;
   articoActiveModules?: Record<string, boolean>;
+  farmaciaActiveModules?: Record<string, boolean>;
   modulosPermitidos?: ModulosPermitidos;
   rutasCamion?: Record<string, SectorConfig>;
   mostrarAlmuerzos?: boolean;
@@ -159,6 +161,7 @@ export interface BusinessConfig {
     almuerzos: boolean;
     tienda: boolean;
     congelados?: boolean;
+    farmacia?: boolean;
   };
 }
 
@@ -169,7 +172,12 @@ export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bod
   if (cat.includes('bodega') || cat.includes('licor') || cat.includes('alcohol') || cat.includes('vino') || cat.includes('cerveza') || cat.includes('trago') || cat.includes('coctel') || cat.includes('destilado')) {
     return 'bodega';
   }
-  if (cat.includes('farmacia') || cat.includes('medicamento') || cat.includes('remedio') || cat.includes('salud') || cat.includes('cuidado') || cat.includes('higiene') || cat.includes('farmaceut') || cat.includes('dental')) {
+  if (
+    cat.includes('farmacia') || cat.includes('medicamento') || cat.includes('remedio') || cat.includes('fármaco') || cat.includes('farmaco') ||
+    cat.includes('salud') || cat.includes('cuidado') || cat.includes('higiene') || cat.includes('farmaceut') || cat.includes('dental') ||
+    cat.includes('mamá') || cat.includes('bebé') || cat.includes('bebe') || cat.includes('belleza') || cat.includes('cosmética') ||
+    cat.includes('vitamina') || cat.includes('suplemento') || cat.includes('adulto mayor') || cat.includes('ortopedia') || cat.includes('conveniencia')
+  ) {
     return 'farmacia';
   }
   if (
@@ -254,10 +262,87 @@ export function normalizeProductForFruteria(p: Product): Product {
   } as Product;
 }
 
+export function getFarmaciaModuleForCategory(category: string): string {
+  const catLower = (category || '').toLowerCase().trim();
+  if (catLower.includes('medicamento') || catLower.includes('remedio') || catLower.includes('fármaco') || catLower.includes('farmaco') || catLower.includes('píldora') || catLower.includes('pastilla') || catLower.includes('analgésico') || catLower.includes('jarabe')) {
+    return 'medicamentos';
+  }
+  if (catLower.includes('cuidado de la salud') || catLower.includes('salud') || catLower.includes('médico') || catLower.includes('medico') || catLower.includes('estetoscopio') || catLower.includes('primeros auxilios') || catLower.includes('termómetro') || catLower.includes('termometro')) {
+    return 'cuidadoSalud';
+  }
+  if (catLower.includes('mamá') || catLower.includes('mama') || catLower.includes('bebé') || catLower.includes('bebe') || catLower.includes('biberón') || catLower.includes('biberon') || catLower.includes('mamadera') || catLower.includes('pañal') || catLower.includes('maternidad') || catLower.includes('infantil')) {
+    return 'mamaBebe';
+  }
+  if (catLower.includes('cuidado personal') || catLower.includes('higiene') || catLower.includes('jabón') || catLower.includes('jabon') || catLower.includes('shampoo') || catLower.includes('desodorante') || catLower.includes('crema') || catLower.includes('loción') || catLower.includes('locion')) {
+    return 'cuidadoPersonal';
+  }
+  if (catLower.includes('belleza') || catLower.includes('cosmética') || catLower.includes('cosmetica') || catLower.includes('maquillaje') || catLower.includes('labial') || catLower.includes('perfume') || catLower.includes('dermocosmética') || catLower.includes('facial')) {
+    return 'belleza';
+  }
+  if (catLower.includes('vitamina') || catLower.includes('suplemento') || catLower.includes('multivitamínico') || catLower.includes('multivitaminico') || catLower.includes('proteína') || catLower.includes('proteina') || catLower.includes('calcio') || catLower.includes('nutrición') || catLower.includes('nutricion')) {
+    return 'vitaminasSuplementos';
+  }
+  if (catLower.includes('adulto mayor') || catLower.includes('adulto') || catLower.includes('ortopedia') || catLower.includes('bastón') || catLower.includes('baston') || catLower.includes('senior') || catLower.includes('movilidad')) {
+    return 'adultoMayor';
+  }
+  if (catLower.includes('conveniencia') || catLower.includes('varios') || catLower.includes('abarrote')) {
+    return 'conveniencia';
+  }
+
+  // Fallbacks for official default names
+  if (category === 'Medicamentos') return 'medicamentos';
+  if (category === 'Cuidado de la Salud') return 'cuidadoSalud';
+  if (category === 'Mamá y Bebé') return 'mamaBebe';
+  if (category === 'Cuidado Personal') return 'cuidadoPersonal';
+  if (category === 'Belleza') return 'belleza';
+  if (category === 'Vitaminas y Suplementos') return 'vitaminasSuplementos';
+  if (category === 'Adulto Mayor') return 'adultoMayor';
+  if (category === 'Conveniencia') return 'conveniencia';
+
+  return 'medicamentos';
+}
+
+export function isFarmaciaModuleActive(category: string, config?: BusinessConfig): boolean {
+  if (!config) return true;
+
+  // 1. Check Master contractual permission
+  const permitidos = (config.modulosPermitidos || {}) as Record<string, boolean | undefined>;
+  if (permitidos.farmacia === false) return false;
+
+  // 2. Check Developer modules flag
+  if (config.modules && config.modules.farmacia === false) return false;
+
+  // 3. Check Business Owner main Farmacia toggle
+  const modulos = (config.modulosActivos || {}) as Record<string, boolean | undefined>;
+  if (modulos.farmacia === false) return false;
+
+  // 4. Check specific sub-module toggle
+  const modKey = getFarmaciaModuleForCategory(category);
+  let farmaciaActiveMods = config.farmaciaActiveModules;
+  if (!farmaciaActiveMods && typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('farmacia_active_modules');
+      if (cached) {
+        farmaciaActiveMods = JSON.parse(cached);
+      }
+    } catch (e) {}
+  }
+
+  if (farmaciaActiveMods && farmaciaActiveMods[modKey] === false) {
+    return false;
+  }
+
+  return true;
+}
+
 export function isModuleActive(category: string, config?: BusinessConfig): boolean {
   if (!config) return true;
 
   const moduleKey = getModuleForCategory(category);
+
+  if (moduleKey === 'farmacia') {
+    return isFarmaciaModuleActive(category, config);
+  }
 
   // Check optional module toggle in config.modules if present
   let isOptActive = true;

@@ -176,6 +176,7 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   productCategories: ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'],
   foodItemCategories: ['Almuerzos', 'Sopas', 'Postres', 'Bebidas'],
   fruteriaCategories: ['Frutas', 'Verduras', 'Frutos Secos', 'Semillas', 'Huevos', 'Mermeladas', 'Miel', 'Abarrotes / Varios'],
+  farmaciaCategories: ['Medicamentos', 'Cuidado de la Salud', 'Mamá y Bebé', 'Cuidado Personal', 'Belleza', 'Vitaminas y Suplementos', 'Adulto Mayor', 'Conveniencia'],
   schedule: {
     openTime: '08:00',
     closeTime: '20:00',

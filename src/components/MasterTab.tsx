@@ -31,6 +31,7 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
     almuerzos: config.modules?.almuerzos ?? (config.modulosActivos?.cocinaAlmuerzos ?? true),
     tienda: config.modules?.tienda ?? (config.modulosActivos?.tiendaAbarrotes ?? true),
     congelados: config.modules?.congelados ?? true,
+    farmacia: config.modules?.farmacia ?? true,
   });
   
   const [saving, setSaving] = useState(false);
@@ -307,6 +308,7 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                 { key: 'almuerzos', label: '🍲 Módulo de Almuerzos (Cocina)', desc: 'Sección de platos preparados y Menú del Día' },
                 { key: 'tienda', label: '🏪 Módulo de Tienda (Abarrotes)', desc: 'Sección de víveres, latas, bebidas y snacks' },
                 { key: 'congelados', label: '🧊 MÓDULO DE DISTRIBUIDORA / CONGELADOS (ÁRTICO)', desc: 'Sección de productos helados, pulpas, carnes y mariscos congelados' },
+                { key: 'farmacia', label: '💊 MÓDULO DE FARMACIA Y SALUD', desc: 'Sección de medicamentos, cuidado personal, higiene y suplementos' },
               ].map((m) => (
                 <div key={m.key} className="p-3.5 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-between gap-2.5 transition-all">
                   <div className="space-y-0.5">

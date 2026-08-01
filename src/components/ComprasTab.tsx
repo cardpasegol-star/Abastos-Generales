@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
-import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, getModuleForCategory, SectorConfig } from '../types';
+import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, isFarmaciaModuleActive, getFarmaciaModuleForCategory, getModuleForCategory, SectorConfig } from '../types';
 import { getCategoryPlaceholder, handleImageError, checkStoreOpenStatus } from '../utils';
 import { jsPDF } from 'jspdf';
 
@@ -440,7 +440,12 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                    config?.name?.toLowerCase().includes('artico') ||
                    config?.name?.toLowerCase().includes('congelados');
 
-  const isFruteria = !isArtico && (
+  const isFarmaciaByUrl = urlTienda === 'farmacia' || urlTienda === 'barrioseguro' || urlTienda === 'farmacia_barrio_seguro';
+  const isFarmacia = isFarmaciaByUrl ||
+                     config?.name?.toLowerCase().includes('farmacia') ||
+                     config?.name?.toLowerCase().includes('seguro');
+
+  const isFruteria = !isArtico && !isFarmacia && (
                      isFruteriaByUrl ||
                      config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
@@ -688,6 +693,17 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     'Kits y Huevos'
   ];
 
+  const OFFICIAL_FARMACIA_CATEGORIES = [
+    'Medicamentos',
+    'Cuidado de la Salud',
+    'Mamá y Bebé',
+    'Cuidado Personal',
+    'Belleza',
+    'Vitaminas y Suplementos',
+    'Adulto Mayor',
+    'Conveniencia'
+  ];
+
   const getArticoCategoriesList = (): string[] => {
     let list: string[] = [];
     if (config?.articoCategories && config.articoCategories.length > 0) {
@@ -709,9 +725,35 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
   };
 
-  const tiendaCategories = Array.from(new Set(isArtico
-    ? ['Todo', ...getArticoCategoriesList()]
-    : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')]));
+  const getFarmaciaCategoriesList = (): string[] => {
+    let list: string[] = [];
+    if (config?.farmaciaCategories && config.farmaciaCategories.length > 0) {
+      list = config.farmaciaCategories;
+    } else if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('farmacia_categories_v1');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            list = parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    if (list.length === 0) {
+      list = OFFICIAL_FARMACIA_CATEGORIES;
+    }
+    const activeCats = list.filter(cat => isFarmaciaModuleActive(cat, config));
+    return Array.from(new Set(activeCats.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
+  };
+
+  const tiendaCategories = Array.from(new Set(
+    isArtico
+      ? ['Todo', ...getArticoCategoriesList()]
+      : isFarmacia
+        ? ['Todo', ...getFarmaciaCategoriesList()]
+        : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')]
+  ));
   const fruteriaCategories = Array.from(new Set(isFruteria
     ? ['Todo', ...Array.from(new Set(productosNormalizados.map(p => p.category || (p as any).categoria).filter(Boolean)))]
     : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) === 'frutería')]));
@@ -721,7 +763,14 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   // Match items based on filters and search
   const filteredTiendaProducts = isFruteria ? [] : productosComprar.filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
-    if (!isArtico && getModuleForCategory(catRaw) === 'frutería') return false;
+    if (!isArtico && !isFarmacia && getModuleForCategory(catRaw) === 'frutería') return false;
+
+    // For Farmacia store: verify category module is active in business & master config
+    if (isFarmacia) {
+      if (!isFarmaciaModuleActive(catRaw, config)) {
+        return false;
+      }
+    }
 
     const searchClean = searchTerm.trim().toLowerCase();
     const productName = (product.name || (product as any).nombre || '').toLowerCase();
@@ -1746,7 +1795,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       const isFruteriaCat = getModuleForCategory(p.category) === 'frutería' || 
                             ['frutas frescas', 'frutas', 'verduras', 'verduleria', 'verdulería'].includes(catLower);
       const isTiendaCat = !isFruteriaCat;
-      const isAllowed = (isFruteriaCat && flagFruteria) || (isTiendaCat && flagTienda);
+      const isAllowed = isFarmacia ? isFarmaciaModuleActive(p.category, config) : ((isFruteriaCat && flagFruteria) || (isTiendaCat && flagTienda));
+
+      if (isFarmacia && !isFarmaciaModuleActive(p.category, config)) {
+        return;
+      }
 
       const matchesComuna = !p.comunas || p.comunas.length === 0 || p.comunas.some(c => c.toLowerCase().includes((comuna || '').toLowerCase()) || (comuna || '').toLowerCase().includes(c.toLowerCase()));
       if (isAllowed && matchesComuna) {
@@ -2281,7 +2334,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   <span className={`absolute top-2.5 right-2.5 text-[9px] font-black px-2 py-0.5 rounded-md z-10 text-white ${
                     itemOffer.type === 'product' ? 'bg-indigo-650' : 'bg-emerald-600'
                   }`}>
-                    {itemOffer.type === 'product' ? (isFruteria ? 'Frutería 🍎' : 'Tienda 🏪') : 'Cocina 🍲'}
+                    {itemOffer.type === 'product' ? (isFruteria ? 'Frutería 🍎' : (isFarmacia ? 'Farmacia 💊' : 'Tienda 🏪')) : 'Cocina 🍲'}
                   </span>
 
                   {/* Discount Percentage Badge */}
@@ -2668,7 +2721,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       )}
 
       {/* SECTION 2A: PRODUCTOS DE LA TIENDA (Víveres y Abarrotes) */}
-      {(!isFruteria && flagTienda) && (
+      {(!isFruteria && (flagTienda || isFarmacia)) && (
         <div className="bg-white rounded-3xl border-2 border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-3 border-b-2 border-slate-100">
             <div className="space-y-1">
@@ -2677,11 +2730,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   <ShoppingBag className="w-4 h-4" />
                 </span>
                 <h3 className="font-black text-slate-950 text-lg font-sans tracking-tight">
-                  Productos de Tienda 📦
+                  {isFarmacia ? 'Catálogo de Farmacia 💊' : 'Productos de Tienda 📦'}
                 </h3>
               </div>
               <p className="text-xs text-slate-600 font-bold font-sans">
-                Víveres, latas, bebidas frías, lácteos y snacks indispensables
+                {isFarmacia ? 'Medicamentos, cuidado personal, higiene, belleza y suplementos para tu bienestar' : 'Víveres, latas, bebidas frías, lácteos y snacks indispensables'}
               </p>
             </div>
           </div>

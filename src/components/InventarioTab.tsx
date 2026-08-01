@@ -43,16 +43,79 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Mermeladas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Honey%20Pot.png',
   'Miel': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Honeybee.png',
   'Abarrotes / Varios': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png',
+  'Medicamentos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png',
+  'Cuidado de la Salud': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png',
+  'Mamá y Bebé': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baby%20Bottle.png',
+  'Cuidado Personal': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png',
+  'Belleza': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lipstick.png',
+  'Vitaminas y Suplementos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png',
+  'Adulto Mayor': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png',
+  'Conveniencia': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png',
 };
 
 export function getCategoryIcon(cat: string, config?: BusinessConfig): string {
   if (cat === 'Todos' || cat === 'Todo') return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png';
-  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png';
+  if (config?.categoryIcons?.[cat]) return config.categoryIcons[cat];
+  
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = JSON.parse(localStorage.getItem('category_icons_v1') || '{}');
+      if (saved[cat]) return saved[cat];
+    } catch(e) {}
+  }
+
+  if (CATEGORY_ICONS[cat]) return CATEGORY_ICONS[cat];
+
+  const lower = cat.toLowerCase();
+  if (lower.includes('medicamento') || lower.includes('remedio') || lower.includes('fármaco') || lower.includes('farmaco') || lower.includes('píldora') || lower.includes('pastilla')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png';
+  if (lower.includes('salud') || lower.includes('médico') || lower.includes('estetoscopio')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png';
+  if (lower.includes('mamá') || lower.includes('bebé') || lower.includes('bebe') || lower.includes('biberón') || lower.includes('mamadera')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baby%20Bottle.png';
+  if (lower.includes('cuidado personal') || lower.includes('loción') || lower.includes('crema')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lotion%20Bottle.png';
+  if (lower.includes('belleza') || lower.includes('cosmética') || lower.includes('maquillaje') || lower.includes('labial')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Lipstick.png';
+  if (lower.includes('vitamina') || lower.includes('suplemento') || lower.includes('dna')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png';
+  if (lower.includes('adulto mayor') || lower.includes('bastón') || lower.includes('senior') || lower.includes('ortopedia')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png';
+  if (lower.includes('conveniencia')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png';
+  if (lower.includes('primeros auxilios') || lower.includes('curita') || lower.includes('venda')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Adhesive%20Bandage.png';
+  if (lower.includes('termómetro') || lower.includes('termometro')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Thermometer.png';
+  if (lower.includes('jeringa') || lower.includes('vacuna')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Syringe.png';
+  if (lower.includes('dental') || lower.includes('dientes') || lower.includes('cepillo')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Toothbrush.png';
+  if (lower.includes('jabón') || lower.includes('jabon')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Soap.png';
+
+  return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png';
 }
 
 export function getCategoryIconEmoji(cat: string, config?: BusinessConfig): string {
   const icon = getCategoryIcon(cat, config);
-  if (icon.startsWith('http')) {
+  if (icon && icon.startsWith('http')) {
+    if (icon.includes('Pill.png')) return '💊';
+    if (icon.includes('Stethoscope.png')) return '🩺';
+    if (icon.includes('Baby%20Bottle.png') || icon.includes('Baby_Bottle')) return '🍼';
+    if (icon.includes('Lotion%20Bottle.png') || icon.includes('Lotion_Bottle')) return '🧴';
+    if (icon.includes('Soap.png')) return '🧼';
+    if (icon.includes('Lipstick.png')) return '💄';
+    if (icon.includes('Dna.png')) return '🧬';
+    if (icon.includes('Probing%20Cane.png') || icon.includes('Probing_Cane')) return '🦯';
+    if (icon.includes('Convenience%20Store.png') || icon.includes('Convenience_Store')) return '🏪';
+    if (icon.includes('Adhesive%20Bandage.png') || icon.includes('Adhesive_Bandage')) return '🩹';
+    if (icon.includes('Thermometer.png')) return '🌡️';
+    if (icon.includes('Syringe.png')) return '💉';
+    if (icon.includes('Toothbrush.png')) return '🪥';
+
+    const lower = cat.toLowerCase();
+    if (lower.includes('medicamento') || lower.includes('remedio') || lower.includes('fármaco') || lower.includes('farmaco') || lower.includes('píldora') || lower.includes('pastilla')) return '💊';
+    if (lower.includes('salud') || lower.includes('médico') || lower.includes('estetoscopio')) return '🩺';
+    if (lower.includes('mamá') || lower.includes('bebé') || lower.includes('bebe') || lower.includes('biberón') || lower.includes('mamadera')) return '🍼';
+    if (lower.includes('cuidado personal') || lower.includes('loción') || lower.includes('crema')) return '🧴';
+    if (lower.includes('belleza') || lower.includes('cosmética') || lower.includes('maquillaje') || lower.includes('labial')) return '💄';
+    if (lower.includes('vitamina') || lower.includes('suplemento') || lower.includes('dna')) return '🧬';
+    if (lower.includes('adulto mayor') || lower.includes('bastón') || lower.includes('senior') || lower.includes('ortopedia')) return '🦯';
+    if (lower.includes('conveniencia')) return '🏪';
+    if (lower.includes('primeros auxilios') || lower.includes('curita') || lower.includes('venda')) return '🩹';
+    if (lower.includes('termómetro') || lower.includes('termometro')) return '🌡️';
+    if (lower.includes('jeringa') || lower.includes('vacuna')) return '💉';
+    if (lower.includes('dental') || lower.includes('dientes') || lower.includes('cepillo')) return '🪥';
+    if (lower.includes('jabón') || lower.includes('jabon')) return '🧼';
+
     if (cat.includes('Bebida')) return '🥤';
     if (cat.includes('Abarrotes') && !cat.includes('Varios')) return '🧴';
     if (cat.includes('Lácteos')) return '🥛';
@@ -259,19 +322,58 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
   };
 
+  const OFFICIAL_FARMACIA_CATEGORIES = [
+    'Medicamentos',
+    'Cuidado de la Salud',
+    'Mamá y Bebé',
+    'Cuidado Personal',
+    'Belleza',
+    'Vitaminas y Suplementos',
+    'Adulto Mayor',
+    'Conveniencia'
+  ];
+
+  const getFarmaciaCategoriesList = (): string[] => {
+    let list: string[] = [];
+    if (config?.farmaciaCategories && config.farmaciaCategories.length > 0) {
+      list = config.farmaciaCategories;
+    } else if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('farmacia_categories_v1');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            list = parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    if (list.length === 0) {
+      list = OFFICIAL_FARMACIA_CATEGORIES;
+    }
+    return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
+  };
+
   const rawProductCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
   const rawFruteriaCats = config?.fruteriaCategories || OFFICIAL_FRUTERIA_CATEGORIES;
+
+  const isFarmacia = invUrlTienda === 'farmacia' || invUrlTienda === 'barrioseguro' || invUrlTienda === 'farmacia_barrio_seguro' ||
+                     (config as any)?.storeKey === 'farmacia' ||
+                     config?.name?.toLowerCase().includes('farmacia') ||
+                     config?.name?.toLowerCase().includes('seguro');
 
   const isArtico = invUrlTienda === 'artico' || (config as any)?.storeKey === 'artico' || config?.name?.toLowerCase().includes('ártico') || config?.name?.toLowerCase().includes('artico') || config?.name?.toLowerCase().includes('congelados');
 
   const productCats = isArtico
     ? getArticoCategoriesList()
-    : isFruteria
-      ? Array.from(new Set([...(config?.fruteriaCategories || []), ...OFFICIAL_FRUTERIA_CATEGORIES]))
-      : Array.from(new Set([
-          ...(config?.modulosActivos?.tiendaAbarrotes !== false ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
-          ...(config?.modulosActivos?.frutería !== false ? rawFruteriaCats : [])
-        ]));
+    : isFarmacia
+      ? getFarmaciaCategoriesList()
+      : isFruteria
+        ? Array.from(new Set([...(config?.fruteriaCategories || []), ...OFFICIAL_FRUTERIA_CATEGORIES]))
+        : Array.from(new Set([
+            ...(config?.modulosActivos?.tiendaAbarrotes !== false ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
+            ...(config?.modulosActivos?.frutería !== false ? rawFruteriaCats : [])
+          ]));
   const defaultCategory = productCats.length > 0 ? productCats[0] : 'Frutas';
 
   const [formData, setFormData] = useState<{
@@ -304,6 +406,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const [geminiSuggestion, setGeminiSuggestion] = useState<{ precio_sugerido: number; razon_sugerencia: string } | null>(null);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
+
+  const [iconUpdateTick, setIconUpdateTick] = useState(0);
+  useEffect(() => {
+    const handleIconsUpdated = () => setIconUpdateTick(prev => prev + 1);
+    window.addEventListener('category_icons_updated', handleIconsUpdated);
+    window.addEventListener('storage', handleIconsUpdated);
+    return () => {
+      window.removeEventListener('category_icons_updated', handleIconsUpdated);
+      window.removeEventListener('storage', handleIconsUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     setImageError(false);
@@ -1191,7 +1304,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             name: pharmRes.name,
             imageUrl: pharmRes.imageUrl || prev.imageUrl,
             category: pharmRes.category || prev.category,
-            marca: pharmRes.brand || prev.marca || ''
+            marca: pharmRes.brand || prev.marca || '',
+            subcategoria: pharmRes.specifications || pharmRes.description || prev.subcategoria || ''
           }));
           setProductFetchMsg(`✅ Producto de Farmacia autocompletado: "${pharmRes.name}"`);
           setFetchingProduct(false);
@@ -1545,8 +1659,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         esOferta: formData.enOferta ? true : false,
         precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null,
         unidadMedida: isFrut ? (formData.unidadMedida || 'kg') : 'unidad',
-        store: isFruteria ? 'fruteria' : (isArtico ? 'artico' : 'turco'),
-        module: isFruteria ? 'fruteria' : 'tiendaAbarrotes'
+        store: isFruteria ? 'fruteria' : (isArtico ? 'artico' : (isFarmacia ? 'barrioseguro' : 'turco')),
+        module: isFruteria ? 'fruteria' : (isFarmacia ? 'farmacia' : 'tiendaAbarrotes')
       };
       if (formData.subcategoria?.trim()) parsedData.subcategoria = formData.subcategoria.trim();
       if (formData.marca?.trim()) parsedData.marca = formData.marca.trim();
@@ -1961,15 +2075,22 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">SKU / Código de Barras *</label>
               <div className="flex gap-2">
-                <input type="text" placeholder="Escanea o escribe..."
+                <input type="text" placeholder="Escanea o escribe SKU..."
                   className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-600 focus:bg-white outline-none font-bold outline-hidden"
                   value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
+                <button type="button" onClick={() => lookupBarcode(formData.sku)}
+                  disabled={!formData.sku?.trim() || fetchingProduct}
+                  title="Consultar catálogo de código de barras"
+                  className="bg-indigo-600 text-white px-3.5 rounded-2xl flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all shrink-0 cursor-pointer border border-indigo-500 shadow-md font-black text-xs gap-1 disabled:opacity-50">
+                  <Search className="w-4 h-4" />
+                  <span className="hidden sm:inline">Buscar</span>
+                </button>
                 <button type="button" onClick={() => setShowScanner(true)}
                   className="bg-emerald-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-emerald-700 active:scale-95 transition-all shrink-0 cursor-pointer border border-emerald-500 shadow-md">
                   <ScanBarcode className="w-5 h-5 stroke-[2.5]" />
                 </button>
               </div>
-              {fetchingProduct && <p className="text-xs text-emerald-600 font-bold animate-pulse">🔍 Buscando producto...</p>}
+              {fetchingProduct && <p className="text-xs text-emerald-600 font-bold animate-pulse">🔍 Buscando en catálogos de farmacia y productos...</p>}
               {productFetchMsg && (
                 <p className={`text-xs font-bold ${productFetchMsg.startsWith('✅') ? 'text-emerald-700' : 'text-amber-700'}`}>
                   {productFetchMsg}
@@ -1981,14 +2102,19 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             <div className={`grid ${isArtico ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Categoría *</label>
-                <select name="category" className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
-                  value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
-                  {Array.from(new Set([...productCats, ...(formData.category ? [formData.category] : [])])).map(cat => (
-                    <option key={cat} value={cat}>
-                      {getCategoryIconEmoji(cat, config)} {cat}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 border-2 border-slate-200 flex items-center justify-center shrink-0 p-1.5 shadow-xs">
+                    <CategoryIcon cat={formData.category} config={config} className="w-9 h-9 object-contain" />
+                  </div>
+                  <select name="category" className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
+                    value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                    {Array.from(new Set([...productCats, ...(formData.category ? [formData.category] : [])])).map(cat => (
+                      <option key={cat} value={cat}>
+                        {getCategoryIconEmoji(cat, config)} {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {isArtico && (
@@ -2005,16 +2131,34 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               )}
             </div>
 
-            {/* MARCA (Solo en Ártico) */}
-            {isArtico && (
+            {/* MARCA / LABORATORIO */}
+            {(isArtico || isFarmacia) && (
               <div className="space-y-1.5 animate-in fade-in duration-200">
-                <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Marca / Fabricante</label>
+                <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">
+                  {isFarmacia ? 'Laboratorio / Marca' : 'Marca / Fabricante'}
+                </label>
                 <input
                   type="text"
-                  placeholder="Ej. ÁRTICO CONGELADOS, SUPER BEEF, RECETA DEL ABUELO"
+                  placeholder={isFarmacia ? "Ej. Laboratorio Chile, Bayer, Mintlab, Nivea..." : "Ej. ÁRTICO CONGELADOS, SUPER BEEF..."}
                   className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
                   value={formData.marca || ''}
                   onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+                />
+              </div>
+            )}
+
+            {/* ESPECIFICACIONES / DESCRIPCIÓN (Solo en Farmacia) */}
+            {isFarmacia && (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">
+                  Especificaciones / Presentación
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Paracetamol 500mg - Caja 16 Comprimidos"
+                  className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+                  value={formData.subcategoria || ''}
+                  onChange={(e) => setFormData({ ...formData, subcategoria: e.target.value })}
                 />
               </div>
             )}

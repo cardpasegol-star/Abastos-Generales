@@ -6,6 +6,8 @@ export interface PharmacyBarcodeResult {
   imageUrl: string;
   category: string;
   brand?: string;
+  specifications?: string;
+  description?: string;
   source?: string;
 }
 
@@ -43,9 +45,40 @@ export function isPharmacyApp(config?: BusinessConfig, currentTenantId?: string 
 }
 
 /**
+ * Maps raw tags/titles to the official 8 Farmacia Categories
+ */
+export function mapPharmacyCategory(tagsOrText: string[], nameStr: string = ''): string {
+  const text = (tagsOrText.join(' ') + ' ' + nameStr).toLowerCase();
+
+  if (text.includes('medicamento') || text.includes('pill') || text.includes('tableta') || text.includes('comprimido') || text.includes('jarabe') || text.includes('fármaco') || text.includes('farmaco') || text.includes('analgésico') || text.includes('antibiótico') || text.includes('remedio') || text.includes('remedies')) {
+    return 'Medicamentos';
+  }
+  if (text.includes('bebé') || text.includes('bebe') || text.includes('baby') || text.includes('mamá') || text.includes('mama') || text.includes('biberón') || text.includes('pañal') || text.includes('leche infantil') || text.includes('formula')) {
+    return 'Mamá y Bebé';
+  }
+  if (text.includes('belleza') || text.includes('cosmétic') || text.includes('maquillaje') || text.includes('labial') || text.includes('facial') || text.includes('sérum') || text.includes('serum') || text.includes('dermo')) {
+    return 'Belleza';
+  }
+  if (text.includes('vitamina') || text.includes('suplemento') || text.includes('proteína') || text.includes('multivitamínico') || text.includes('colágeno') || text.includes('omega') || text.includes('nutrition')) {
+    return 'Vitaminas y Suplementos';
+  }
+  if (text.includes('adulto mayor') || text.includes('senior') || text.includes('bastón') || text.includes('incontinencia') || text.includes('ortopedia')) {
+    return 'Adulto Mayor';
+  }
+  if (text.includes('cuidado personal') || text.includes('jabón') || text.includes('shampoo') || text.includes('champú') || text.includes('crema') || text.includes('desodorante') || text.includes('pasta dental') || text.includes('higiene') || text.includes('oral')) {
+    return 'Cuidado Personal';
+  }
+  if (text.includes('conveniencia') || text.includes('snack') || text.includes('bebida') || text.includes('agua')) {
+    return 'Conveniencia';
+  }
+
+  return 'Cuidado de la Salud';
+}
+
+/**
  * EXCLUSIVE PHARMACY BARCODE LOOKUP API
- * Asynchronously queries public catalogs (Open Beauty Facts, Open Products Facts, Open Food Facts)
- * specifically for the Pharmacy app to auto-complete product Name and official Image URL.
+ * Asynchronously queries public REST catalogs (Open Beauty Facts, Open Products Facts, Open Food Facts, UPCitemdb)
+ * specifically for the Pharmacy app to auto-complete product Name, official Image URL, and Specifications/Description.
  * 
  * STRICT ISOLATION REQUIREMENT:
  * This logic ONLY executes when `isPharmacyActive` is true. Non-pharmacy modules skip this completely.
@@ -60,7 +93,7 @@ export async function fetchPharmacyBarcodeProduct(
       found: false,
       name: '',
       imageUrl: '',
-      category: 'Farmacia / Salud'
+      category: 'Cuidado de la Salud'
     };
   }
 
@@ -70,30 +103,41 @@ export async function fetchPharmacyBarcodeProduct(
       found: false,
       name: '',
       imageUrl: '',
-      category: 'Farmacia / Salud'
+      category: 'Cuidado de la Salud'
     };
   }
 
-  const TIMEOUT_MS = 2500; // 2.5s fast timeout per endpoint for snappy UX
+  const TIMEOUT_MS = 2500; // Strict 2.5s timeout per API endpoint for non-blocking UI
 
-  // Targeted public APIs for medicine, OTC healthcare, cosmetics, hygiene, and supplements
+  // Targeted public APIs for medicine, OTC healthcare, cosmetics, hygiene, supplements & global EAN/UPC
   const apiSources = [
     {
-      sourceName: 'Open Beauty Facts (Cuidado Personal y Cosmética)',
+      sourceName: 'Open Beauty Facts (Cuidado Personal y Dermocosmética)',
       url: `https://world.openbeautyfacts.org/api/v2/product/${cleanBarcode}`,
       parse: (data: any) => {
         if (data && (data.status === 'success' || data.status === 1 || data.product)) {
           const p = data.product;
           if (p) {
-            const name = p.product_name_es || p.product_name || p.product_name_en || p.brands || '';
+            const rawName = p.product_name_es || p.product_name || p.product_name_en || '';
+            const brand = p.brands || p.brand_owner || '';
             const img = p.image_front_url || p.image_url || p.image_small_url || '';
-            const brand = p.brands || '';
+            const specParts = [
+              p.generic_name_es || p.generic_name || '',
+              p.quantity ? `Contenido: ${p.quantity}` : '',
+              p.emb_codes ? `Registro/Emb: ${p.emb_codes}` : ''
+            ].filter(Boolean);
+            const specs = specParts.length > 0 ? specParts.join(' | ') : 'Artículo de cuidado personal e higiene';
+
+            const name = rawName || brand;
             if (name) {
+              const fullTitle = brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name;
+              const cat = mapPharmacyCategory(p.categories_tags || p.categories_hierarchy || [], fullTitle);
               return {
-                name: brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name,
+                name: fullTitle,
                 imageUrl: img,
-                category: 'Farmacia / Cuidado Personal',
-                brand
+                category: cat,
+                brand,
+                specifications: specs
               };
             }
           }
@@ -102,21 +146,32 @@ export async function fetchPharmacyBarcodeProduct(
       }
     },
     {
-      sourceName: 'Open Products Facts (Artículos de Salud e Higiene)',
+      sourceName: 'Open Products Facts (Artículos de Salud e Insumos Médicos)',
       url: `https://world.openproductsfacts.org/api/v2/product/${cleanBarcode}`,
       parse: (data: any) => {
         if (data && (data.status === 'success' || data.status === 1 || data.product)) {
           const p = data.product;
           if (p) {
-            const name = p.product_name_es || p.product_name || p.product_name_en || '';
+            const rawName = p.product_name_es || p.product_name || p.product_name_en || '';
+            const brand = p.brands || p.brand_owner || '';
             const img = p.image_front_url || p.image_url || p.image_small_url || '';
-            const brand = p.brands || '';
+            const specParts = [
+              p.generic_name_es || p.generic_name || '',
+              p.quantity ? `Presentación: ${p.quantity}` : '',
+              p.packaging ? `Empaque: ${p.packaging}` : ''
+            ].filter(Boolean);
+            const specs = specParts.length > 0 ? specParts.join(' | ') : 'Artículo de farmacia y cuidado de la salud';
+
+            const name = rawName || brand;
             if (name) {
+              const fullTitle = brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name;
+              const cat = mapPharmacyCategory(p.categories_tags || p.categories_hierarchy || [], fullTitle);
               return {
-                name: brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name,
+                name: fullTitle,
                 imageUrl: img,
-                category: 'Farmacia / Salud',
-                brand
+                category: cat,
+                brand,
+                specifications: specs
               };
             }
           }
@@ -125,23 +180,58 @@ export async function fetchPharmacyBarcodeProduct(
       }
     },
     {
-      sourceName: 'Open Food Facts (Suplementos y Nutrición)',
+      sourceName: 'Open Food Facts (Vitaminas, Suplementos y Mamá/Bebé)',
       url: `https://world.openfoodfacts.org/api/v2/product/${cleanBarcode}`,
       parse: (data: any) => {
         if (data && (data.status === 'success' || data.status === 1 || data.product)) {
           const p = data.product;
           if (p) {
-            const name = p.product_name_es || p.product_name || p.product_name_en || '';
-            const img = p.image_front_url || p.image_url || p.image_small_url || '';
+            const rawName = p.product_name_es || p.product_name || p.product_name_en || '';
             const brand = p.brands || '';
+            const img = p.image_front_url || p.image_url || p.image_small_url || '';
+            const specParts = [
+              p.generic_name_es || p.generic_name || '',
+              p.serving_size ? `Porción: ${p.serving_size}` : '',
+              p.quantity ? `Formato: ${p.quantity}` : ''
+            ].filter(Boolean);
+            const specs = specParts.length > 0 ? specParts.join(' | ') : 'Suplemento nutricional / Cuidado salud';
+
+            const name = rawName || brand;
             if (name) {
+              const fullTitle = brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name;
+              const cat = mapPharmacyCategory(p.categories_tags || p.categories_hierarchy || [], fullTitle);
               return {
-                name: brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${name}` : name,
+                name: fullTitle,
                 imageUrl: img,
-                category: 'Farmacia / Nutrición',
-                brand
+                category: cat,
+                brand,
+                specifications: specs
               };
             }
+          }
+        }
+        return null;
+      }
+    },
+    {
+      sourceName: 'UPCitemdb Trial (Catálogo Global de Productos)',
+      url: `https://api.upcitemdb.com/prod/trial/lookup?upc=${cleanBarcode}`,
+      parse: (data: any) => {
+        if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
+          const item = data.items[0];
+          if (item && item.title) {
+            const name = item.title;
+            const brand = item.brand || '';
+            const img = item.images?.[0] || '';
+            const specs = item.description || item.model || item.dimension || 'Producto registrado en catálogo EAN/UPC';
+            const cat = mapPharmacyCategory([item.category || ''], name);
+            return {
+              name,
+              imageUrl: img,
+              category: cat,
+              brand,
+              specifications: specs
+            };
           }
         }
         return null;
@@ -175,18 +265,20 @@ export async function fetchPharmacyBarcodeProduct(
             name: parsed.name,
             imageUrl: finalImg || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400',
             category: parsed.category,
-            brand: parsed.brand,
+            brand: parsed.brand || '',
+            specifications: parsed.specifications || '',
+            description: parsed.specifications || '',
             source: source.sourceName
           };
         }
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.warn(`[Farmacia API] Timeout en ${source.sourceName}`);
+        console.warn(`[Farmacia API] Timeout (2.5s) alcanzado en ${source.sourceName}`);
       } else {
-        console.warn(`[Farmacia API] Error en ${source.sourceName}:`, err);
+        console.warn(`[Farmacia API] Advertencia no bloqueante en ${source.sourceName}:`, err);
       }
-      // Resilient fallback: proceed to next API source
+      // Resilient fallback: move immediately to next API without throwing or blocking UI
     }
   }
 
@@ -194,6 +286,7 @@ export async function fetchPharmacyBarcodeProduct(
     found: false,
     name: '',
     imageUrl: '',
-    category: 'Farmacia / Salud'
+    category: 'Cuidado de la Salud'
   };
 }
+
