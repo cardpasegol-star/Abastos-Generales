@@ -243,6 +243,7 @@ export default function App() {
         safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(prodList));
         safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(prodList));
         safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(prodList));
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
         setLoading(false);
       }, err => {
         handleFirestoreError(err, OperationType.GET, `tenants/${tenantId}/products`);
@@ -313,6 +314,7 @@ export default function App() {
       }
       safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
       safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
       return updated;
     });
 
@@ -354,6 +356,7 @@ export default function App() {
       }
       safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
       safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
       return updated;
     });
 
@@ -376,6 +379,7 @@ export default function App() {
       }
       safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
       safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
       return updated;
     });
 

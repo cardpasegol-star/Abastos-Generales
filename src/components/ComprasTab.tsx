@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Send, Trash2, X, ShoppingBag, Check, Utensils, Sparkles, Printer, Download, Share2, CreditCard, Lock, FileText, ArrowLeft } from 'lucide-react';
 import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, isFarmaciaModuleActive, getFarmaciaModuleForCategory, getModuleForCategory, SectorConfig } from '../types';
 import { getCategoryPlaceholder, handleImageError, checkStoreOpenStatus } from '../utils';
+import { getUnidadLabel, getUnidadShortSuffix, isClosedVolumeUnit, isLooseWeightUnit } from '../utils/unitHelpers';
 import { jsPDF } from 'jspdf';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
@@ -343,6 +344,26 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  // Reactive trigger state to force a clean re-render on inventory changes
+  const [, setInventoryTick] = useState(0);
+
+  useEffect(() => {
+    const handleInventoryChange = () => {
+      setInventoryTick(prev => prev + 1);
+    };
+    window.addEventListener('inventory_updated', handleInventoryChange);
+    window.addEventListener('storage', handleInventoryChange);
+    return () => {
+      window.removeEventListener('inventory_updated', handleInventoryChange);
+      window.removeEventListener('storage', handleInventoryChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Force immediate clean re-render whenever products array, count or config updates
+    setInventoryTick(prev => prev + 1);
+  }, [products, productos, productosComprar.length, config]);
+
   // Close typeahead dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -472,7 +493,23 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
   // Modern Independent Feature Flags (Todo o Nada)
   const flagRutasCamion = config?.modules?.rutasCamion ?? (config?.rutasCamion ? true : false);
-  const flagFruteria = isModuleActive('frutería', config);
+  const isTurco = config?.name?.toLowerCase().includes('turco') ||
+                  localStorage.getItem('tenant_tienda_id')?.includes('turco') ||
+                  (typeof window !== 'undefined' && window.location.search.includes('turco'));
+
+  const hasFruteriaProducts = productosComprar.some(p => {
+    const cat = p.category || (p as any).categoria || '';
+    return getModuleForCategory(cat) === 'frutería' ||
+           p.store === 'fruteria' ||
+           (p as any).module === 'fruteria' ||
+           (p as any).modulo === 'fruteria' ||
+           (p as any).rubro === 'fruteria' ||
+           (p as any).rubro === 'frutería' ||
+           cat.toLowerCase().includes('frut') ||
+           cat.toLowerCase().includes('verdur');
+  });
+
+  const flagFruteria = isModuleActive('frutería', config) || isFruteria || isTurco || hasFruteriaProducts;
   
   const isKitchenActive = !isFruteria && isModuleActive('cocinaAlmuerzos', config);
   const showKitchenModule = isKitchenActive;
@@ -756,14 +793,27 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   ));
   const fruteriaCategories = Array.from(new Set(isFruteria
     ? ['Todo', ...Array.from(new Set(productosNormalizados.map(p => p.category || (p as any).categoria).filter(Boolean)))]
-    : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) === 'frutería')]));
+    : [
+        'Todo',
+        ...uniqueProductCats.filter(cat => getModuleForCategory(cat) === 'frutería' || cat.toLowerCase().includes('frut') || cat.toLowerCase().includes('verdur')),
+        ...activeProductCategories.filter(cat => getModuleForCategory(cat) === 'frutería')
+      ]));
 
   const foodItemCategories = Array.from(new Set(['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']).filter(cat => isModuleActive(cat, config))]));
 
   // Match items based on filters and search
   const filteredTiendaProducts = isFruteria ? [] : productosComprar.filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
-    if (!isArtico && !isFarmacia && getModuleForCategory(catRaw) === 'frutería') return false;
+    const isFrutCategory = getModuleForCategory(catRaw) === 'frutería' ||
+                           product.store === 'fruteria' ||
+                           (product as any).module === 'fruteria' ||
+                           (product as any).modulo === 'fruteria' ||
+                           (product as any).rubro === 'fruteria' ||
+                           (product as any).rubro === 'frutería' ||
+                           catRaw.toLowerCase().includes('frut') ||
+                           catRaw.toLowerCase().includes('verdur');
+
+    if (!isArtico && !isFarmacia && isFrutCategory) return false;
 
     // For Farmacia store: verify category module is active in business & master config
     if (isFarmacia) {
@@ -794,14 +844,29 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
   let filteredFruteriaProducts = !flagFruteria ? [] : (isFruteria ? productosNormalizados : productosComprar).filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
-    if (!isFruteria && getModuleForCategory(catRaw) !== 'frutería') return false;
+    const isFrutCategory = getModuleForCategory(catRaw) === 'frutería' ||
+                           product.store === 'fruteria' ||
+                           (product as any).module === 'fruteria' ||
+                           (product as any).modulo === 'fruteria' ||
+                           (product as any).rubro === 'fruteria' ||
+                           (product as any).rubro === 'frutería' ||
+                           catRaw.toLowerCase().includes('frut') ||
+                           catRaw.toLowerCase().includes('verdur');
+
+    if (!isFruteria && !isFrutCategory) return false;
 
     const searchClean = (searchTerm || '').trim().toLowerCase();
     const productName = (product.name || (product as any).nombre || '').toLowerCase();
     const productSku = (product.sku || '').toLowerCase();
     
     const matchesSearch = !searchClean || productName.includes(searchClean) || productSku.includes(searchClean);
-    const matchesCategory = !selectedFruteriaCategory || selectedFruteriaCategory === 'Todo' || catRaw === selectedFruteriaCategory;
+    const cleanSelectedFrut = (selectedFruteriaCategory || '').replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+    const cleanCatRaw = catRaw.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+    const matchesCategory = !selectedFruteriaCategory || 
+                            selectedFruteriaCategory === 'Todo' || 
+                            selectedFruteriaCategory === 'Todos' || 
+                            catRaw === selectedFruteriaCategory || 
+                            cleanCatRaw === cleanSelectedFrut;
     const matchesComuna = !product.comunas || product.comunas.length === 0 || product.comunas.some(c => c.toLowerCase().includes((comuna || '').toLowerCase()) || (comuna || '').toLowerCase().includes(c.toLowerCase()));
 
     return matchesSearch && matchesCategory && matchesComuna;
@@ -878,7 +943,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
             </span>
           ) : (
             <span className="absolute bottom-1 right-1 bg-slate-900/80 text-white text-xs font-extrabold px-2.5 py-1 rounded-lg z-10">
-              Disp: {p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'u.'}
+              Disp: {p.stock} {getUnidadLabel(p.unidadMedida)}
             </span>
           )}
         </div>
@@ -892,7 +957,12 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
               <p className="text-xs text-slate-500 font-extrabold font-mono truncate">
                 SKU: {p.sku || p.id}
               </p>
-              {p.unidadMedida && p.unidadMedida !== 'unidad' && (
+              {isClosedVolumeUnit(p.unidadMedida) && (
+                <span className="inline-block text-[10px] bg-emerald-100 text-emerald-900 font-extrabold px-2 py-0.5 rounded-md mt-0.5 border border-emerald-200">
+                  📦 {getUnidadLabel(p.unidadMedida)}
+                </span>
+              )}
+              {p.unidadMedida && p.unidadMedida !== 'unidad' && !isClosedVolumeUnit(p.unidadMedida) && (
                 <div className="text-xs font-extrabold text-indigo-700 uppercase tracking-wide mt-0.5">
                   Base: {isOferta ? (
                     <span>
@@ -900,7 +970,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                       <span className="text-rose-600">${ofertaPrice.toLocaleString('es-CL')}</span>
                     </span>
                   ) : (
-                    <span>${basePrice.toLocaleString('es-CL')} / {p.unidadMedida === 'kg' ? 'Kg' : 'g'}</span>
+                    <span>${basePrice.toLocaleString('es-CL')}{getUnidadShortSuffix(p.unidadMedida)}</span>
                   )}
                 </div>
               )}
@@ -913,12 +983,12 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     ${basePrice.toFixed(2)}
                   </span>
                   <span className="text-base sm:text-lg font-black text-rose-600 leading-none">
-                    ${ofertaPrice.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
+                    ${ofertaPrice.toFixed(2)}{getUnidadShortSuffix(p.unidadMedida)}
                   </span>
                 </div>
               ) : (
                 <span className="text-base sm:text-lg font-black text-slate-950 leading-none">
-                  ${basePrice.toFixed(2)}{p.unidadMedida === 'kg' ? ' / Kg' : p.unidadMedida === 'g' ? ' / g' : ''}
+                  ${basePrice.toFixed(2)}{getUnidadShortSuffix(p.unidadMedida)}
                 </span>
               )}
             </div>
@@ -931,8 +1001,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
             {isOutofStock ? (
               <span className="text-xs text-rose-600 font-black bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 shrink-0">Agotado</span>
-            ) : (isFruteriaStore || (p as any).unit === 'kg' || (p as any).unidad === 'kilo' || (p as any).unidad === 'kg' || (p as any).unidad === 'kilo' || p.unidadMedida === 'kg' || p.unidadMedida === 'g') ? (
-              /* Weight Based Selector */
+            ) : (isLooseWeightUnit(p.unidadMedida) || (!p.unidadMedida && isFruteriaStore)) ? (
+              /* Weight Based Selector for Loose Weight (Kg / g) */
               inCart ? (
                 <div className="flex items-center gap-1.5 shrink-0">
                   <select
@@ -1017,13 +1087,13 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const handleAddProduct = (product: Product, customQty?: number) => {
     if (product.stock <= 0) return;
 
-    const isWeightBased = isFruteriaStore || (product as any).unit === 'kg' || (product as any).unidad === 'kilo' || (product as any).unidad === 'kg' || (product as any).unidad === 'kilo' || product.unidadMedida === 'kg' || product.unidadMedida === 'g';
+    const isWeightBased = isLooseWeightUnit(product.unidadMedida) || (!product.unidadMedida && isFruteriaStore);
     const qtyToAdd = customQty !== undefined ? customQty : (isWeightBased ? getSelectedWeight(product) : 1);
 
     const existing = cart.find(item => item.id === product.id && item.type === 'product');
     if (existing) {
       if (existing.quantity + qtyToAdd > product.stock) {
-        alert(`Lo sentimos, solo quedan ${product.stock} ${product.unidadMedida === 'kg' ? 'Kg' : product.unidadMedida === 'g' ? 'g' : 'unidades'} disponibles de este producto.`);
+        alert(`Lo sentimos, solo quedan ${product.stock} ${getUnidadLabel(product.unidadMedida)} disponibles de este producto.`);
         return;
       }
       setCart(
@@ -1035,7 +1105,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       );
     } else {
       if (qtyToAdd > product.stock) {
-        alert(`Lo sentimos, solo quedan ${product.stock} ${product.unidadMedida === 'kg' ? 'Kg' : product.unidadMedida === 'g' ? 'g' : 'unidades'} disponibles de este producto.`);
+        alert(`Lo sentimos, solo quedan ${product.stock} ${getUnidadLabel(product.unidadMedida)} disponibles de este producto.`);
         return;
       }
       setCart([...cart, { id: product.id, type: 'product', product, quantity: qtyToAdd }]);
@@ -1072,7 +1142,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     const item = cart.find(item => item.id === id && item.type === type);
     if (!item) return;
 
-    const isWeightBased = type === 'product' && (item.product?.unidadMedida === 'kg' || item.product?.unidadMedida === 'g');
+    const isWeightBased = type === 'product' && isLooseWeightUnit(item.product?.unidadMedida);
     const newQty = parseFloat((item.quantity + amount).toFixed(3));
 
     if (newQty <= 0) {
@@ -1080,7 +1150,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     } else {
       // Check stock limit for products only
       if (type === 'product' && item.product && amount > 0 && newQty > item.product.stock) {
-        alert(`Lo sentimos, el stock límite para este producto es de ${item.product.stock} ${item.product.unidadMedida === 'kg' ? 'Kg' : item.product.unidadMedida === 'g' ? 'g' : 'unidades'}.`);
+        alert(`Lo sentimos, el stock límite para este producto es de ${item.product.stock} ${getUnidadLabel(item.product.unidadMedida)}.`);
         return;
       }
       if (type === 'meal' && amount > 0) {
@@ -1638,7 +1708,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
             ? (liveProduct?.name || item.product?.name || '')
             : (liveFoodItem?.name || item.foodItem?.name || '');
           const price = getItemPrice(item);
-          const suffix = item.type === 'product' && liveProduct?.unidadMedida ? (liveProduct.unidadMedida === 'kg' ? ' Kg' : liveProduct.unidadMedida === 'g' ? ' g' : 'x') : 'x';
+          const uLabel = getUnidadLabel(liveProduct?.unidadMedida);
+          const isWeight = isLooseWeightUnit(liveProduct?.unidadMedida);
+          const suffix = isWeight ? ` ${uLabel}` : (liveProduct?.unidadMedida && liveProduct.unidadMedida !== 'unidad' ? ` (${uLabel})` : 'x');
           if (suffix === 'x') {
             msg += `• *${item.quantity}x* _${name}_ | $${price.toFixed(0)} c/u -> Sub: $${(price * item.quantity).toFixed(0)}\n`;
           } else {
@@ -1714,7 +1786,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
             if (!liveProduct) return;
             const price = getItemPrice(item);
             const itemSubtotal = price * item.quantity;
-            const suffix = liveProduct.unidadMedida ? (liveProduct.unidadMedida === 'kg' ? ' Kg' : liveProduct.unidadMedida === 'g' ? ' g' : 'x') : 'x';
+            const uLabel = getUnidadLabel(liveProduct.unidadMedida);
+            const isWeight = isLooseWeightUnit(liveProduct.unidadMedida);
+            const suffix = isWeight ? ` ${uLabel}` : (liveProduct.unidadMedida && liveProduct.unidadMedida !== 'unidad' ? ` (${uLabel})` : 'x');
             if (suffix === 'x') {
               msg += `• *${item.quantity}x* _${liveProduct.name}_\n`;
               msg += `  Precio cu: $${price.toFixed(0)} | Sub: $${itemSubtotal.toFixed(0)}\n`;
@@ -1782,7 +1856,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     precioOferta: number;
     imageUrl: string;
     rawItem: any;
-    unidadMedida?: 'unidad' | 'kg' | 'g';
+    unidadMedida?: Product['unidadMedida'];
   }> = [];
 
   productosComprar.forEach(p => {
@@ -1791,8 +1865,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                      (p.precioOferta !== null && p.precioOferta !== undefined && Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.price)) ||
                      (p.descuento !== undefined && Number(p.descuento) > 0);
     if (isOferta) {
-      const catLower = p.category.toLowerCase();
-      const isFruteriaCat = getModuleForCategory(p.category) === 'frutería' || 
+      const catLower = (p.category || '').toLowerCase();
+      const isFruteriaCat = getModuleForCategory(p.category || '') === 'frutería' || 
                             ['frutas frescas', 'frutas', 'verduras', 'verduleria', 'verdulería'].includes(catLower);
       const isTiendaCat = !isFruteriaCat;
       const isAllowed = isFarmacia ? isFarmaciaModuleActive(p.category, config) : ((isFruteriaCat && flagFruteria) || (isTiendaCat && flagTienda));
@@ -2243,7 +2317,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                 </span>
                               ) : item.stock > 0 && (
                                 <span className="text-[10px] font-bold text-slate-500">
-                                  Disp: {item.stock} {item.unidadMedida === 'kg' ? 'Kg' : item.unidadMedida === 'g' ? 'g' : 'u.'}
+                                  Disp: {item.stock} {getUnidadLabel(item.unidadMedida)}
                                 </span>
                               )}
                             </div>
@@ -2257,7 +2331,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                               {displayPriceStr}
                             </span>
                             <span className="text-[10px] font-bold text-slate-500 block">
-                              {item.unidadMedida ? `por ${item.unidadMedida === 'kg' ? 'Kg' : item.unidadMedida === 'g' ? 'g' : item.unidadMedida}` : 'por un.'}
+                              por {getUnidadLabel(item.unidadMedida)}
                             </span>
                           </div>
 
@@ -2376,13 +2450,13 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                           ${itemOffer.price.toFixed(2)}
                         </span>
                         <span className="text-base font-black text-rose-600 leading-none mt-0.5">
-                          ${itemOffer.precioOferta.toFixed(2)}{itemOffer.unidadMedida === 'kg' ? ' / Kg' : itemOffer.unidadMedida === 'g' ? ' / g' : ''}
+                          ${itemOffer.precioOferta.toFixed(2)}{getUnidadShortSuffix(itemOffer.unidadMedida)}
                         </span>
                       </div>
 
                       {isOutofStock ? (
                         <span className="text-[10px] text-rose-600 font-black bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-200">Agotado</span>
-                      ) : (itemOffer.unidadMedida === 'kg' || itemOffer.unidadMedida === 'g') ? (
+                      ) : isLooseWeightUnit(itemOffer.unidadMedida) ? (
                         cartQty > 0 ? (
                           <div className="flex items-center gap-1">
                             <select
@@ -2908,7 +2982,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                   </div>
                                 ) : (
                                   <span className="text-xs text-slate-800 font-black font-sans">
-                                    ${price.toFixed(2)} {item.type === 'product' && liveProduct?.unidadMedida && liveProduct.unidadMedida !== 'unidad' ? `/ ${liveProduct.unidadMedida === 'kg' ? 'Kg' : 'g'}` : 'c/u'}
+                                    ${price.toFixed(2)}{item.type === 'product' ? (getUnidadShortSuffix(liveProduct?.unidadMedida) || ' c/u') : ' c/u'}
                                   </span>
                                 )}
                               </div>
@@ -2916,7 +2990,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
                             <div className="flex items-center gap-2">
                               {/* Adjust qty item */}
-                              {item.type === 'product' && (liveProduct?.unidadMedida === 'kg' || liveProduct?.unidadMedida === 'g') ? (
+                              {item.type === 'product' && isLooseWeightUnit(liveProduct?.unidadMedida) ? (
                                 <select
                                   value={item.quantity}
                                   onChange={(e) => {

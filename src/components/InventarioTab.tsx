@@ -4,6 +4,7 @@ import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, Ref
 import * as XLSX from 'xlsx';
 import { Product, BusinessConfig, isModuleActive, getModuleForCategory } from '../types';
 import { getCategoryPlaceholder, handleImageError, safeLocalStorageSetItem } from '../utils';
+import { getUnidadLabel, getUnidadShortSuffix } from '../utils/unitHelpers';
 import BarcodeScanner from './BarcodeScanner';
 import { isPharmacyApp, fetchPharmacyBarcodeProduct } from '../lib/pharmacyBarcodeApi';
 
@@ -1650,7 +1651,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         sku: formData.sku || '',
         name: formData.name || '',
         category: formData.category || defaultCategory,
-        stock: isFrut ? (parseFloat(String(formData.stock)) || 0) : (parseInt(String(formData.stock), 10) || 0),
+        stock: (isFrut && (formData.unidadMedida === 'kg' || formData.unidadMedida === 'g')) ? (parseFloat(String(formData.stock)) || 0) : (parseInt(String(formData.stock), 10) || 0),
         price: parsedPrice,
         precioNeto: parsedNeto,
         cost: parseFloat(String(formData.cost)) || 0,
@@ -1658,7 +1659,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         enOferta: formData.enOferta ? true : false,
         esOferta: formData.enOferta ? true : false,
         precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null,
-        unidadMedida: isFrut ? (formData.unidadMedida || 'kg') : 'unidad',
+        unidadMedida: formData.unidadMedida || (isFrut ? 'kg' : 'unidad'),
         store: isFruteria ? 'fruteria' : (isArtico ? 'artico' : (isFarmacia ? 'barrioseguro' : 'turco')),
         module: isFruteria ? 'fruteria' : (isFarmacia ? 'farmacia' : 'tiendaAbarrotes')
       };
@@ -1914,18 +1915,18 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   <span className={`text-xs font-black px-3.5 py-2 rounded-xl border ${
                     isOutOfStock ? 'bg-rose-50 text-rose-700 border-rose-200' : isLowStock ? 'bg-amber-50 text-amber-700 border-amber-305' : 'bg-slate-50 text-slate-800 border-slate-250'
                   }`}>
-                    {isLowStock && '⚠️ '}{p.stock} {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'unidades'}
+                    {isLowStock && '⚠️ '}{p.stock} {getUnidadLabel(p.unidadMedida)}
                   </span>
                   <div className="text-right">
                     <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">Precio</span>
-                    <span className="text-2xl font-black text-emerald-600">${p.price.toLocaleString('es-CL')} CLP {p.unidadMedida === 'kg' ? '/ Kg' : p.unidadMedida === 'g' ? '/ g' : ''}</span>
+                    <span className="text-2xl font-black text-emerald-600">${p.price.toLocaleString('es-CL')} CLP{getUnidadShortSuffix(p.unidadMedida)}</span>
                   </div>
                 </div>
 
                 {userRole === 'admin' && (
                   <div className="flex justify-between text-xs text-slate-800 font-extrabold bg-slate-100 p-3.5 rounded-2xl mt-1 border-2 border-slate-200">
                     <span>Costo: ${p.cost.toFixed(2)}</span>
-                    <span className="text-emerald-750 font-black">Ganancia: ${(p.price - p.cost).toFixed(2)} / {p.unidadMedida === 'kg' ? 'Kg' : p.unidadMedida === 'g' ? 'g' : 'ud'}</span>
+                    <span className="text-emerald-750 font-black">Ganancia: ${(p.price - p.cost).toFixed(2)}{getUnidadShortSuffix(p.unidadMedida)}</span>
                   </div>
                 )}
               </div>
@@ -2163,16 +2164,29 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               </div>
             )}
 
-            {/* Unidad de Medida (Solo para Frutería y Verdulería) */}
-            {getModuleForCategory(formData.category || defaultCategory) === 'frutería' && (
+            {/* Unidad de Medida (Para Frutería, Verdulería y Almacén) */}
+            {(getModuleForCategory(formData.category || defaultCategory) === 'frutería' || isFruteria || (formData.category || '').toLowerCase().includes('frut') || (formData.category || '').toLowerCase().includes('verdur')) && (
               <div className="space-y-1.5 animate-in fade-in duration-200">
                 <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Unidad de Venta *</label>
-                <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white"
+                <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
                   value={formData.unidadMedida || 'unidad'} 
                   onChange={(e) => setFormData({ ...formData, unidadMedida: e.target.value as any })}>
-                  <option value="unidad">Por Unidad</option>
-                  <option value="kg">Por Kilo (Kg)</option>
-                  <option value="g">Por Gramos (g)</option>
+                  <optgroup label="Granel y Unidades Libre">
+                    <option value="unidad">Por Unidad</option>
+                    <option value="kg">Por Kilo (Kg)</option>
+                    <option value="g">Por Gramos (g)</option>
+                  </optgroup>
+                  <optgroup label="Sacos (Volumen Cerrado)">
+                    <option value="saco_5kg">Saco 5 Kg</option>
+                    <option value="saco_10kg">Saco 10 Kg</option>
+                    <option value="saco_25kg">Saco 25 Kg</option>
+                  </optgroup>
+                  <optgroup label="Mallas (Empaque Cerrado)">
+                    <option value="malla_3u">Malla 3 Unidades</option>
+                    <option value="malla_4u">Malla 4 Unidades</option>
+                    <option value="malla_5u">Malla 5 Unidades</option>
+                    <option value="malla_6u">Malla 6 Unidades</option>
+                  </optgroup>
                 </select>
               </div>
             )}

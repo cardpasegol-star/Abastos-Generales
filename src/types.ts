@@ -15,7 +15,7 @@ export interface Product {
   esOferta?: boolean;
   descuento?: number;
   precioOferta?: number | null;
-  unidadMedida?: 'unidad' | 'kg' | 'g';
+  unidadMedida?: 'unidad' | 'kg' | 'g' | 'saco_5kg' | 'saco_10kg' | 'saco_25kg' | 'malla_3u' | 'malla_4u' | 'malla_5u' | 'malla_6u' | string;
   store?: string;
   comunas?: string[]; // Allowed delivery zones/communes for this product (empty or undefined = available in all zones)
 }
@@ -30,7 +30,7 @@ export interface TransactionItem {
   name: string;
   qty: number;
   price: number;
-  unidadMedida?: 'unidad' | 'kg' | 'g';
+  unidadMedida?: 'unidad' | 'kg' | 'g' | 'saco_5kg' | 'saco_10kg' | 'saco_25kg' | 'malla_3u' | 'malla_4u' | 'malla_5u' | 'malla_6u' | string;
 }
 
 export interface Transaction {
@@ -184,7 +184,8 @@ export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bod
     cat.includes('frut') || cat.includes('verdur') || cat.includes('vegetal') || cat.includes('campo') ||
     cat.includes('frutas') || cat.includes('verduras') || cat.includes('hortaliza') || cat.includes('seco') ||
     cat.includes('semilla') || cat.includes('huevo') || cat.includes('mermelada') || cat.includes('miel') ||
-    cat.includes('abarrotes / varios') || cat.includes('abarrotes/varios')
+    cat.includes('legumbre') || cat.includes('poroto') || cat.includes('lenteja') || cat.includes('garbanzo') ||
+    cat.includes('palta') || cat.includes('tomate') || cat.includes('agrícola') || cat.includes('agricola')
   ) {
     return 'frutería';
   }
@@ -352,21 +353,28 @@ export function isModuleActive(category: string, config?: BusinessConfig): boole
     else if (moduleKey === 'tiendaAbarrotes') isOptActive = config.modules.tienda !== false;
   }
 
-  const modulos = config.modulosActivos || {
-    tiendaAbarrotes: true,
-    cocinaAlmuerzos: true,
-    bodega: true,
-    farmacia: true,
-    frutería: true
-  };
-  const permitidos = config.modulosPermitidos || {
-    tiendaAbarrotes: true,
-    cocinaAlmuerzos: true,
-    bodega: false,
-    farmacia: false,
-    frutería: false
-  };
-  const isPermitted = permitidos[moduleKey] !== false;
-  const isActive = modulos[moduleKey] !== false;
+  const modulos = (config.modulosActivos || {}) as Record<string, boolean | undefined>;
+  const permitidos = (config.modulosPermitidos || {}) as Record<string, boolean | undefined>;
+
+  let isActive = true;
+  if (config.modulosActivos) {
+    if (moduleKey === 'frutería') {
+      const valFruta = modulos.frutería ?? modulos.fruteria;
+      if (valFruta !== undefined) isActive = valFruta !== false;
+    } else {
+      isActive = (modulos as Record<string, boolean | undefined>)[moduleKey] !== false;
+    }
+  }
+
+  let isPermitted = true;
+  if (config.modulosPermitidos) {
+    if (moduleKey === 'frutería') {
+      const valPerm = permitidos.frutería ?? permitidos.fruteria;
+      if (valPerm !== undefined) isPermitted = valPerm !== false;
+    } else {
+      isPermitted = (permitidos as Record<string, boolean | undefined>)[moduleKey] !== false;
+    }
+  }
+
   return isOptActive && isPermitted && isActive;
 }
