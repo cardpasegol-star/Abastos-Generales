@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ScanBarcode, Plus, PackageOpen, AlertTriangle, AlertCircle, RefreshCw, X, Camera, FileDown, Image, Check, UploadCloud, ChevronRight, FileSpreadsheet, FileText, Clipboard, CheckCircle2, Trash2, ArrowRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Product, BusinessConfig, isModuleActive, getModuleForCategory } from '../types';
+import { Product, BusinessConfig, isModuleActive, isFarmaciaModuleActive, getModuleForCategory } from '../types';
 import { getCategoryPlaceholder, handleImageError, safeLocalStorageSetItem } from '../utils';
 import { getUnidadLabel, getUnidadShortSuffix } from '../utils/unitHelpers';
 import BarcodeScanner from './BarcodeScanner';
@@ -280,7 +280,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const isFruteria = isFruteriaByUrl ||
                      config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
-                     (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false);
+                     (isModuleActive('frutería', config) && !isModuleActive('tiendaAbarrotes', config));
 
   const OFFICIAL_FRUTERIA_CATEGORIES = [
     'Frutas',
@@ -372,8 +372,10 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       : isFruteria
         ? Array.from(new Set([...(config?.fruteriaCategories || []), ...OFFICIAL_FRUTERIA_CATEGORIES]))
         : Array.from(new Set([
-            ...(config?.modulosActivos?.tiendaAbarrotes !== false ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
-            ...(config?.modulosActivos?.frutería !== false ? rawFruteriaCats : [])
+            ...(isModuleActive('tiendaAbarrotes', config) ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
+            ...(isModuleActive('frutería', config) ? rawFruteriaCats.filter(cat => isModuleActive(cat, config)) : []),
+            ...(isModuleActive('congelados', config) ? getArticoCategoriesList().filter(cat => isModuleActive(cat, config)) : []),
+            ...(isModuleActive('farmacia', config) ? getFarmaciaCategoriesList().filter(cat => isModuleActive(cat, config)) : [])
           ]));
   const defaultCategory = productCats.length > 0 ? productCats[0] : 'Frutas';
 
@@ -1524,11 +1526,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setFetchingProduct(false);
   }, [products, detectCategory, fetchGeminiPriceSuggestion, geminiSuggestion]);
 
-  const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
-  const lowStockItems = products.filter(p => p.stock > 0 && p.stock <= 5);
-  const outOfStockItems = products.filter(p => p.stock === 0);
+  const activeProducts = products.filter(product => {
+    const catRaw = product.category || '';
+    if (isFarmacia) return isFarmaciaModuleActive(catRaw, config);
+    return isModuleActive(catRaw, config);
+  });
 
-  const filteredProducts = products.filter(product => {
+  const totalStock = activeProducts.reduce((acc, p) => acc + p.stock, 0);
+  const lowStockItems = activeProducts.filter(p => p.stock > 0 && p.stock <= 5);
+  const outOfStockItems = activeProducts.filter(p => p.stock === 0);
+
+  const filteredProducts = activeProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase()) ||
       product.sku.toLowerCase().includes(search.toLowerCase());
     const catRaw = product.category || '';

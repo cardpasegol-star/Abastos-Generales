@@ -470,7 +470,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                      isFruteriaByUrl ||
                      config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
-                     (config?.modulosActivos?.frutería === true && config?.modulosActivos?.tiendaAbarrotes === false)
+                     (isModuleActive('frutería', config) && !isModuleActive('tiendaAbarrotes', config))
   );
 
   const isFruteriaStore = isFruteria;
@@ -489,10 +489,10 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     return 'Martes y Jueves';
   };
 
-  const moduloTiendaActive = config?.modulosActivos?.tiendaAbarrotes === true && !isFruteria;
+  const moduloTiendaActive = isModuleActive('tiendaAbarrotes', config) && !isFruteria;
 
   // Modern Independent Feature Flags (Todo o Nada)
-  const flagRutasCamion = config?.modules?.rutasCamion ?? (config?.rutasCamion ? true : false);
+  const flagRutasCamion = config?.modules?.rutasCamion !== false;
   const isTurco = config?.name?.toLowerCase().includes('turco') ||
                   localStorage.getItem('tenant_tienda_id')?.includes('turco') ||
                   (typeof window !== 'undefined' && window.location.search.includes('turco'));
@@ -509,7 +509,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
            cat.toLowerCase().includes('verdur');
   });
 
-  const flagFruteria = isModuleActive('frutería', config) || isFruteria || isTurco || hasFruteriaProducts;
+  const flagFruteria = isModuleActive('frutería', config);
   
   const isKitchenActive = !isFruteria && isModuleActive('cocinaAlmuerzos', config);
   const showKitchenModule = isKitchenActive;
@@ -636,7 +636,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         const effectiveFee = getEffectiveDeliveryFee(comuna, matchedSector);
 
         // Priority 1: Truck route / sector or frutería module or default comuna fee
-        if (config?.modulosActivos?.frutería === true || matchedSector) {
+        if (isModuleActive('frutería', config) || matchedSector) {
           setDeliveryFee(effectiveFee);
           return;
         }
@@ -659,7 +659,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       setDeliveryFee(0);
       setIsQuotingDelivery(false);
     }
-  }, [shippingMethod, street, comuna, isManualShortDistance, gpsDistance, config?.modulosActivos?.frutería, config?.rutasCamion]);
+  }, [shippingMethod, street, comuna, isManualShortDistance, gpsDistance, isModuleActive('frutería', config), config?.rutasCamion]);
 
   // 2-Step Checkout states
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'ready'>('form');
@@ -802,8 +802,10 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const foodItemCategories = Array.from(new Set(['Todo', ...(config?.foodItemCategories || ['Almuerzos', 'Sopas', 'Postres', 'Bebidas']).filter(cat => isModuleActive(cat, config))]));
 
   // Match items based on filters and search
-  const filteredTiendaProducts = isFruteria ? [] : productosComprar.filter(product => {
+  const filteredTiendaProducts = (isFruteria || !flagTienda) ? [] : productosComprar.filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
+    if (!isModuleActive(catRaw, config)) return false;
+
     const isFrutCategory = getModuleForCategory(catRaw) === 'frutería' ||
                            product.store === 'fruteria' ||
                            (product as any).module === 'fruteria' ||
@@ -844,6 +846,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
   let filteredFruteriaProducts = !flagFruteria ? [] : (isFruteria ? productosNormalizados : productosComprar).filter(product => {
     const catRaw = product.category || (product as any).categoria || '';
+    if (!isModuleActive(catRaw, config)) return false;
+
     const isFrutCategory = getModuleForCategory(catRaw) === 'frutería' ||
                            product.store === 'fruteria' ||
                            (product as any).module === 'fruteria' ||
@@ -1656,7 +1660,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       const cartMeals = cart.filter(item => item.type === 'meal');
 
       let progEntregaLine = '';
-      if (shippingMethod === 'Domicilio' && config?.modulosActivos?.frutería === true) {
+      if (shippingMethod === 'Domicilio' && isModuleActive('frutería', config)) {
         const sector = getSectorForComuna(comuna, config?.rutasCamion);
         if (sector) {
           progEntregaLine = `👉 PROGRAMACIÓN ENTREGA: Sector ${sector.name} — Próxima Ruta (${sector.days.join(', ')})\n`;
@@ -2052,7 +2056,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       </div>
 
       {/* Banner de Rutas / Logística por Comuna */}
-      {(isArtico || (isFruteriaStore && flagRutasCamion) || flagRutasCamion) && (
+      {flagRutasCamion && (
         <div className={isArtico 
           ? "bg-sky-50/95 border-2 border-sky-300 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300"
           : "bg-emerald-50/90 border-2 border-emerald-200 p-4.5 rounded-3xl shadow-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-300"
@@ -2150,9 +2154,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         const isSearching = searchClean.length >= 2;
 
         const matchingProductSuggestions = (isFruteria ? productosNormalizados : productosComprar).filter(p => {
+          const pCatRaw = p.category || (p as any).categoria || '';
+          if (!isModuleActive(pCatRaw, config)) return false;
           const pName = (p.name || (p as any).nombre || '').toLowerCase();
           const pSku = (p.sku || '').toLowerCase();
-          const pCat = (p.category || (p as any).categoria || '').toLowerCase();
+          const pCat = pCatRaw.toLowerCase();
           return pName.includes(searchClean) || pSku.includes(searchClean) || pCat.includes(searchClean);
         });
 
@@ -3188,7 +3194,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                           </div>
 
                           {/* Manual Delivery Corto Selector (Only for other stores / when frutería module is NOT active) */}
-                          {gpsDistance !== null && gpsDistance <= 500 && config?.modulosActivos?.frutería !== true && (
+                          {gpsDistance !== null && gpsDistance <= 500 && !isModuleActive('frutería', config) && (
                             <div className="bg-amber-50/60 border-2 border-amber-200 p-3.5 rounded-2xl flex items-start gap-3 transition-all duration-200 animate-in fade-in duration-200">
                               <input
                                 id="delivery-corto-checkbox"
@@ -3212,7 +3218,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                             </div>
                           ) : deliveryFee > 0 ? (
                             <div className={`p-4 rounded-2xl flex justify-between items-center font-sans animate-in fade-in duration-250 ${
-                              config?.modulosActivos?.frutería === true
+                              isModuleActive('frutería', config)
                                 ? 'bg-indigo-50 border-2 border-indigo-250 text-indigo-950'
                                 : deliveryFee === 1000 
                                   ? 'bg-amber-50 border-2 border-amber-250 text-amber-950' 
@@ -3220,16 +3226,16 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                             }`}>
                               <div>
                                 <p className={`text-[10px] font-extrabold uppercase tracking-wider ${
-                                  config?.modulosActivos?.frutería === true
+                                  isModuleActive('frutería', config)
                                     ? 'text-indigo-800'
                                     : deliveryFee === 1000 ? 'text-amber-800' : 'text-emerald-800'
                                 }`}>
-                                  {config?.modulosActivos?.frutería === true
+                                  {isModuleActive('frutería', config)
                                     ? 'Flete Logístico Programado'
                                     : deliveryFee === 1000 ? 'Tarifa Especial Preferencial' : 'Tarifa de Despacho Cotizada'}
                                 </p>
                                 <p className="text-xs font-black">
-                                  {config?.modulosActivos?.frutería === true
+                                  {isModuleActive('frutería', config)
                                     ? (() => {
                                         const sec = getSectorForComuna(comuna, config?.rutasCamion);
                                         return sec ? `${sec.name} (${comuna})` : `Despacho Camión (${comuna})`;
@@ -3238,7 +3244,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                 </p>
                               </div>
                               <span className={`text-xs font-black bg-white border-2 px-3 py-1.5 rounded-xl font-mono ${
-                                config?.modulosActivos?.frutería === true
+                                isModuleActive('frutería', config)
                                   ? 'text-indigo-950 border-indigo-350'
                                   : deliveryFee === 1000 ? 'text-amber-950 border-amber-350' : 'text-emerald-950 border-emerald-350'
                               }`}>

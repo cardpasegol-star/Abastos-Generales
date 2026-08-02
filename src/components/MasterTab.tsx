@@ -26,13 +26,33 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
   });
   const [mostrarAlmuerzos, setMostrarAlmuerzos] = useState<boolean>(config.mostrarAlmuerzos !== false);
   const [modules, setModules] = useState(config.modules || {
-    rutasCamion: config.modules?.rutasCamion ?? (config.rutasCamion ? true : false),
-    fruteria: config.modules?.fruteria ?? (config.modulosActivos?.frutería ?? false),
-    almuerzos: config.modules?.almuerzos ?? (config.modulosActivos?.cocinaAlmuerzos ?? true),
-    tienda: config.modules?.tienda ?? (config.modulosActivos?.tiendaAbarrotes ?? true),
+    rutasCamion: config.modules?.rutasCamion ?? true,
+    fruteria: config.modules?.fruteria ?? false,
+    almuerzos: config.modules?.almuerzos ?? true,
+    tienda: config.modules?.tienda ?? true,
     congelados: config.modules?.congelados ?? true,
     farmacia: config.modules?.farmacia ?? true,
   });
+
+  React.useEffect(() => {
+    if (config.modules) {
+      setModules({
+        rutasCamion: config.modules.rutasCamion ?? true,
+        fruteria: config.modules.fruteria ?? false,
+        almuerzos: config.modules.almuerzos ?? true,
+        tienda: config.modules.tienda ?? true,
+        congelados: config.modules.congelados ?? true,
+        farmacia: config.modules.farmacia ?? true,
+      });
+    }
+    if (config.modulosPermitidos) {
+      setModulosPermitidos(config.modulosPermitidos);
+    }
+    if (config.licenseStatus) setStatus(config.licenseStatus);
+    if (config.licenseExpirationDate) setExpirationDate(config.licenseExpirationDate);
+    if (config.licenseMessage) setMessage(config.licenseMessage);
+    if (config.mostrarAlmuerzos !== undefined) setMostrarAlmuerzos(config.mostrarAlmuerzos !== false);
+  }, [config]);
   
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -68,6 +88,51 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
     const day = String(baseDate.getDate()).padStart(2, '0');
     
     setExpirationDate(`${year}-${month}-${day}`);
+  };
+
+  const handleToggleModule = (key: string, value: boolean) => {
+    const newPermitidos = { ...modulosPermitidos };
+    const newModules = { ...modules };
+
+    if (key === 'tiendaAbarrotes' || key === 'tienda') {
+      newPermitidos.tiendaAbarrotes = value;
+      newModules.tienda = value;
+    } else if (key === 'cocinaAlmuerzos' || key === 'almuerzos') {
+      newPermitidos.cocinaAlmuerzos = value;
+      newModules.almuerzos = value;
+    } else if (key === 'frutería' || key === 'fruteria') {
+      newPermitidos.frutería = value;
+      newPermitidos.fruteria = value;
+      newModules.fruteria = value;
+    } else if (key === 'congelados') {
+      newPermitidos.congelados = value;
+      newModules.congelados = value;
+    } else if (key === 'farmacia') {
+      newPermitidos.farmacia = value;
+      newModules.farmacia = value;
+    } else if (key === 'rutasCamion') {
+      newPermitidos.rutasCamion = value;
+      newModules.rutasCamion = value;
+    } else if (key === 'bodega') {
+      newPermitidos.bodega = value;
+    } else {
+      (newPermitidos as any)[key] = value;
+    }
+
+    setModulosPermitidos(newPermitidos);
+    setModules(newModules);
+
+    const updatedConfig: BusinessConfig = {
+      ...config,
+      licenseStatus: status,
+      licenseExpirationDate: expirationDate,
+      licenseMessage: message.trim(),
+      modulosPermitidos: newPermitidos,
+      mostrarAlmuerzos: newPermitidos.cocinaAlmuerzos !== false,
+      modules: newModules
+    };
+
+    onUpdateConfig(updatedConfig).catch(err => console.error('Error auto-updating config:', err));
   };
 
   const handleSave = async () => {
@@ -280,11 +345,8 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                     <input
                       type="checkbox"
                       className="sr-only peer"
-                      checked={modulosPermitidos[mod.id as keyof typeof modulosPermitidos]}
-                      onChange={(e) => setModulosPermitidos({
-                        ...modulosPermitidos,
-                        [mod.id]: e.target.checked
-                      })}
+                      checked={!!modulosPermitidos[mod.id as keyof typeof modulosPermitidos]}
+                      onChange={(e) => handleToggleModule(mod.id, e.target.checked)}
                     />
                     <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
@@ -323,11 +385,8 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                     <input
                       type="checkbox"
                       className="sr-only peer"
-                      checked={modules[m.key as keyof typeof modules]}
-                      onChange={(e) => setModules({
-                        ...modules,
-                        [m.key]: e.target.checked
-                      })}
+                      checked={!!modules[m.key as keyof typeof modules]}
+                      onChange={(e) => handleToggleModule(m.key, e.target.checked)}
                     />
                     <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>

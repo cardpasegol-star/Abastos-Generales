@@ -1551,6 +1551,7 @@ export default function MantTab({
       };
 
       await onUpdateConfig({
+        ...config,
         id: config.id || 'business_info',
         name: localName.trim(),
         whatsapp: whatsapp.trim(),
@@ -2361,213 +2362,6 @@ export default function MantTab({
             )}
           </div>
 
-          {/* Active Modules Toggles */}
-          <div className="space-y-3.5 border-t border-gray-100 pt-3.5">
-            <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider flex items-center gap-1">
-              ⚙️ Módulos Activos del Negocio
-            </h4>
-            <p className="text-[10px] text-gray-450 leading-normal font-sans">
-              Active o desactive los módulos del negocio según sus necesidades. Al apagar un módulo, se ocultará su sección correspondiente en la vitrina del cliente, se deshabilitarán sus filtros y categorías, y no se mostrarán sus productos en oferta.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {activeStoreInfo.key === 'artico' ? (
-                [
-                  { id: 'congeladosPulpas', label: '🧊 CONGELADOS Y PULPAS', desc: 'Pulpas de fruta y productos helados' },
-                  { id: 'carnesChurrascos', label: '🥩 CARNES Y CHURRASCOS', desc: 'Cortes seleccionados y churrascos' },
-                  { id: 'mariscosPescados', label: '🦐 MARISCOS Y PESCADOS', desc: 'Mariscos frescos y congelados' },
-                  { id: 'refrigeradosCecinas', label: '🧀 REFRIGERADOS Y CECINAS', desc: 'Quesos, cecinas y fiambres' },
-                  { id: 'kitsCajasCerradas', label: '📦 KITS Y CAJAS CERRADAS', desc: 'Packs mayoristas y cajas selladas' }
-                ].map((mod) => {
-                  const permitidos = config.modulosPermitidos || {};
-                  const devModules = config.modules || {};
-                  const isPermitted = (permitidos as Record<string, boolean | undefined>).congelados !== false && (devModules as Record<string, boolean | undefined>).congelados !== false;
-                  const isActive = articoActiveModules[mod.id as keyof typeof articoActiveModules] !== false && isPermitted;
-                  return (
-                    <div 
-                      key={mod.id} 
-                      className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
-                        !isPermitted
-                          ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
-                          : isActive 
-                            ? 'bg-cyan-50/40 border-cyan-200 text-cyan-950 shadow-3xs' 
-                            : 'bg-gray-50/60 border-gray-150 text-gray-450'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between w-full gap-2">
-                        <div className="space-y-0.5">
-                          <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : 'text-cyan-950'}`}>
-                            {mod.label}
-                          </span>
-                          <span className="text-[9px] font-bold text-gray-400 block font-sans">
-                            {mod.desc}
-                          </span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            disabled={!isPermitted}
-                            checked={isActive}
-                            onChange={(e) => {
-                              if (!isPermitted) return;
-                              const updated = {
-                                ...articoActiveModules,
-                                [mod.id]: e.target.checked
-                              };
-                              setArticoActiveModules(updated);
-                              localStorage.setItem('artico_active_modules', JSON.stringify(updated));
-                            }}
-                          />
-                          <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-cyan-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
-                            !isPermitted
-                              ? 'opacity-50 cursor-not-allowed'
-                              : 'peer-checked:bg-cyan-600'
-                          }`}></div>
-                        </label>
-                      </div>
-                      {!isPermitted && (
-                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
-                          🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              ) : activeStoreInfo.key === 'farmacia' ? (
-                [
-                  { id: 'medicamentos', label: '💊 MEDICAMENTOS Y REMEDIOS', desc: 'Formulaciones, analgésicos, remedios y jarabes' },
-                  { id: 'cuidadoSalud', label: '🩺 CUIDADO DE LA SALUD', desc: 'Primeros auxilios, medición y equipamiento médico' },
-                  { id: 'mamaBebe', label: '🍼 MAMÁ Y BEBÉ', desc: 'Cuidado infantil, biberones, pañales y accesorios' },
-                  { id: 'cuidadoPersonal', label: '🧴 CUIDADO PERSONAL', desc: 'Higiene corporal, dermocuidado, jabones y desodorantes' },
-                  { id: 'belleza', label: '💄 BELLEZA Y COSMÉTICA', desc: 'Cuidado facial, maquillaje, perfumería y cosmética' },
-                  { id: 'vitaminasSuplementos', label: '🧬 VITAMINAS Y SUPLEMENTOS', desc: 'Complejos vitamínicos, nutrición y suplementación' },
-                  { id: 'adultoMayor', label: '🦯 ADULTO MAYOR', desc: 'Ortopedia, pañales para adulto y apoyo a la movilidad' },
-                  { id: 'conveniencia', label: '🏪 CONVENIENCIA', desc: 'Snacks saludables, bebidas y artículos de conveniencia' }
-                ].map((mod) => {
-                  const permitidos = config.modulosPermitidos || {};
-                  const devModules = config.modules || {};
-                  const isPermitted = (permitidos as Record<string, boolean | undefined>).farmacia !== false && (devModules as Record<string, boolean | undefined>).farmacia !== false;
-                  const isActive = farmaciaActiveModules[mod.id as keyof typeof farmaciaActiveModules] !== false && isPermitted;
-
-                  return (
-                    <div 
-                      key={mod.id} 
-                      className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
-                        !isPermitted
-                          ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
-                          : isActive 
-                            ? 'bg-blue-50/40 border-blue-200 text-blue-950 shadow-3xs' 
-                            : 'bg-gray-50/60 border-gray-150 text-gray-450'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between w-full gap-2">
-                        <div className="space-y-0.5">
-                          <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : 'text-blue-950'}`}>
-                            {mod.label}
-                          </span>
-                          <span className="text-[9px] font-bold text-gray-400 block font-sans">
-                            {mod.desc}
-                          </span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            disabled={!isPermitted}
-                            checked={isActive}
-                            onChange={(e) => {
-                              if (!isPermitted) return;
-                              const updated = {
-                                ...farmaciaActiveModules,
-                                [mod.id]: e.target.checked
-                              };
-                              setFarmaciaActiveModules(updated);
-                              localStorage.setItem('farmacia_active_modules', JSON.stringify(updated));
-                            }}
-                          />
-                          <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
-                            !isPermitted
-                              ? 'opacity-50 cursor-not-allowed'
-                              : 'peer-checked:bg-blue-600'
-                          }`}></div>
-                        </label>
-                      </div>
-                      {!isPermitted && (
-                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
-                          🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                [
-                  { id: 'tiendaAbarrotes', label: '🏪 Tienda de Abarrotes', desc: 'Productos de abasto general' },
-                  { id: 'cocinaAlmuerzos', label: '🍲 Cocina / Almuerzos', desc: 'Platos de comida preparados' },
-                  { id: 'bodega', label: '🍷 Bodega', desc: 'Bebidas y licores' },
-                  { id: 'farmacia', label: '💊 Farmacia', desc: 'Cuidado y medicamentos' },
-                  { id: 'frutería', label: '🍎 Frutería y Verdulería', desc: 'Frutas y verduras frescas' }
-                ].map((mod) => {
-                  const permitidos = config.modulosPermitidos || {
-                    tiendaAbarrotes: true,
-                    cocinaAlmuerzos: true,
-                    bodega: false,
-                    farmacia: false,
-                    frutería: true
-                  };
-                  const isPermitted = mod.id === 'frutería' ? true : (permitidos[mod.id as keyof typeof permitidos] !== false);
-                  const isActive = modulosActivos[mod.id as keyof typeof modulosActivos] && isPermitted;
-
-                  return (
-                    <div 
-                      key={mod.id} 
-                      className={`p-3 border-2 rounded-2xl flex flex-col justify-between gap-2.5 transition-all ${
-                        !isPermitted
-                          ? 'bg-gray-100/80 border-gray-200 text-gray-400 opacity-80'
-                          : isActive 
-                            ? 'bg-indigo-50/40 border-indigo-150 text-indigo-950 shadow-3xs' 
-                            : 'bg-gray-50/60 border-gray-150 text-gray-450'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between w-full gap-2">
-                        <div className="space-y-0.5">
-                          <span className={`text-[11px] font-black uppercase tracking-wide block font-sans ${!isPermitted ? 'text-gray-400' : ''}`}>
-                            {mod.label}
-                          </span>
-                          <span className="text-[9px] font-bold text-gray-400 block font-sans">
-                            {mod.desc}
-                          </span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            disabled={!isPermitted}
-                            checked={isActive}
-                            onChange={(e) => setModulosActivos({
-                              ...modulosActivos,
-                              [mod.id]: e.target.checked
-                            })}
-                          />
-                          <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${
-                            !isPermitted 
-                              ? 'opacity-50 cursor-not-allowed' 
-                              : 'peer-checked:bg-indigo-600'
-                          }`}></div>
-                        </label>
-                      </div>
-                      {!isPermitted && (
-                        <div className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 p-1.5 rounded-lg leading-tight mt-1">
-                          🔒 Módulo Premium - Contactar a Soporte ($10.000/mes adicionales)
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
           {/* Categories Management Panel */}
           <div className="space-y-4 border-t border-gray-100 pt-3.5">
             <h4 className="text-[11px] font-black text-gray-950 uppercase tracking-wider">
@@ -2578,7 +2372,7 @@ export default function MantTab({
             </p>
 
             {/* Product Categories (La Bodega / Minimarket) */}
-            {activeStoreInfo.key === 'turco' && modulosActivos?.tiendaAbarrotes !== false && (
+            {activeStoreInfo.key === 'turco' && isModuleActive('tiendaAbarrotes', config) && (
               <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
                 <label className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">
                   🛍️ Categorías de Productos (La Bodega)
@@ -2640,7 +2434,7 @@ export default function MantTab({
             )}
 
             {/* Food Item Categories (Cocina) - Exclusivo Minimarket/Cocina */}
-            {activeStoreInfo.key === 'turco' && modulosActivos?.cocinaAlmuerzos !== false && (
+            {activeStoreInfo.key === 'turco' && isModuleActive('cocinaAlmuerzos', config) && (
               <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
                 <label className="text-[9.5px] font-black text-emerald-700 uppercase tracking-widest block">
                   🍳 Categorías del Menú (Alimentos y Cocina)
@@ -3231,7 +3025,7 @@ export default function MantTab({
             )}
 
             {/* Truck Route Delivery Logistics Config */}
-            {(modulosActivos?.frutería === true || activeStoreInfo.key === 'artico' || activeStoreInfo.key === 'fruteria' || config?.modules?.rutasCamion !== false) && (
+            {config?.modules?.rutasCamion !== false && (
               <div className="space-y-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 mt-4">
                 <div>
                   <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest block">
@@ -3318,7 +3112,7 @@ export default function MantTab({
       </section>
 
       {/* Section B: Traditional Meals Management list */}
-      {config?.modulosActivos?.cocinaAlmuerzos !== false && config?.mostrarAlmuerzos !== false && (
+      {isModuleActive('cocinaAlmuerzos', config) && config?.mostrarAlmuerzos !== false && (
       <section className="space-y-3">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-sm font-extrabold text-gray-950 uppercase tracking-wider">
@@ -3430,7 +3224,7 @@ export default function MantTab({
       )}
 
       {/* Auxiliary modal popup for creating dishes */}
-      {showDishModal && config?.modulosActivos?.cocinaAlmuerzos !== false && config?.mostrarAlmuerzos !== false && (
+      {showDishModal && isModuleActive('cocinaAlmuerzos', config) && config?.mostrarAlmuerzos !== false && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]">
             <div className="flex justify-between items-center bg-gray-50/50 px-5 py-4 border-b border-gray-100">

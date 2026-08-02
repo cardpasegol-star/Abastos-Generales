@@ -511,21 +511,38 @@ export default function App() {
   };
 
   const handleUpdateConfig = async (newCfg: BusinessConfig) => {
-    setConfig(newCfg);
-    if (tenantId) {
-      safeLocalStorageSetItem(`config_${tenantId}`, JSON.stringify(newCfg));
-      if (newCfg.bannerUrl) {
-        safeLocalStorageSetItem(`${tenantId}_banner_v1`, newCfg.bannerUrl);
+    setConfig((prev) => {
+      const merged: BusinessConfig = {
+        ...prev,
+        ...newCfg,
+        modules: newCfg.modules 
+          ? { ...(prev.modules || {}), ...newCfg.modules } 
+          : prev.modules,
+        modulosPermitidos: newCfg.modulosPermitidos 
+          ? { ...(prev.modulosPermitidos || {}), ...newCfg.modulosPermitidos } 
+          : prev.modulosPermitidos,
+        modulosActivos: newCfg.modulosActivos 
+          ? { ...(prev.modulosActivos || {}), ...newCfg.modulosActivos } 
+          : prev.modulosActivos,
+      };
+      if (tenantId) {
+        safeLocalStorageSetItem(`config_${tenantId}`, JSON.stringify(merged));
+        if (merged.bannerUrl) {
+          safeLocalStorageSetItem(`${tenantId}_banner_v1`, merged.bannerUrl);
+        }
       }
-    }
-    try {
-      const docRef = tenantId
-        ? doc(db, 'tenants', tenantId, 'config', 'business_info')
-        : doc(db, 'config', 'business_info');
-      await setDoc(docRef, newCfg);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, tenantId ? `tenants/${tenantId}/config/business_info` : 'config/business_info');
-    }
+      (async () => {
+        try {
+          const docRef = tenantId
+            ? doc(db, 'tenants', tenantId, 'config', 'business_info')
+            : doc(db, 'config', 'business_info');
+          await setDoc(docRef, merged);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, tenantId ? `tenants/${tenantId}/config/business_info` : 'config/business_info');
+        }
+      })();
+      return merged;
+    });
   };
 
   const handleAddFoodItem = async (f: Omit<FoodItem, 'id'>) => {

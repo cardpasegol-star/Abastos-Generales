@@ -167,10 +167,17 @@ export interface BusinessConfig {
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';
 
-export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bodega' | 'farmacia' | 'frutería' | 'cocinaAlmuerzos' {
+export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bodega' | 'farmacia' | 'frutería' | 'cocinaAlmuerzos' | 'congelados' {
   const cat = (category || '').toLowerCase();
   if (cat.includes('bodega') || cat.includes('licor') || cat.includes('alcohol') || cat.includes('vino') || cat.includes('cerveza') || cat.includes('trago') || cat.includes('coctel') || cat.includes('destilado')) {
     return 'bodega';
+  }
+  if (
+    cat.includes('congelado') || cat.includes('carne') || cat.includes('churrasco') || cat.includes('marisco') || cat.includes('pescado') ||
+    cat.includes('pulpa') || cat.includes('cecina') || cat.includes('refrigerado') || cat.includes('prefrito') || cat.includes('hamburguesa') ||
+    cat.includes('kits y cajas') || cat.includes('kits y huevos') || cat.includes('artico') || cat.includes('ártico')
+  ) {
+    return 'congelados';
   }
   if (
     cat.includes('farmacia') || cat.includes('medicamento') || cat.includes('remedio') || cat.includes('fármaco') || cat.includes('farmaco') ||
@@ -313,68 +320,63 @@ export function isFarmaciaModuleActive(category: string, config?: BusinessConfig
   // 2. Check Developer modules flag
   if (config.modules && config.modules.farmacia === false) return false;
 
-  // 3. Check Business Owner main Farmacia toggle
-  const modulos = (config.modulosActivos || {}) as Record<string, boolean | undefined>;
-  if (modulos.farmacia === false) return false;
-
-  // 4. Check specific sub-module toggle
-  const modKey = getFarmaciaModuleForCategory(category);
-  let farmaciaActiveMods = config.farmaciaActiveModules;
-  if (!farmaciaActiveMods && typeof window !== 'undefined') {
-    try {
-      const cached = localStorage.getItem('farmacia_active_modules');
-      if (cached) {
-        farmaciaActiveMods = JSON.parse(cached);
-      }
-    } catch (e) {}
-  }
-
-  if (farmaciaActiveMods && farmaciaActiveMods[modKey] === false) {
-    return false;
-  }
-
   return true;
 }
 
 export function isModuleActive(category: string, config?: BusinessConfig): boolean {
   if (!config) return true;
 
-  const moduleKey = getModuleForCategory(category);
+  const knownKeys = ['tiendaAbarrotes', 'bodega', 'farmacia', 'frutería', 'fruteria', 'cocinaAlmuerzos', 'almuerzos', 'congelados', 'rutasCamion'];
+  let moduleKey = category;
+  if (!knownKeys.includes(category)) {
+    moduleKey = getModuleForCategory(category) as string;
+  } else if (category === 'fruteria') {
+    moduleKey = 'frutería';
+  } else if (category === 'almuerzos') {
+    moduleKey = 'cocinaAlmuerzos';
+  }
 
   if (moduleKey === 'farmacia') {
     return isFarmaciaModuleActive(category, config);
   }
 
-  // Check optional module toggle in config.modules if present
-  let isOptActive = true;
+  // 1. Check Developer / Master optional module flags (config.modules)
+  let isDevActive = true;
   if (config.modules) {
-    if (moduleKey === 'frutería') isOptActive = config.modules.fruteria !== false;
-    else if (moduleKey === 'cocinaAlmuerzos') isOptActive = config.modules.almuerzos !== false;
-    else if (moduleKey === 'tiendaAbarrotes') isOptActive = config.modules.tienda !== false;
+    if (moduleKey === 'frutería') isDevActive = config.modules.fruteria !== false;
+    else if (moduleKey === 'cocinaAlmuerzos') isDevActive = config.modules.almuerzos !== false;
+    else if (moduleKey === 'tiendaAbarrotes') isDevActive = config.modules.tienda !== false;
+    else if (moduleKey === 'congelados') isDevActive = config.modules.congelados !== false;
+    else if (moduleKey === 'farmacia') isDevActive = config.modules.farmacia !== false;
+    else if (moduleKey === 'rutasCamion') isDevActive = config.modules.rutasCamion !== false;
   }
 
-  const modulos = (config.modulosActivos || {}) as Record<string, boolean | undefined>;
-  const permitidos = (config.modulosPermitidos || {}) as Record<string, boolean | undefined>;
-
-  let isActive = true;
-  if (config.modulosActivos) {
-    if (moduleKey === 'frutería') {
-      const valFruta = modulos.frutería ?? modulos.fruteria;
-      if (valFruta !== undefined) isActive = valFruta !== false;
-    } else {
-      isActive = (modulos as Record<string, boolean | undefined>)[moduleKey] !== false;
-    }
-  }
-
-  let isPermitted = true;
+  // 2. Check Master contractual permission (config.modulosPermitidos)
+  let isMasterPermitted = true;
   if (config.modulosPermitidos) {
+    const permitidos = config.modulosPermitidos as unknown as Record<string, boolean | undefined>;
     if (moduleKey === 'frutería') {
-      const valPerm = permitidos.frutería ?? permitidos.fruteria;
-      if (valPerm !== undefined) isPermitted = valPerm !== false;
+      const val = permitidos.frutería ?? permitidos.fruteria;
+      if (val !== undefined) isMasterPermitted = val !== false;
+    } else if (moduleKey === 'cocinaAlmuerzos') {
+      const val = permitidos.cocinaAlmuerzos ?? permitidos.almuerzos;
+      if (val !== undefined) isMasterPermitted = val !== false;
+    } else if (moduleKey === 'tiendaAbarrotes') {
+      const val = permitidos.tiendaAbarrotes ?? permitidos.tienda;
+      if (val !== undefined) isMasterPermitted = val !== false;
+    } else if (moduleKey === 'congelados') {
+      const val = permitidos.congelados;
+      if (val !== undefined) isMasterPermitted = val !== false;
+    } else if (moduleKey === 'farmacia') {
+      const val = permitidos.farmacia;
+      if (val !== undefined) isMasterPermitted = val !== false;
+    } else if (moduleKey === 'rutasCamion') {
+      const val = permitidos.rutasCamion;
+      if (val !== undefined) isMasterPermitted = val !== false;
     } else {
-      isPermitted = (permitidos as Record<string, boolean | undefined>)[moduleKey] !== false;
+      isMasterPermitted = permitidos[moduleKey] !== false;
     }
   }
 
-  return isOptActive && isPermitted && isActive;
+  return isDevActive && isMasterPermitted;
 }
