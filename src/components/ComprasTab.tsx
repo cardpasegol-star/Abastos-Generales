@@ -4,6 +4,7 @@ import { Product, FoodItem, BusinessConfig, Transaction, isModuleActive, isFarma
 import { getCategoryPlaceholder, handleImageError, checkStoreOpenStatus } from '../utils';
 import { getUnidadLabel, getUnidadShortSuffix, isClosedVolumeUnit, isLooseWeightUnit } from '../utils/unitHelpers';
 import { jsPDF } from 'jspdf';
+import { TurkoStoreView } from '../modules/turko';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
@@ -495,6 +496,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const flagRutasCamion = config?.modules?.rutasCamion !== false;
   const isTurco = config?.name?.toLowerCase().includes('turco') ||
                   localStorage.getItem('tenant_tienda_id')?.includes('turco') ||
+                  localStorage.getItem('id_tienda')?.includes('turco') ||
                   (typeof window !== 'undefined' && window.location.search.includes('turco'));
 
   const hasFruteriaProducts = productosComprar.some(p => {
@@ -1186,14 +1188,16 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     return sum + getItemPrice(item) * item.quantity;
   }, 0);
   const taxVal = subtotalVal * (ivaPercentage / 100);
-  const totalCartCost = subtotalVal + taxVal + (shippingMethod === 'Domicilio' ? deliveryFee : 0);
+  const platformFeeVal = subtotalVal * 0.10; // 10% platform service fee
+  const totalCartCost = subtotalVal + taxVal + (shippingMethod === 'Domicilio' ? deliveryFee : 0) + platformFeeVal;
 
   // PDF Ticket Downloader for Clients
   const downloadReceiptPDF = (tx: Transaction) => {
     const paddingBottom = 25;
     const headerHeight = 55;
     const itemsHeight = tx.items.length * 7;
-    const totalsHeight = tx.shippingMethod === 'Domicilio' ? 42 : 30;
+    const platformFeeLine = 5;
+    const totalsHeight = (tx.shippingMethod === 'Domicilio' ? 42 : 30) + platformFeeLine;
     const pdfHeight = headerHeight + itemsHeight + totalsHeight + paddingBottom;
 
     const doc = new jsPDF({
@@ -1273,6 +1277,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
     // Totals Block
     doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
     doc.text('SUBTOTAL:', 35, currentY);
     doc.text(`$${tx.subtotal.toFixed(2)}`, 75, currentY, { align: 'right' });
     currentY += 3.5;
@@ -1296,6 +1301,13 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     } else {
       currentY += 1;
     }
+
+    const txPlatformFee = tx.platformFee !== undefined ? tx.platformFee : (tx.subtotal * 0.10);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.text('TARIFA PLATAFORMA (10%):', 5, currentY);
+    doc.text(`$${txPlatformFee.toFixed(2)}`, 75, currentY, { align: 'right' });
+    currentY += 4.5;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -1548,6 +1560,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         items: txItems,
         subtotal: parseFloat(subtotalVal.toFixed(2)),
         tax: parseFloat(taxVal.toFixed(2)),
+        platformFee: parseFloat(platformFeeVal.toFixed(2)),
         total: parseFloat(totalCartCost.toFixed(2)),
         method: displayMethod,
         paymentStatus: paymentStatus,
@@ -1726,6 +1739,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         if (shippingMethod === 'Domicilio') {
           msg += `🚚 *Costo de Envío:* $${deliveryFee.toFixed(2)}\n`;
         }
+        msg += `⚡ *Tarifa de Uso de Plataforma (10%):* $${platformFeeVal.toFixed(2)}\n`;
 
         msg += `\n💵 *TOTAL PAGADO: $${totalCartCost.toFixed(2)}*\n`;
         if (docUrl) {
@@ -1807,6 +1821,10 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         msg += `\n💵 *RESUMEN DE PAGO:*\n`;
         msg += `• Subtotal: $${subtotalVal.toFixed(2)}\n`;
         msg += `• IVA (${ivaPercentage}%): $${taxVal.toFixed(2)}\n`;
+        if (shippingMethod === 'Domicilio' && deliveryFee > 0) {
+          msg += `• Envío (Delivery): $${deliveryFee.toFixed(2)}\n`;
+        }
+        msg += `• Tarifa de Uso de Plataforma (10%): $${platformFeeVal.toFixed(2)}\n`;
         msg += `• *TOTAL COMPLETO A PAGAR: $${totalCartCost.toFixed(2)}*\n\n`;
         if (simulatedPdfUrl) {
           msg += `📥 *Descargar Comprobante SII:* ${simulatedPdfUrl}\n\n`;
@@ -1991,6 +2009,16 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
           </button>
         )}
       </div>
+
+      {isTurco ? (
+        <TurkoStoreView
+          initialConfig={config}
+          initialProducts={products}
+          onBackToMarketplace={onBackToMarketplace}
+          onSaveTransaction={onAddTransaction}
+        />
+      ) : (
+        <>
 
       {/* Closed Store Notice Banner */}
       {(() => {
@@ -3538,9 +3566,29 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
             <div className="p-4 bg-slate-100 border-t-2 border-slate-200 space-y-4 font-sans">
               {checkoutStep === 'form' ? (
                 <>
-                  <div className="flex items-center justify-between text-sm px-1.5">
-                    <span className="text-slate-800 font-extrabold font-sans">Total de compra:</span>
-                    <span className="text-xl font-black text-slate-950 font-sans">${totalCartCost.toFixed(2)}</span>
+                  <div className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 space-y-2 text-xs font-sans">
+                    <div className="flex justify-between text-slate-700 font-medium">
+                      <span>Subtotal Artículos:</span>
+                      <span className="font-mono font-bold">${subtotalVal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-700 font-medium">
+                      <span>IVA ({ivaPercentage}%):</span>
+                      <span className="font-mono font-bold">${taxVal.toFixed(2)}</span>
+                    </div>
+                    {shippingMethod === 'Domicilio' && (
+                      <div className="flex justify-between text-slate-700 font-medium">
+                        <span>Envío (Delivery):</span>
+                        <span className="font-mono font-bold">${deliveryFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-amber-950 font-bold bg-amber-50 p-2 rounded-xl border border-amber-250">
+                      <span>TARIFA DE USO DE PLATAFORMA (10%):</span>
+                      <span className="font-mono font-black">${platformFeeVal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-200">
+                      <span className="text-slate-900 font-extrabold uppercase font-sans">TOTAL A PAGAR:</span>
+                      <span className="text-xl font-black text-emerald-600 font-mono">${totalCartCost.toFixed(2)}</span>
+                    </div>
                   </div>
 
                   <button
@@ -3776,7 +3824,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     <span>IVA ({ivaPercentage}%):</span>
                     <span className="font-mono">${successTx.tax.toFixed(2)}</span>
                   </div>
-                  {successTx.shippingMethod === 'Domicilio' && successTx.deliveryFee && (
+                  {successTx.shippingMethod === 'Domicilio' && successTx.deliveryFee ? (
                     <div className="space-y-0.5 pt-0.5 border-t border-dashed border-slate-100 font-sans">
                       <div className="flex justify-between">
                         <span>ENVIO (DELIVERY):</span>
@@ -3786,7 +3834,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                         📍 Despacho: {successTx.deliveryAddress}, {successTx.deliveryComuna}
                       </p>
                     </div>
-                  )}
+                  ) : null}
+                  <div className="flex justify-between font-sans font-bold text-amber-950 bg-amber-50 p-1.5 rounded-lg border border-amber-200 my-1">
+                    <span>TARIFA DE USO DE PLATAFORMA (10%):</span>
+                    <span className="font-mono">${(successTx.platformFee ?? (successTx.subtotal * 0.10)).toFixed(2)}</span>
+                  </div>
                   <div className="flex justify-between pt-1.5 border-t border-slate-100 items-baseline font-sans">
                     <span className="font-black text-xs text-slate-950 uppercase font-sans">
                       {successTx.method === 'Tarjeta' ? 'TOTAL PAGADO:' : 'TOTAL A PAGAR:'}
@@ -4021,6 +4073,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

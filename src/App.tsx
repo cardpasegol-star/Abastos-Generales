@@ -4,6 +4,7 @@ import { db, handleFirestoreError, OperationType } from './firebase';
 import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory, normalizeProductForFruteria } from './types';
 import { sanitizeForFirestore, safeLocalStorageSetItem } from './utils';
 import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG, getTenantSpecificConfig } from './initDb';
+import { saveTurkoConfig, saveTurkoInventory } from './modules/turko';
 
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
@@ -217,7 +218,11 @@ export default function App() {
       const configRef = doc(db, 'tenants', tenantId, 'config', 'business_info');
       unsubConfig = onSnapshot(configRef, (snap) => {
         if (snap.exists()) {
-          setConfig(snap.data() as BusinessConfig);
+          const cfg = snap.data() as BusinessConfig;
+          setConfig(cfg);
+          if (tenantId === 'el_turco' || tenantId === 'turco') {
+            saveTurkoConfig(cfg);
+          }
         } else {
           // If deleted, restore default config tailored to tenantId
           const tenantConfig = getTenantSpecificConfig(tenantId);
@@ -243,6 +248,9 @@ export default function App() {
         safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(prodList));
         safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(prodList));
         safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(prodList));
+        if (tenantId === 'el_turco' || tenantId === 'turco') {
+          saveTurkoInventory(prodList);
+        }
         if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
         setLoading(false);
       }, err => {

@@ -131,6 +131,20 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
     doc.text(`$${tx.tax.toFixed(2)}`, 75, currentY, { align: 'right' });
     currentY += 4.5;
 
+    if (tx.shippingMethod === 'Domicilio' && tx.deliveryFee) {
+      doc.text('ENVIO (DELIVERY):', 45, currentY);
+      doc.text(`$${tx.deliveryFee.toFixed(2)}`, 75, currentY, { align: 'right' });
+      currentY += 4.5;
+    }
+
+    const txPlatformFee = tx.platformFee !== undefined ? tx.platformFee : (tx.source === 'digital' || tx.origen === 'digital' ? tx.subtotal * 0.10 : 0);
+    if (txPlatformFee > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('TARIFA PLATAFORMA (10%):', 5, currentY);
+      doc.text(`$${txPlatformFee.toFixed(2)}`, 75, currentY, { align: 'right' });
+      currentY += 4.5;
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.text('TOTAL PAGADO:', 5, currentY);
@@ -674,6 +688,18 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
                     <span>IVA ({selectedSale.subtotal > 0 ? Math.round((selectedSale.tax / selectedSale.subtotal) * 100) : (config?.ivaPercentage !== undefined ? config.ivaPercentage : 15)}%):</span>
                     <span className="font-mono">${selectedSale.tax.toFixed(2)}</span>
                   </div>
+                  {selectedSale.shippingMethod === 'Domicilio' && selectedSale.deliveryFee ? (
+                    <div className="flex justify-between font-sans">
+                      <span>ENVIO (DELIVERY):</span>
+                      <span className="font-mono">${selectedSale.deliveryFee.toFixed(2)}</span>
+                    </div>
+                  ) : null}
+                  {(selectedSale.platformFee !== undefined || selectedSale.source === 'digital' || selectedSale.origen === 'digital') && (
+                    <div className="flex justify-between font-sans font-bold text-amber-950 bg-amber-50 p-1.5 rounded-lg border border-amber-200 my-1">
+                      <span>TARIFA DE USO DE PLATAFORMA (10%):</span>
+                      <span className="font-mono">${(selectedSale.platformFee ?? (selectedSale.subtotal * 0.10)).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-1.5 border-t border-slate-100 items-baseline font-sans">
                     <span className="font-black text-sm text-slate-950">TOTAL PAGADO:</span>
                     <span className="font-mono font-black text-base text-emerald-650">

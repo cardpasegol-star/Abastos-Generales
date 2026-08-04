@@ -41,6 +41,7 @@ export interface Transaction {
   items: TransactionItem[];
   subtotal: number;
   tax: number; // IVA 15%
+  platformFee?: number; // Tarifa de uso de plataforma digital (10%)
   total: number;
   method: 'Efectivo' | 'Tarjeta' | 'Mercado Pago (Sandbox)' | 'Webpay Plus (Integration)' | string;
   createdAt: string;
