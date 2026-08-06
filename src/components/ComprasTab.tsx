@@ -2010,17 +2010,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         )}
       </div>
 
-      {isTurco ? (
-        <TurkoStoreView
-          initialConfig={config}
-          initialProducts={products}
-          onBackToMarketplace={onBackToMarketplace}
-          onSaveTransaction={onAddTransaction}
-        />
-      ) : (
-        <>
-
-      {/* Closed Store Notice Banner */}
+      {/* Closed Store Notice Banner (Evaluated for all stores including Donde El Turko) */}
       {(() => {
         const storeStatus = checkStoreOpenStatus(config?.schedule);
         if (!storeStatus.isOpen) {
@@ -2030,7 +2020,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                 <div className="w-3 h-3 bg-rose-500 rounded-full shrink-0 animate-pulse" />
                 <div>
                   <div className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
-                    <span>Local Cerrado</span>
+                    <span>LOCAL CERRADO</span>
                     <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md border border-rose-200">
                       {storeStatus.reason}
                     </span>
@@ -2045,6 +2035,16 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         }
         return null;
       })()}
+
+      {isTurco ? (
+        <TurkoStoreView
+          initialConfig={config}
+          initialProducts={products}
+          onBackToMarketplace={onBackToMarketplace}
+          onSaveTransaction={onAddTransaction}
+        />
+      ) : (
+        <>
 
       {/* Visual Header Banner */}
       <div className={`relative rounded-2xl overflow-hidden shadow-md h-36 text-white flex items-center p-5 border-2 ${

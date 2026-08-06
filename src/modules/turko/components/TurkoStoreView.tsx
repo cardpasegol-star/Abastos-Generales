@@ -10,6 +10,7 @@ import { useTurkoStore } from '../useTurkoStore';
 import { TurkoTicketModal } from './TurkoTicketModal';
 import { getUnidadLabel, getUnidadShortSuffix } from '../../../utils/unitHelpers';
 import { getSectorForComunaTurko, ALL_COMUNAS_TURKO, DEFAULT_RUTAS_TURKO, SectorConfig, isTurkoProduct } from '../utils';
+import { checkStoreOpenStatus } from '../../../utils';
 
 interface TurkoStoreViewProps {
   initialConfig?: BusinessConfig;
@@ -186,10 +187,21 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
     (p) => isTurkoProduct(p, config?.productCategories) && (p.enOferta || (p.precioOferta && p.precioOferta < p.price))
   );
 
+  // Real-time store open / closed status evaluation (Chile Timezone & Schedules)
+  const [storeStatus, setStoreStatus] = useState(() => checkStoreOpenStatus(config?.schedule));
+
+  React.useEffect(() => {
+    setStoreStatus(checkStoreOpenStatus(config?.schedule));
+    const timer = setInterval(() => {
+      setStoreStatus(checkStoreOpenStatus(config?.schedule));
+    }, 15000); // Re-evaluate every 15s
+    return () => clearInterval(timer);
+  }, [config?.schedule]);
+
   return (
     <div className="min-h-screen bg-slate-100 font-sans pb-36 sm:pb-44 text-slate-900">
       {/* Top Banner & Header */}
-      <div className="relative bg-slate-900 text-white overflow-hidden shadow-xl">
+      <div className="relative bg-slate-900 text-white overflow-hidden shadow-xl rounded-3xl border-2 border-slate-900">
         <div className="absolute inset-0 z-0 opacity-40">
           <img
             src={config.bannerUrl || 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800'}
@@ -210,7 +222,12 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
               </h1>
               <p className="text-slate-300 text-sm mt-1 flex items-center gap-2 font-medium">
                 <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-                {config.address || 'Av. Holanda #123, La Pintana'} • Atendiendo ahora
+                <span>{config.address || 'Av. Holanda #123, La Pintana'}</span>
+                <span>•</span>
+                <span className={`inline-flex items-center gap-1 font-bold ${storeStatus.isOpen ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <span className={`w-2 h-2 rounded-full ${storeStatus.isOpen ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                  {storeStatus.isOpen ? 'Atendiendo ahora' : 'Cerrado'}
+                </span>
               </p>
             </div>
 

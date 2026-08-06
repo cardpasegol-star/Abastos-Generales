@@ -25,6 +25,13 @@ export function useTurkoStore(
     return initialConfig || getTurkoStoredConfig() || DEFAULT_TURKO_CONFIG;
   });
 
+  // Sync external config if updated from Master/Settings
+  useEffect(() => {
+    if (initialConfig) {
+      setConfig(initialConfig);
+    }
+  }, [initialConfig]);
+
   // Products inventory state
   const [products, setProducts] = useState<TurkoProduct[]>(() => {
     if (initialProducts && initialProducts.length > 0) return initialProducts;
