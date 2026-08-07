@@ -38,6 +38,42 @@ export default function AdminDeliveryPanel({
     return () => clearInterval(interval);
   }, []);
 
+  const handleStatusChange = (orderId: string, newStatus: string) => {
+    const updated = pendingOrders.map(order => {
+      if (order.id === orderId) {
+        return { ...order, orderStatus: newStatus };
+      }
+      return order;
+    });
+    localStorage.setItem('pedidos_pendientes', JSON.stringify(updated));
+    setPendingOrders(updated);
+  };
+
+  const handleSendWhatsAppStatus = (order: any) => {
+    const phone = (order.customerPhone || config?.whatsapp || '+56912345678').replace(/[^0-9]/g, '');
+    const currentStatus = order.orderStatus || 'En Preparación ⏳';
+    const storeTitle = config?.name || 'DONDE EL TURCO';
+
+    let msg = `*🛵 ACTUALIZACIÓN DE PEDIDO - ${storeTitle}*\n`;
+    msg += `Hola ${order.customerName || 'Cliente'}!\n`;
+    msg += `Tu pedido *#${(order.id || '').replace('tx-', '').toUpperCase()}* se encuentra:\n`;
+    msg += `📍 *Estado Actual:* *${currentStatus}*\n\n`;
+    
+    if (currentStatus.includes('Reparto')) {
+      msg += `🛵 Nuestro repartidor ya va en camino a tu dirección: ${order.deliveryAddress || 'Domicilio'}.\n`;
+    } else if (currentStatus.includes('Entregado')) {
+      msg += `✅ ¡Tu pedido ha sido entregado exitosamente! Muchas gracias por preferirnos.\n`;
+    } else {
+      msg += `⏳ Estamos preparando tus productos frescos con el mayor cuidado.\n`;
+    }
+
+    msg += `\n*Total a pagar:* $${(order.total || 0).toLocaleString('es-CL')} CLP\n`;
+    msg += `Cualquier consulta estamos a tu completa disposición.`;
+
+    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+  };
+
   const handleAcceptOrder = async (orderId: string) => {
     try {
       const updated = pendingOrders.map(order => {
@@ -181,6 +217,32 @@ export default function AdminDeliveryPanel({
                       <span className="text-slate-500 font-mono">${(item.price * item.qty).toFixed(0)}</span>
                     </div>
                   ))}
+                </div>
+
+                {/* Status Selector & WhatsApp Notification */}
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-600 uppercase">
+                      Estado del Pedido:
+                    </label>
+                    <select
+                      value={order.orderStatus || 'En Preparación ⏳'}
+                      onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                      className="bg-white border-2 border-slate-300 rounded-xl px-2.5 py-1 text-xs font-black text-slate-900 focus:outline-none focus:border-emerald-600 cursor-pointer shadow-2xs"
+                    >
+                      <option value="En Preparación ⏳">En Preparación ⏳</option>
+                      <option value="En Reparto 🛵">En Reparto 🛵</option>
+                      <option value="Entregado ✅">Entregado ✅</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSendWhatsAppStatus(order)}
+                    className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-black rounded-xl flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer border border-emerald-500"
+                  >
+                    <span>💬 Enviar Estado por WhatsApp</span>
+                  </button>
                 </div>
 
                 {/* Actions */}

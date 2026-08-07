@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package2, Receipt, BarChart3, Settings, ShoppingCart, KeyRound } from 'lucide-react';
+import { Package2, Receipt, BarChart3, Settings, ShoppingCart, KeyRound, Truck, Users } from 'lucide-react';
 import { ActiveTab, Empleado } from '../types';
 
 interface BottomNavProps {
@@ -21,6 +21,8 @@ export default function BottomNav({
     { id: 'Inventario' as ActiveTab, label: 'Inventario', icon: Package2 },
     { id: 'Caja' as ActiveTab, label: 'Caja', icon: Receipt },
     { id: 'Reportes' as ActiveTab, label: 'Reportes', icon: BarChart3 },
+    { id: 'Proveedores' as ActiveTab, label: 'Proveedores', icon: Truck },
+    { id: 'Clientes' as ActiveTab, label: 'Clientes', icon: Users },
     { id: 'Compras' as ActiveTab, label: 'Compras', icon: ShoppingCart },
   ];
 
@@ -29,29 +31,19 @@ export default function BottomNav({
   }
 
   const visibleNavItems = navItems.filter((item) => {
-    // 1. Desarrollador (Master) sees everything: 'Compras', 'Caja', 'Inventario', 'Reportes', 'Master'
+    // 1. Desarrollador (Master) sees everything
     if (isMasterUnlocked) {
       return true;
     }
 
-    // 2. Dueño (Admin) sees: 'Inventario', 'Caja', 'Reportes', 'Compras'
+    // 2. Dueño (Admin) sees: 'Inventario', 'Caja', 'Reportes', 'Proveedores', 'Clientes', 'Compras'
     if (isAdminUnlocked) {
-      return (
-        item.id === 'Inventario' ||
-        item.id === 'Caja' ||
-        item.id === 'Reportes' ||
-        item.id === 'Compras'
-      );
+      return true;
     }
 
-    // 3. Empleado (Cajero) sees: 'Inventario', 'Caja', 'Reportes', 'Compras'
+    // 3. Empleado (Cajero) sees: 'Inventario', 'Caja', 'Reportes', 'Proveedores', 'Clientes', 'Compras'
     if (currentEmployee && currentEmployee.role === 'cajero') {
-      return (
-        item.id === 'Inventario' ||
-        item.id === 'Caja' ||
-        item.id === 'Reportes' ||
-        item.id === 'Compras'
-      );
+      return true;
     }
 
     // 4. Default / Cliente Público (Not authenticated) sees only 'Compras'
@@ -63,7 +55,7 @@ export default function BottomNav({
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 flex justify-around items-center h-16 px-2 pb-safe shadow-lg rounded-t-2xl max-w-md mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 flex justify-around items-center h-16 px-1 pb-safe shadow-lg rounded-t-2xl max-w-lg mx-auto">
       {visibleNavItems.map((item) => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
@@ -79,10 +71,10 @@ export default function BottomNav({
                 : 'text-slate-500 hover:text-slate-850'
             }`}
           >
-            <div className={`p-2 rounded-xl transition-colors ${isActive ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-150' : 'hover:bg-slate-100'}`}>
-              <Icon className="w-4.5 h-4.5 stroke-[2.5]" />
+            <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-150' : 'hover:bg-slate-100'}`}>
+              <Icon className="w-4 h-4 stroke-[2.5]" />
             </div>
-            <span className={`text-[10px] tracking-tight uppercase ${isActive ? 'font-black text-emerald-800' : 'font-extrabold text-slate-500'}`}>{item.label}</span>
+            <span className={`text-[9px] tracking-tight uppercase truncate max-w-[65px] ${isActive ? 'font-black text-emerald-800' : 'font-extrabold text-slate-500'}`}>{item.label}</span>
           </button>
         );
       })}

@@ -192,6 +192,17 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
   const transactionCount = sales.length;
   const avgTicket = transactionCount > 0 ? totalSalesSum / transactionCount : 0;
 
+  // Real Net Profit Calculation (Ganancia Neta = Venta Total - Costo de Adquisición)
+  const totalCostSum = sales.reduce((acc, t) => {
+    const txCost = t.items.reduce((iAcc, item: any) => {
+      const itemCost = item.cost !== undefined ? item.cost : (item.price * 0.65);
+      return iAcc + (itemCost * (item.qty || 1));
+    }, 0);
+    return acc + txCost;
+  }, 0);
+  const netProfitSum = Math.max(0, totalSalesSum - totalCostSum);
+  const netMarginPercent = totalSalesSum > 0 ? ((netProfitSum / totalSalesSum) * 100) : 35;
+
   // Comparative percentages (dynamic defaults matching visual references)
   const comparativePercent = '+12.4%';
   const comparativeValue = (totalSalesSum * 0.88).toFixed(2);
@@ -294,6 +305,29 @@ export default function ReportesTab({ transactions, config }: ReportesTabProps) 
           <div>
             <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Ticket Prom.</p>
             <h3 className="text-2xl font-black text-slate-950">${avgTicket.toFixed(2)}</h3>
+          </div>
+        </div>
+
+        {/* Ganancia Neta Real (Utilidad Bruta - Costos) */}
+        <div className="col-span-2 p-5 rounded-3xl bg-emerald-950 text-white shadow-md border-2 border-emerald-800 overflow-hidden relative">
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-emerald-400 uppercase tracking-wider">Ganancia Neta Estimada</span>
+                <span className="bg-emerald-800 text-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                  Margen {netMarginPercent.toFixed(1)}%
+                </span>
+              </div>
+              <h3 className="text-2xl font-black text-emerald-300 font-mono tracking-tight">
+                ${netProfitSum.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+              <p className="text-[10px] text-emerald-400/80 font-medium">
+                Venta Total (${totalSalesSum.toLocaleString('es-CL')}) - Costo de Reposición (${totalCostSum.toLocaleString('es-CL')})
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-900 border border-emerald-700 flex items-center justify-center text-emerald-400 shrink-0">
+              <TrendingUp className="w-6 h-6 stroke-[2.5]" />
+            </div>
           </div>
         </div>
 

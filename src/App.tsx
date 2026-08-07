@@ -14,6 +14,8 @@ import ReportesTab from './components/ReportesTab';
 import ComprasTab from './components/ComprasTab';
 import MantTab from './components/MantTab';
 import MasterTab from './components/MasterTab';
+import SuppliersTab from './components/SuppliersTab';
+import CustomerCRMTab from './components/CustomerCRMTab';
 import LicenseBlockScreen from './components/LicenseBlockScreen';
 import InicioTurno from './components/InicioTurno';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -805,6 +807,23 @@ export default function App() {
 
             {currentTab === 'Reportes' && (
               <ReportesTab transactions={transactions} config={config} />
+            )}
+
+            {currentTab === 'Proveedores' && (
+              <SuppliersTab
+                products={products}
+                onEditProduct={handleEditProduct}
+                config={config}
+                tenantId={tenantId}
+              />
+            )}
+
+            {currentTab === 'Clientes' && (
+              <CustomerCRMTab
+                config={config}
+                transactions={transactions}
+                tenantId={tenantId}
+              />
             )}
 
             {currentTab === 'Compras' && (

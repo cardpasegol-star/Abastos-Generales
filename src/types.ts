@@ -18,6 +18,69 @@ export interface Product {
   unidadMedida?: 'unidad' | 'kg' | 'g' | 'saco_5kg' | 'saco_10kg' | 'saco_25kg' | 'malla_3u' | 'malla_4u' | 'malla_5u' | 'malla_6u' | string;
   store?: string;
   comunas?: string[]; // Allowed delivery zones/communes for this product (empty or undefined = available in all zones)
+  supplierId?: string;
+  supplierName?: string;
+}
+
+export interface Supplier {
+  id: string;
+  rut: string;
+  name: string;
+  contactPerson: string;
+  phone: string;
+  email?: string;
+  category: string;
+  address?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PurchaseOrderItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  currentStock: number;
+  orderedQty: number;
+  purchaseCost: number;
+  subtotal: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  supplierPhone: string;
+  items: PurchaseOrderItem[];
+  totalCost: number;
+  status: 'Borrador' | 'Enviada' | 'Recibida' | 'Cancelada';
+  createdAt: string;
+  notes?: string;
+}
+
+export interface CustomerCreditEntry {
+  id: string;
+  date: string;
+  type: 'cargo' | 'abono';
+  amount: number;
+  description: string;
+  transactionId?: string;
+}
+
+export interface CustomerProfile {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  comuna?: string;
+  deliveryRing?: string;
+  creditLimit: number;
+  currentDebt: number;
+  notes?: string;
+  createdAt: string;
+  lastOrderDate?: string;
+  orderCount: number;
+  totalSpent: number;
+  ledger: CustomerCreditEntry[];
 }
 
 export interface CartItem {
@@ -30,6 +93,7 @@ export interface TransactionItem {
   name: string;
   qty: number;
   price: number;
+  cost?: number;
   unidadMedida?: 'unidad' | 'kg' | 'g' | 'saco_5kg' | 'saco_10kg' | 'saco_25kg' | 'malla_3u' | 'malla_4u' | 'malla_5u' | 'malla_6u' | string;
 }
 
@@ -40,10 +104,10 @@ export interface Transaction {
   origen?: 'fisico' | 'digital';
   items: TransactionItem[];
   subtotal: number;
-  tax: number; // IVA 15%
+  tax: number; // IVA 15% / 19%
   platformFee?: number; // Tarifa de uso de plataforma digital (10%)
   total: number;
-  method: 'Efectivo' | 'Tarjeta' | 'Mercado Pago (Sandbox)' | 'Webpay Plus (Integration)' | string;
+  method: 'Efectivo' | 'Tarjeta' | 'Mercado Pago (Sandbox)' | 'Webpay Plus (Integration)' | 'Fiado / Cuenta Corriente' | string;
   createdAt: string;
   employeeName?: string;
   documentType?: 'Boleta' | 'Factura';
@@ -61,6 +125,13 @@ export interface Transaction {
   marketplaceFee?: number;
   storeNetAmount?: number;
   marketplaceFeePercentage?: number;
+  orderStatus?: 'En Preparación ⏳' | 'En Reparto 🛵' | 'Entregado ✅' | string;
+  customerPhone?: string;
+  customerName?: string;
+  couponCode?: string;
+  discountAmount?: number;
+  isFiado?: boolean;
+  customerId?: string;
 }
 
 export interface Empleado {
@@ -166,7 +237,7 @@ export interface BusinessConfig {
   };
 }
 
-export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master';
+export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master' | 'Proveedores' | 'Clientes';
 
 export function getModuleForCategory(category: string): 'tiendaAbarrotes' | 'bodega' | 'farmacia' | 'frutería' | 'cocinaAlmuerzos' | 'congelados' {
   const cat = (category || '').toLowerCase();

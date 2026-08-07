@@ -8,6 +8,7 @@ import { TurkoProduct } from '../types';
 import { BusinessConfig } from '../../../types';
 import { useTurkoStore } from '../useTurkoStore';
 import { TurkoTicketModal } from './TurkoTicketModal';
+import { UpsellingSection } from './UpsellingSection';
 import { getUnidadLabel, getUnidadShortSuffix } from '../../../utils/unitHelpers';
 import { getSectorForComunaTurko, ALL_COMUNAS_TURKO, DEFAULT_RUTAS_TURKO, SectorConfig, isTurkoProduct } from '../utils';
 import { checkStoreOpenStatus } from '../../../utils';
@@ -53,6 +54,12 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
     setNotes,
     paymentMethod,
     setPaymentMethod,
+    couponInput,
+    setCouponInput,
+    appliedCoupon,
+    couponFeedback,
+    applyCouponCode,
+    removeCoupon,
     totals,
     activeTicket,
     setActiveTicket,
@@ -865,6 +872,65 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                     ))
                   )}
                 </div>
+
+                {/* Venta Incremental / Smart Upselling Carousel */}
+                <UpsellingSection
+                  products={products}
+                  cart={cart}
+                  onAddToCart={addToCart}
+                />
+              </div>
+
+              {/* CUPÓN DE DESCUENTO */}
+              <div className="space-y-2 bg-gradient-to-br from-amber-500/10 via-amber-50 to-orange-50 border-2 border-amber-200/90 rounded-2xl p-3.5 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black text-amber-950 uppercase flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-amber-700" />
+                    <span>¿Tienes un Cupón de Descuento?</span>
+                  </label>
+                  {appliedCoupon && (
+                    <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                      ¡CUPÓN ACTIVO!
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. TURKO10, ENVIOFREE, VECINO5"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    className="flex-1 bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-xs font-black text-slate-900 tracking-wider uppercase focus:outline-none focus:border-amber-600 transition-colors placeholder:normal-case placeholder:font-normal placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => applyCouponCode()}
+                    className="py-2 px-4 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-amber-700 shrink-0"
+                  >
+                    Validar
+                  </button>
+                </div>
+
+                {/* Feedback message */}
+                {couponFeedback && (
+                  <div className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-between ${
+                    couponFeedback.isError
+                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                      : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                  }`}>
+                    <span>{couponFeedback.message}</span>
+                    {!couponFeedback.isError && appliedCoupon && (
+                      <button
+                        type="button"
+                        onClick={removeCoupon}
+                        className="text-[10px] bg-white text-rose-600 hover:bg-rose-50 border border-rose-300 px-2 py-0.5 rounded-md font-black cursor-pointer ml-2"
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 2. DATOS DE DESPACHO / ENTREGA */}
@@ -1142,6 +1208,33 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                       {paymentMethod === 'Efectivo' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
                     </div>
                   </button>
+
+                  {/* Fiado / Cuenta Corriente */}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('Fiado / Cuenta Corriente')}
+                    className={`w-full p-3 rounded-xl border-2 text-left transition-all flex items-center justify-between ${
+                      paymentMethod === 'Fiado / Cuenta Corriente'
+                        ? 'bg-purple-50 border-purple-600 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-2 bg-purple-600 text-white rounded-lg text-sm">📖</span>
+                      <div>
+                        <p className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                          <span>Cargar a Cuenta Corriente / Fiado</span>
+                          <span className="bg-purple-200 text-purple-900 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
+                            Vecinos
+                          </span>
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-extrabold">Libreta de Fiado para clientes habituales</p>
+                      </div>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Fiado / Cuenta Corriente' ? 'border-purple-600' : 'border-slate-300'}`}>
+                      {paymentMethod === 'Fiado / Cuenta Corriente' && <div className="w-2 h-2 rounded-full bg-purple-600" />}
+                    </div>
+                  </button>
                 </div>
               </div>
 
@@ -1149,25 +1242,38 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
               <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-2.5 text-xs font-sans shadow-lg border border-slate-800">
                 <div className="flex justify-between text-slate-300 font-medium">
                   <span>Subtotal Artículos:</span>
-                  <span className="font-mono font-bold">${totals.subtotal.toFixed(2)}</span>
+                  <span className="font-mono font-bold">${totals.subtotal.toLocaleString('es-CL')}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded-xl border border-emerald-800/50">
+                    <span>Cupón Aplicado ({appliedCoupon.code}):</span>
+                    <span className="font-mono font-black">
+                      {appliedCoupon.isFreeShipping ? 'Envío Gratis ($0)' : `-$${totals.discountAmount.toLocaleString('es-CL')}`}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-slate-300 font-medium">
                   <span>IVA ({config.ivaPercentage || 19}%):</span>
-                  <span className="font-mono font-bold">${totals.tax.toFixed(2)}</span>
+                  <span className="font-mono font-bold">${totals.tax.toLocaleString('es-CL')}</span>
                 </div>
                 {shippingMethod === 'Domicilio' && (
                   <div className="flex justify-between text-slate-300 font-medium">
                     <span>Envío (Delivery):</span>
-                    <span className="font-mono font-bold">${totals.deliveryFee.toFixed(2)}</span>
+                    <span className="font-mono font-bold">
+                      {appliedCoupon?.isFreeShipping ? (
+                        <span className="text-emerald-400 line-through mr-1">${deliveryFee.toLocaleString('es-CL')}</span>
+                      ) : null}
+                      ${totals.deliveryFee.toLocaleString('es-CL')}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between items-center text-amber-300 bg-amber-500/15 p-2.5 rounded-xl border border-amber-500/30 font-extrabold">
                   <span className="text-[11px]">TARIFA DE USO DE PLATAFORMA (10%):</span>
-                  <span className="font-mono font-black text-sm">${totals.platformFee.toFixed(2)}</span>
+                  <span className="font-mono font-black text-sm">${totals.platformFee.toLocaleString('es-CL')}</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-2 border-t border-slate-800 text-sm font-black">
                   <span className="uppercase text-white font-black">TOTAL A PAGAR:</span>
-                  <span className="text-2xl font-mono text-emerald-400 font-black">${totals.total.toFixed(2)}</span>
+                  <span className="text-2xl font-mono text-emerald-400 font-black">${totals.total.toLocaleString('es-CL')}</span>
                 </div>
               </div>
 

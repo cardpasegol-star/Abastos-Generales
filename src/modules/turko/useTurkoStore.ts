@@ -14,6 +14,7 @@ import {
   getTurkoFormattedChileDate
 } from './config';
 import { calculateTurkoTotals, generateTurkoWhatsAppMessage, isTurkoProduct } from './utils';
+import { validateTurkoCoupon, CouponValidationResult } from './coupons';
 
 export function useTurkoStore(
   initialConfig?: BusinessConfig,
@@ -60,6 +61,11 @@ export function useTurkoStore(
   const [selectedComuna, setSelectedComuna] = useState<string>('La Pintana');
   const [deliveryFee, setDeliveryFee] = useState<number>(2500);
 
+  // Coupon State
+  const [couponInput, setCouponInput] = useState<string>('');
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
+  const [couponFeedback, setCouponFeedback] = useState<{ message: string; isError: boolean } | null>(null);
+
   // Customer Form
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
@@ -81,10 +87,52 @@ export function useTurkoStore(
     });
   }, [products, searchQuery, selectedCategory, config.productCategories]);
 
-  // Calculated Totals
+  // Apply / Validate Coupon
+  const applyCouponCode = useCallback((codeToValidate?: string) => {
+    const rawSubtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const code = codeToValidate !== undefined ? codeToValidate : couponInput;
+    const fee = shippingMethod === 'Domicilio' ? deliveryFee : 0;
+
+    const result = validateTurkoCoupon(code, rawSubtotal, fee);
+    if (result.isValid) {
+      setAppliedCoupon(result);
+      setCouponFeedback({ message: result.message, isError: false });
+    } else {
+      setAppliedCoupon(null);
+      setCouponFeedback({ message: result.message, isError: true });
+    }
+    return result;
+  }, [cart, couponInput, shippingMethod, deliveryFee]);
+
+  const removeCoupon = useCallback(() => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponFeedback(null);
+  }, []);
+
+  // Calculated Totals with Coupon Support
   const totals = useMemo(() => {
-    return calculateTurkoTotals(cart, shippingMethod, deliveryFee, config.ivaPercentage || 15);
-  }, [cart, shippingMethod, deliveryFee, config.ivaPercentage]);
+    const rawSubtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const discountAmount = appliedCoupon?.discountAmount || 0;
+    const discountedSubtotal = Math.max(0, rawSubtotal - (appliedCoupon?.isFreeShipping ? 0 : discountAmount));
+    const ivaRate = (config.ivaPercentage || 19) / 100;
+    const tax = discountedSubtotal * ivaRate;
+    const platformFee = discountedSubtotal * 0.10;
+    const effectiveDeliveryFee = appliedCoupon?.isFreeShipping
+      ? 0
+      : (shippingMethod === 'Domicilio' ? deliveryFee : 0);
+    const total = discountedSubtotal + tax + effectiveDeliveryFee + platformFee;
+
+    return {
+      subtotal: rawSubtotal,
+      discountAmount,
+      discountedSubtotal,
+      tax,
+      platformFee,
+      deliveryFee: effectiveDeliveryFee,
+      total: Math.round(total)
+    };
+  }, [cart, shippingMethod, deliveryFee, config.ivaPercentage, appliedCoupon]);
 
   // Cart operations
   const addToCart = useCallback((product: TurkoProduct, qty: number = 1) => {
@@ -126,6 +174,8 @@ export function useTurkoStore(
 
   const clearCart = useCallback(() => {
     setCart([]);
+    setAppliedCoupon(null);
+    setCouponFeedback(null);
   }, []);
 
   // Checkout Execution
@@ -134,7 +184,7 @@ export function useTurkoStore(
     setIsProcessingCheckout(true);
 
     try {
-      const calculated = calculateTurkoTotals(cart, shippingMethod, deliveryFee, config.ivaPercentage || 15);
+      const calculated = totals;
 
       const newTx: Omit<TurkoTransaction, 'id'> = {
         storeId: 'el_turco',
@@ -161,9 +211,13 @@ export function useTurkoStore(
         deliveryFee: shippingMethod === 'Domicilio' ? calculated.deliveryFee : 0,
         deliveryAddress: shippingMethod === 'Domicilio' ? deliveryAddress.trim() : undefined,
         deliveryComuna: shippingMethod === 'Domicilio' ? selectedComuna : undefined,
-        paymentStatus: paymentMethod === 'Efectivo' ? 'Pendiente' : 'Aprobado',
+        paymentStatus: paymentMethod === 'Efectivo' || paymentMethod === 'Fiado / Cuenta Corriente' ? 'Pendiente' : 'Aprobado',
         source: 'digital',
-        origen: 'digital'
+        origen: 'digital',
+        orderStatus: 'En Preparación ⏳',
+        couponCode: appliedCoupon?.code,
+        discountAmount: appliedCoupon?.discountAmount || 0,
+        isFiado: paymentMethod === 'Fiado / Cuenta Corriente'
       };
 
       let txId = `TURKO-${Date.now()}`;
@@ -184,10 +238,41 @@ export function useTurkoStore(
         localStorage.setItem(TURKO_TRANSACTIONS_KEY, JSON.stringify(storedTxs));
       } catch {}
 
-      // Open WhatsApp
-      const encodedMsg = generateTurkoWhatsAppMessage(fullTx, config);
+      // Open WhatsApp with detailed order notification
+      let message = `*🛒 NUEVO PEDIDO - ${config.name || 'DONDE EL TURCO'}*\n`;
+      message += `*Nº Orden:* #${fullTx.id.replace('tx-', '').toUpperCase()}\n`;
+      message += `*Cliente:* ${fullTx.customerName}\n`;
+      message += `*Teléfono:* ${fullTx.customerPhone}\n`;
+      message += `*Estado Inicial:* [En Preparación ⏳]\n`;
+      message += `------------------------------------\n`;
+      message += `*DETALLE DE PRODUCTOS:*\n`;
+
+      fullTx.items.forEach((it, idx) => {
+        message += `${idx + 1}. *${it.name}* (x${it.qty || it.quantity}) - $${(it.price * (it.qty || it.quantity)).toLocaleString('es-CL')}\n`;
+      });
+
+      message += `------------------------------------\n`;
+      message += `*Subtotal:* $${calculated.subtotal.toLocaleString('es-CL')} CLP\n`;
+      if (appliedCoupon) {
+        message += `*Cupón Aplicado (${appliedCoupon.code}):* -$${appliedCoupon.discountAmount.toLocaleString('es-CL')} CLP\n`;
+      }
+      message += `*IVA (${config.ivaPercentage || 19}%):* $${calculated.tax.toLocaleString('es-CL')} CLP\n`;
+      message += `*Tarifa Plataforma (10%):* $${calculated.platformFee.toLocaleString('es-CL')} CLP\n`;
+
+      if (shippingMethod === 'Domicilio') {
+        message += `*Despacho a Domicilio:* $${calculated.deliveryFee.toLocaleString('es-CL')} CLP\n`;
+        message += `*Dirección:* ${fullTx.deliveryAddress || 'N/A'} (${fullTx.deliveryComuna || 'La Pintana'})\n`;
+      } else {
+        message += `*Modalidad:* Retiro en Local ($0)\n`;
+      }
+
+      message += `*TOTAL FINAL:* *$${calculated.total.toLocaleString('es-CL')} CLP*\n`;
+      message += `*Método de Pago:* ${paymentMethod}\n`;
+      if (notes.trim()) message += `*Notas:* ${notes.trim()}\n`;
+      message += `\nFavor confirmar recepción y preparación del pedido. ¡Muchas gracias!`;
+
       const cleanPhone = (config.whatsapp || '+56912345678').replace(/[^0-9]/g, '');
-      const waUrl = `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
+      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
       window.open(waUrl, '_blank');
 
       // Set Active Ticket Modal & Clear Cart
@@ -198,7 +283,7 @@ export function useTurkoStore(
     } finally {
       setIsProcessingCheckout(false);
     }
-  }, [cart, shippingMethod, deliveryFee, config, paymentMethod, customerName, customerPhone, deliveryAddress, notes, selectedComuna, onSaveTransactionExternal, clearCart]);
+  }, [cart, shippingMethod, deliveryFee, config, paymentMethod, customerName, customerPhone, deliveryAddress, notes, selectedComuna, onSaveTransactionExternal, clearCart, totals, appliedCoupon]);
 
   return {
     config,
@@ -230,6 +315,12 @@ export function useTurkoStore(
     setNotes,
     paymentMethod,
     setPaymentMethod,
+    couponInput,
+    setCouponInput,
+    appliedCoupon,
+    couponFeedback,
+    applyCouponCode,
+    removeCoupon,
     totals,
     activeTicket,
     setActiveTicket,
