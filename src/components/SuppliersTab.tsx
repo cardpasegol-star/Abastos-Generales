@@ -64,7 +64,65 @@ const DEFAULT_SUPPLIERS: Supplier[] = [
   }
 ];
 
+const PIZZA_DEFAULT_SUPPLIERS: Supplier[] = [
+  {
+    id: 'sup-piz-1',
+    rut: '77.234.567-1',
+    name: 'Molinos del Sol & Harinas Especiales SpA',
+    contactPerson: 'Gonzalo Arancibia',
+    phone: '+56987650011',
+    email: 'pedidos@harinasdelsol.cl',
+    category: 'Harinas y Masas',
+    address: 'Camino a Melipilla 4500, Maipú',
+    notes: 'Harina tipo 00 especial para masa madre y fermentación lenta.',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'sup-piz-2',
+    rut: '78.890.123-4',
+    name: 'Quesos del Sur & Mozzarella Artesanal',
+    contactPerson: 'Claudia Valenzuela',
+    phone: '+56976540022',
+    email: 'ventas@mozzarelladelsur.cl',
+    category: 'Lácteos y Quesos',
+    address: 'Av. El Salto 1200, Recoleta',
+    notes: 'Queso Mozzarella hilado fresco en bloque y rallado fino.',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'sup-piz-3',
+    rut: '81.456.789-0',
+    name: 'Cecinas y Embutidos San Jorge Mayorista',
+    contactPerson: 'Patricio Muñoz',
+    phone: '+56998760033',
+    email: 'contacto@cecinasanjorge.cl',
+    category: 'Carnes y Cecinas',
+    address: 'Av. La Florida 8900, La Florida',
+    notes: 'Pepperoni americano premium, jamón artesanal y tocino laminado.',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'sup-piz-4',
+    rut: '96.111.222-3',
+    name: 'Distribuidora Tomates San Marzano & Salsas',
+    contactPerson: 'Matías Rivas',
+    phone: '+56965430044',
+    email: 'pedidos@salsassanmarzano.cl',
+    category: 'Salsas y Conservas',
+    address: 'Lo Valledor Central, Galpón 4',
+    notes: 'Pulpa de tomate triturada italiana sin acidez añadida.',
+    createdAt: new Date().toISOString()
+  }
+];
+
 export default function SuppliersTab({ products, onEditProduct, config, tenantId }: SuppliersTabProps) {
+  const isPizzaTenant = tenantId?.toLowerCase() === 'pasion-pizzas' ||
+                        tenantId?.toLowerCase() === 'pasion_pizzas' ||
+                        tenantId?.toLowerCase() === 'pasion' ||
+                        tenantId?.toLowerCase() === 'pizzas' ||
+                        tenantId?.toLowerCase() === 'pasionpizzas';
+
+  const initialDefaults = isPizzaTenant ? PIZZA_DEFAULT_SUPPLIERS : DEFAULT_SUPPLIERS;
   const storageKey = `suppliers_${tenantId || 'default'}`;
   const poStorageKey = `purchase_orders_${tenantId || 'default'}`;
 
@@ -73,7 +131,7 @@ export default function SuppliersTab({ products, onEditProduct, config, tenantId
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
     } catch {}
-    return DEFAULT_SUPPLIERS;
+    return initialDefaults;
   });
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {

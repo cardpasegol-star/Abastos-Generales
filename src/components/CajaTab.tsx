@@ -20,16 +20,45 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Mermeladas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Honey%20Pot.png',
   'Miel': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Honeybee.png',
   'Abarrotes / Varios': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png',
+  'Pizzas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+  'Pizzas Tradicionales': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+  'Promos 2x / Económicas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Promociones 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Promos 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Acompañamientos / Papas Fritas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+  'Acompañamientos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+  'Palitos de Ajo / Baguettes': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+  'Palitos de Ajo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+  'Salsas y Extras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Canned%20Food.png',
+  'Bebidas y Jugos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cup%20With%20Straw.png',
+  'Postres y Dulces': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png',
+  'Queso Extra / Mozzarella': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png',
+  'Pepperoni / Cecinas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bacon.png',
+  'Ajo / Especias': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Garlic.png',
+  'Ají / Picante': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hot%20Pepper.png',
 };
 
 function getCategoryIcon(cat: string, config?: BusinessConfig): string {
   if (cat === 'Todos' || cat === 'Todo') return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png';
-  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png';
+  return config?.categoryIcons?.[cat] || CATEGORY_ICONS[cat] || 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png';
 }
 
 function getCategoryIconEmoji(cat: string, config?: BusinessConfig): string {
   const icon = getCategoryIcon(cat, config);
   if (icon.startsWith('http')) {
+    if (icon.includes('Pizza.png')) return '🍕';
+    if (icon.includes('Fire.png')) return '🔥';
+    if (icon.includes('French%20Fries.png')) return '🍟';
+    if (icon.includes('Baguette%20Bread.png')) return '🥖';
+    if (icon.includes('Canned%20Food.png')) return '🥫';
+    if (icon.includes('Cup%20With%20Straw.png')) return '🥤';
+    if (icon.includes('Shortcake.png')) return '🍰';
+    if (icon.includes('Cheese%20Wedge.png')) return '🧀';
+    if (icon.includes('Bacon.png')) return '🥓';
+    if (icon.includes('Garlic.png')) return '🧄';
+    if (icon.includes('Hot%20Pepper.png')) return '🌶️';
+    if (cat.includes('Pizza')) return '🍕';
+    if (cat.includes('Promo') || cat.includes('2x')) return '🔥';
     if (cat.includes('Bebida')) return '🥤';
     if (cat.includes('Abarrotes')) return '🧴';
     if (cat.includes('Lácteos')) return '🥛';

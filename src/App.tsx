@@ -34,6 +34,10 @@ export default function App() {
           clean = 'el_turco';
         } else if (clean === 'farmacia') {
           clean = 'barrioseguro';
+        } else if (clean === 'artico' || clean === 'congelados') {
+          clean = 'artico_congelados';
+        } else if (clean === 'pasion' || clean === 'pizzas' || clean === 'pasion_pizzas' || clean === 'pasionpizzas' || clean === 'pasion-pizzas') {
+          clean = 'pasion-pizzas';
         }
         localStorage.setItem('id_tienda', clean);
         localStorage.setItem('tenant_tienda_id', clean);
@@ -171,6 +175,8 @@ export default function App() {
           clean = 'barrioseguro';
         } else if (clean === 'artico' || clean === 'congelados') {
           clean = 'artico_congelados';
+        } else if (clean === 'pasion' || clean === 'pizzas' || clean === 'pasion_pizzas' || clean === 'pasionpizzas' || clean === 'pasion-pizzas') {
+          clean = 'pasion-pizzas';
         }
         setTenantId(clean);
         localStorage.setItem('id_tienda', clean);
@@ -792,6 +798,7 @@ export default function App() {
                 onDeleteProduct={handleDeleteProduct}
                 config={config}
                 userRole={currentEmployee?.role}
+                tenantId={tenantId}
               />
             )}
 
@@ -847,6 +854,7 @@ export default function App() {
                   if (clean === 'fruteria' || clean === 'frutería') clean = 'fruteria_principe_gales';
                   if (clean === 'turco') clean = 'el_turco';
                   if (clean === 'artico' || clean === 'congelados') clean = 'artico_congelados';
+                  if (clean === 'pasion' || clean === 'pizzas' || clean === 'pasion_pizzas' || clean === 'pasionpizzas' || clean === 'pasion-pizzas') clean = 'pasion-pizzas';
                   localStorage.setItem('id_tienda', clean);
                   localStorage.setItem('tenant_tienda_id', clean);
                   setTenantId(clean);

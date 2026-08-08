@@ -477,11 +477,269 @@ export const INITIAL_ARTICO_PRODUCTS: Product[] = [
   }
 ];
 
+export const INITIAL_PIZZA_PRODUCTS: Product[] = [
+  {
+    id: 'pizza-margherita',
+    sku: 'PZ-001',
+    name: 'Pizza Margherita Artesanal (Masa Madre)',
+    category: 'Pizzas',
+    stock: 45,
+    price: 9990,
+    cost: 4200,
+    imageUrl: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'pizza-pepperoni',
+    sku: 'PZ-002',
+    name: 'Pizza Pepperoni Suprema a la Piedra',
+    category: 'Pizzas',
+    stock: 60,
+    price: 10990,
+    cost: 4800,
+    imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'pizza-cuatro-quesos',
+    sku: 'PZ-003',
+    name: 'Pizza Cuatro Quesos Fina Selección',
+    category: 'Pizzas',
+    stock: 35,
+    price: 11990,
+    cost: 5200,
+    imageUrl: 'https://images.unsplash.com/photo-1573821663912-569905455b1c?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'pizza-mechada-bbq',
+    sku: 'PZ-004',
+    name: 'Pizza Mechada BBQ & Cebolla Caramelizada',
+    category: 'Pizzas',
+    stock: 40,
+    price: 12990,
+    cost: 5800,
+    imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'pizza-napolitana',
+    sku: 'PZ-005',
+    name: 'Pizza Napolitana Especial con Jamón & Tomate',
+    category: 'Pizzas',
+    stock: 50,
+    price: 10490,
+    cost: 4500,
+    imageUrl: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'pizza-vegetariana',
+    sku: 'PZ-006',
+    name: 'Pizza Vegetariana Rústica & Champiñones',
+    category: 'Pizzas',
+    stock: 30,
+    price: 10990,
+    cost: 4400,
+    imageUrl: 'https://images.unsplash.com/photo-1511688878353-3a2f5be94cd7?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'promo-duo-pizzas',
+    sku: 'PR-2X1',
+    name: 'Promo Dúo 2x Pizzas Familiares (Masa Madre)',
+    category: 'Promociones 2x',
+    stock: 25,
+    price: 18990,
+    cost: 8500,
+    enOferta: true,
+    precioOferta: 18990,
+    imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'promo-combo-completo',
+    sku: 'PR-COMBO',
+    name: 'Combo Familiar: Pizza + Palitos de Ajo + Bebida 1.5L',
+    category: 'Promociones 2x',
+    stock: 30,
+    price: 14990,
+    cost: 6200,
+    enOferta: true,
+    precioOferta: 14990,
+    imageUrl: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'palitos-ajo-queso',
+    sku: 'AC-001',
+    name: 'Palitos de Ajo con Queso Parmesano & Orégano',
+    category: 'Acompañamientos',
+    stock: 80,
+    price: 3990,
+    cost: 1400,
+    imageUrl: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'bastones-mozzarella',
+    sku: 'AC-002',
+    name: 'Bastones de Mozzarella Horneados (6 Uds)',
+    category: 'Acompañamientos',
+    stock: 45,
+    price: 4990,
+    cost: 1900,
+    imageUrl: 'https://images.unsplash.com/photo-1548340748-6d2b7d7da280?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'coca-cola-15',
+    sku: 'BEB-001',
+    name: 'Coca Cola Zero 1.5L',
+    category: 'Bebidas',
+    stock: 60,
+    price: 2490,
+    cost: 1400,
+    imageUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'sprite-15',
+    sku: 'BEB-002',
+    name: 'Sprite Lima Limón 1.5L',
+    category: 'Bebidas',
+    stock: 40,
+    price: 2490,
+    cost: 1400,
+    imageUrl: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'tiramisu-italiano',
+    sku: 'POS-001',
+    name: 'Tiramisú Artesanal Italiano con Café Espresso',
+    category: 'Postres',
+    stock: 30,
+    price: 3990,
+    cost: 1600,
+    imageUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  },
+  {
+    id: 'calzone-nutella',
+    sku: 'POS-002',
+    name: 'Calzone Dulce Nutella & Frutilla Horneado',
+    category: 'Postres',
+    stock: 25,
+    price: 4990,
+    cost: 2100,
+    imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400',
+    updatedAt: new Date().toISOString(),
+    unidadMedida: 'unidad'
+  }
+];
+
 export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
   const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
   const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
   const isFarmacia = tenantId.toLowerCase() === 'barrioseguro' || tenantId.toLowerCase() === 'farmacia';
   const isArtico = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
+  const isPasionPizzas = tenantId.toLowerCase() === 'pasion-pizzas' ||
+                         tenantId.toLowerCase() === 'pasion_pizzas' ||
+                         tenantId.toLowerCase() === 'pasion' ||
+                         tenantId.toLowerCase() === 'pizzas' ||
+                         tenantId.toLowerCase() === 'pasionpizzas';
+
+  if (isPasionPizzas) {
+    return {
+      ...DEFAULT_CONFIG,
+      id: 'business_info',
+      name: 'Pizzería "Pasión por las Pizzas"',
+      rut: '76.882.104-5',
+      address: 'Av. Providencia #2450, Providencia',
+      gps: 'Av. Providencia #2450, Providencia',
+      bannerUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800',
+      whatsapp: '+56987659999',
+      adminPin: '1234',
+      productCategories: [
+        'Pizzas',
+        'Promociones 2x',
+        'Acompañamientos',
+        'Bebidas',
+        'Postres',
+        'Salsas y Extras'
+      ],
+      pizzaCategories: [
+        'Pizzas',
+        'Promociones 2x',
+        'Acompañamientos',
+        'Bebidas',
+        'Postres',
+        'Salsas y Extras'
+      ],
+      categoryIcons: {
+        'Pizzas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+        'Promociones 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Sparkles.png',
+        'Acompañamientos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+        'Bebidas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beverage%20Box.png',
+        'Postres': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png',
+        'Salsas y Extras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cooking.png'
+      },
+      rutasCamion: {
+        'eje_central': {
+          name: 'Sector Central / Providencia',
+          comunas: ['Providencia', 'Ñuñoa', 'Santiago Centro', 'Las Condes', 'La Reina', 'Vitacura'],
+          days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+          fee: 2500
+        },
+        'sector_oriente': {
+          name: 'Sector Oriente / Cordillera',
+          comunas: ['Lo Barnechea', 'Peñalolén', 'Macul'],
+          days: ['Martes', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+          fee: 3000
+        },
+        'sector_sur': {
+          name: 'Sector Sur / Florida',
+          comunas: ['La Florida', 'San Miguel', 'San Joaquín', 'La Cisterna'],
+          days: ['Miércoles', 'Viernes', 'Sábado', 'Domingo'],
+          fee: 3200
+        }
+      },
+      modulosPermitidos: {
+        tiendaAbarrotes: true,
+        cocinaAlmuerzos: false,
+        bodega: true,
+        farmacia: false,
+        frutería: false
+      },
+      modulosActivos: {
+        tiendaAbarrotes: true,
+        cocinaAlmuerzos: false,
+        bodega: true,
+        farmacia: false,
+        frutería: false
+      },
+      modules: {
+        rutasCamion: true,
+        fruteria: false,
+        almuerzos: false,
+        tienda: true
+      }
+    };
+  }
 
   if (isArtico) {
     return {
@@ -642,6 +900,18 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
 export function getTenantEmployees(tenantId: string) {
   const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
   const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+  const isPasionPizzas = tenantId.toLowerCase() === 'pasion-pizzas' ||
+                         tenantId.toLowerCase() === 'pasion_pizzas' ||
+                         tenantId.toLowerCase() === 'pasion' ||
+                         tenantId.toLowerCase() === 'pizzas' ||
+                         tenantId.toLowerCase() === 'pasionpizzas';
+
+  if (isPasionPizzas) {
+    return [
+      { id: 'emp-admin', name: 'Maestro Pizzero (Admin)', pin: '1234', role: 'admin' },
+      { id: 'emp-cajero', name: 'Cajero / Delivery', pin: '4321', role: 'cajero' }
+    ];
+  }
 
   if (isPrincipeGales) {
     return [
@@ -672,13 +942,25 @@ export async function bootstrapDatabaseIfEmpty(tenantId: string) {
       // Write products
       const isArticoTenant = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
       const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
-      const productsToSeed = isArticoTenant ? INITIAL_ARTICO_PRODUCTS : isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+      const isPizzaTenant = tenantId.toLowerCase() === 'pasion-pizzas' ||
+                            tenantId.toLowerCase() === 'pasion_pizzas' ||
+                            tenantId.toLowerCase() === 'pasion' ||
+                            tenantId.toLowerCase() === 'pizzas' ||
+                            tenantId.toLowerCase() === 'pasionpizzas';
+      const productsToSeed = isArticoTenant 
+        ? INITIAL_ARTICO_PRODUCTS 
+        : isFruteriaTenant 
+        ? INITIAL_FRUIT_PRODUCTS 
+        : isPizzaTenant
+        ? INITIAL_PIZZA_PRODUCTS
+        : INITIAL_PRODUCTS;
+
       productsToSeed.forEach(p => {
         batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
       });
 
       // Write food items
-      if (!isFruteriaTenant && !isArticoTenant) {
+      if (!isFruteriaTenant && !isArticoTenant && !isPizzaTenant) {
         INITIAL_FOOD_ITEMS.forEach(f => {
           batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
         });
@@ -739,12 +1021,24 @@ export async function resetDatabaseToDefault(tenantId: string) {
 
     const isArticoTenant = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
     const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
-    const productsToSeed = isArticoTenant ? INITIAL_ARTICO_PRODUCTS : isFruteriaTenant ? INITIAL_FRUIT_PRODUCTS : INITIAL_PRODUCTS;
+    const isPizzaTenant = tenantId.toLowerCase() === 'pasion-pizzas' ||
+                          tenantId.toLowerCase() === 'pasion_pizzas' ||
+                          tenantId.toLowerCase() === 'pasion' ||
+                          tenantId.toLowerCase() === 'pizzas' ||
+                          tenantId.toLowerCase() === 'pasionpizzas';
+    const productsToSeed = isArticoTenant 
+      ? INITIAL_ARTICO_PRODUCTS 
+      : isFruteriaTenant 
+      ? INITIAL_FRUIT_PRODUCTS 
+      : isPizzaTenant
+      ? INITIAL_PIZZA_PRODUCTS
+      : INITIAL_PRODUCTS;
+
     productsToSeed.forEach(p => {
       batch.set(doc(db, 'tenants', tenantId, 'products', p.id), p);
     });
 
-    if (!isFruteriaTenant && !isArticoTenant) {
+    if (!isFruteriaTenant && !isArticoTenant && !isPizzaTenant) {
       INITIAL_FOOD_ITEMS.forEach(f => {
         batch.set(doc(db, 'tenants', tenantId, 'foodItems', f.id), f);
       });

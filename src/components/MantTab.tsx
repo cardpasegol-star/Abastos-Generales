@@ -244,6 +244,23 @@ export const FARMACIA_STICKER_ITEMS = [
   { label: 'Higiene Dental 🪥', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Toothbrush.png', nativeEmoji: '🪥' }
 ];
 
+export const PIZZA_STORE_STICKER_ITEMS = [
+  { label: 'Pizzas Tradicionales 🍕', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png', nativeEmoji: '🍕' },
+  { label: 'Promos 2x / Económicas 🔥', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png', nativeEmoji: '🔥' },
+  { label: 'Acompañamientos / Papas Fritas 🍟', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png', nativeEmoji: '🍟' },
+  { label: 'Palitos de Ajo / Baguettes 🥖', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png', nativeEmoji: '🥖' },
+  { label: 'Salsas y Extras 🥫', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Canned%20Food.png', nativeEmoji: '🥫' },
+  { label: 'Bebidas y Jugos 🥤', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cup%20With%20Straw.png', nativeEmoji: '🥤' },
+  { label: 'Postres y Dulces 🍰', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png', nativeEmoji: '🍰' },
+  { label: 'Queso Extra / Mozzarella 🧀', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png', nativeEmoji: '🧀' },
+  { label: 'Pepperoni / Cecinas 🥓', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bacon.png', nativeEmoji: '🥓' },
+  { label: 'Ajo / Especias 🧄', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Garlic.png', nativeEmoji: '🧄' },
+  { label: 'Ají / Picante 🌶️', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hot%20Pepper.png', nativeEmoji: '🌶️' },
+  { label: 'Cebolla / Toppings 🧅', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Onion.png', nativeEmoji: '🧅' },
+  { label: 'Champiñones / Toppings 🍄', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Mushroom.png', nativeEmoji: '🍄' },
+  { label: 'Albahaca / Hierbas 🌿', url: 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Herb.png', nativeEmoji: '🌿' }
+];
+
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
   'Todo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
@@ -273,6 +290,22 @@ const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Vitaminas y Suplementos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png',
   'Adulto Mayor': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png',
   'Conveniencia': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png',
+  'Pizzas Tradicionales': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+  'Pizzas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+  'Promos 2x / Económicas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Promociones 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Promos 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Acompañamientos / Papas Fritas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+  'Acompañamientos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+  'Palitos de Ajo / Baguettes': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+  'Palitos de Ajo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+  'Salsas y Extras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Canned%20Food.png',
+  'Bebidas y Jugos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cup%20With%20Straw.png',
+  'Postres y Dulces': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png',
+  'Queso Extra / Mozzarella': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png',
+  'Pepperoni / Cecinas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bacon.png',
+  'Ajo / Especias': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Garlic.png',
+  'Ají / Picante': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hot%20Pepper.png',
 };
 
 function getCategoryIcon(cat: string, customIcons?: Record<string, string>): string {
@@ -631,16 +664,19 @@ export default function MantTab({
   const [fruteriaCategoriesList, setFruteriaCategoriesList] = useState<string[]>([]);
   const [articoCategoriesList, setArticoCategoriesList] = useState<string[]>([]);
   const [farmaciaCategoriesList, setFarmaciaCategoriesList] = useState<string[]>([]);
+  const [pizzaCategoriesList, setPizzaCategoriesList] = useState<string[]>([]);
   const [newProductCat, setNewProductCat] = useState('');
   const [newFoodCat, setNewFoodCat] = useState('');
   const [newFruteriaCat, setNewFruteriaCat] = useState('');
   const [newArticoCat, setNewArticoCat] = useState('');
   const [newFarmaciaCat, setNewFarmaciaCat] = useState('');
+  const [newPizzaCat, setNewPizzaCat] = useState('');
   const [productSelectedEmoji, setProductSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Bags.png');
   const [foodSelectedEmoji, setFoodSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pancakes.png');
   const [fruteriaSelectedEmoji, setFruteriaSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png');
   const [articoSelectedEmoji, setArticoSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Ice.png');
   const [farmaciaSelectedEmoji, setFarmaciaSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png');
+  const [pizzaSelectedEmoji, setPizzaSelectedEmoji] = useState('https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png');
   const [categoryIconsList, setCategoryIconsList] = useState<Record<string, string>>({});
 
   // Kitchen dish builder form state
@@ -708,12 +744,25 @@ export default function MantTab({
   const [notifySavedFruteriaCats, setNotifySavedFruteriaCats] = useState(false);
   const [notifySavedArticoCats, setNotifySavedArticoCats] = useState(false);
   const [notifySavedFarmaciaCats, setNotifySavedFarmaciaCats] = useState(false);
+  const [notifySavedPizzaCats, setNotifySavedPizzaCats] = useState(false);
 
   const getActiveStoreInfo = () => {
     const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const urlTienda = params?.get('tienda') || params?.get('id_tienda');
     const tId = (tenantId || config?.id || '').toLowerCase();
     const nameLower = (config?.name || '').toLowerCase();
+
+    if (urlTienda === 'pasion-pizzas' || urlTienda === 'pasion_pizzas' || urlTienda === 'pizza' || urlTienda === 'pizzeria' || urlTienda === 'pizzería' || tId.includes('pasion') || tId.includes('pizza') || nameLower.includes('pasión') || nameLower.includes('pasion') || nameLower.includes('pizza')) {
+      return {
+        key: 'pasion-pizzas',
+        paramValue: 'pasion-pizzas',
+        moduleLabel: 'Pizzería',
+        emoji: '🍕',
+        storeName: config?.name || 'Pasión por las Pizzas',
+        sectionTitle: '📱 Enlace Directo y Código QR Exclusivo de Pizzería',
+        badgeBg: 'bg-amber-50 text-amber-800 border-amber-200'
+      };
+    }
 
     if (urlTienda === 'artico' || urlTienda === 'artico_congelados' || urlTienda === 'congelados' || tId.includes('artico') || tId.includes('congelados') || nameLower.includes('ártico') || nameLower.includes('artico')) {
       return {
@@ -838,6 +887,55 @@ export default function MantTab({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSavePizzaCategories = async () => {
+    setLoading(true);
+    try {
+      const mergedIcons = {
+        ...config.categoryIcons,
+        ...categoryIconsList
+      };
+      await onUpdateConfig({
+        ...config,
+        pizzaCategories: pizzaCategoriesList,
+        categoryIcons: mergedIcons
+      });
+      localStorage.setItem('pizza_categories_v1', JSON.stringify(pizzaCategoriesList));
+      localStorage.setItem('category_icons_v1', JSON.stringify(mergedIcons));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('category_icons_updated'));
+      }
+      setNotifySavedPizzaCats(true);
+      setTimeout(() => setNotifySavedPizzaCats(false), 3000);
+    } catch (err) {
+      console.error("Error al guardar categorías de pizzería:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPizzaCat = () => {
+    const trimmed = newPizzaCat.trim();
+    if (!trimmed) return;
+    if (!pizzaCategoriesList.includes(trimmed)) {
+      const updated = [...pizzaCategoriesList, trimmed];
+      setPizzaCategoriesList(updated);
+      const updatedIcons = {
+        ...categoryIconsList,
+        [trimmed]: pizzaSelectedEmoji
+      };
+      setCategoryIconsList(updatedIcons);
+      localStorage.setItem('pizza_categories_v1', JSON.stringify(updated));
+      localStorage.setItem('category_icons_v1', JSON.stringify(updatedIcons));
+      setNewPizzaCat('');
+    }
+  };
+
+  const handleRemovePizzaCat = (catToRemove: string) => {
+    const updated = pizzaCategoriesList.filter(c => c !== catToRemove);
+    setPizzaCategoriesList(updated);
+    localStorage.setItem('pizza_categories_v1', JSON.stringify(updated));
   };
 
   const handleSaveKitchenCategories = async () => {
@@ -1055,7 +1153,56 @@ export default function MantTab({
     setFarmaciaCategoriesList(initialFarmaciaCats);
     localStorage.setItem('farmacia_categories_v1', JSON.stringify(initialFarmaciaCats));
 
+    // State Isolation for Pizza Categories
+    const OFFICIAL_PIZZA_DEFAULTS = [
+      'Pizzas Tradicionales',
+      'Promos 2x / Económicas',
+      'Acompañamientos / Papas Fritas',
+      'Palitos de Ajo / Baguettes',
+      'Salsas y Extras',
+      'Bebidas y Jugos',
+      'Postres y Dulces',
+      'Queso Extra / Mozzarella',
+      'Pepperoni / Cecinas',
+      'Ajo / Especias',
+      'Ají / Picante'
+    ];
+    const cachedPizza = localStorage.getItem('pizza_categories_v1') || localStorage.getItem('pizza_categories_data');
+    let initialPizzaCats = [...OFFICIAL_PIZZA_DEFAULTS];
+    if (cachedPizza) {
+      try {
+        const parsed = JSON.parse(cachedPizza);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          initialPizzaCats = parsed;
+        }
+      } catch (e) {
+        console.error("Error parsing cached pizza categories:", e);
+      }
+    } else if (config.pizzaCategories && config.pizzaCategories.length > 0) {
+      initialPizzaCats = config.pizzaCategories;
+    }
+    setPizzaCategoriesList(initialPizzaCats);
+    localStorage.setItem('pizza_categories_v1', JSON.stringify(initialPizzaCats));
+
     const savedIcons = JSON.parse(localStorage.getItem('category_icons_v1') || '{}');
+    const PIZZA_DEFAULT_STICKERS: Record<string, string> = {
+      'Pizzas Tradicionales': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+      'Pizzas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+      'Promos 2x / Económicas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+      'Promociones 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+      'Promos 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+      'Acompañamientos / Papas Fritas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+      'Acompañamientos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+      'Palitos de Ajo / Baguettes': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+      'Palitos de Ajo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+      'Salsas y Extras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Canned%20Food.png',
+      'Bebidas y Jugos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cup%20With%20Straw.png',
+      'Postres y Dulces': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png',
+      'Queso Extra / Mozzarella': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png',
+      'Pepperoni / Cecinas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bacon.png',
+      'Ajo / Especias': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Garlic.png',
+      'Ají / Picante': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hot%20Pepper.png'
+    };
     const FARMACIA_DEFAULT_STICKERS: Record<string, string> = {
       'Medicamentos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png',
       'Cuidado de la Salud': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png',
@@ -1067,6 +1214,7 @@ export default function MantTab({
       'Conveniencia': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png'
     };
     const initialIcons = {
+      ...PIZZA_DEFAULT_STICKERS,
       ...FARMACIA_DEFAULT_STICKERS,
       ...(config.categoryIcons || {}),
       ...savedIcons
@@ -2764,6 +2912,88 @@ export default function MantTab({
                     <div className="bg-blue-50 border border-blue-200 text-blue-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
                       <ShieldCheck className="w-3.5 h-3.5 text-blue-600 animate-bounce" />
                       <span>¡Categorías de farmacia guardadas con éxito!</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Pizzería Categories - Exclusivo Pizzería */}
+            {activeStoreInfo.key === 'pasion-pizzas' && (
+              <div className="space-y-2.5 bg-amber-50/40 p-3 rounded-2xl border border-amber-100">
+                <label className="text-[9.5px] font-black text-amber-900 uppercase tracking-widest block">
+                  🍕 Menú y Carta de Pizzería
+                </label>
+                <div className="flex flex-wrap gap-2.5 p-1.5 bg-white border border-amber-200 rounded-xl min-h-12 items-center">
+                  {pizzaCategoriesList.map(cat => (
+                    <span key={cat} className="inline-flex items-center gap-2 bg-amber-50 text-amber-950 text-[11px] font-extrabold pl-1.5 pr-2.5 py-1 rounded-full border border-amber-200 shadow-3xs hover:bg-amber-100 transition-colors">
+                      <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-2xs border border-amber-100 shrink-0">
+                        <CategoryIcon cat={cat} iconUrl={getCategoryIcon(cat, categoryIconsList)} className="w-5 h-5 object-contain" />
+                      </span>
+                      <span className="font-bold">{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePizzaCat(cat)}
+                        className="text-amber-500 hover:text-amber-700 focus:outline-hidden cursor-pointer ml-1 p-0.5 rounded-full hover:bg-amber-200"
+                      >
+                        <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    </span>
+                  ))}
+                  {pizzaCategoriesList.length === 0 && (
+                    <span className="text-[10px] text-gray-400 px-2 italic">Sin categorías</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. Pizzas Tradicionales, Promos 2x, Acompañamientos..."
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-amber-600/10 focus:outline-hidden focus:bg-white transition-all font-semibold outline-hidden"
+                    value={newPizzaCat}
+                    onChange={(e) => setNewPizzaCat(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPizzaCat(); } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddPizzaCat}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer shadow-3xs"
+                  >
+                    Agregar
+                  </button>
+                </div>
+
+                {/* Pizza Sticker Selector */}
+                <div className="space-y-1 bg-white p-2.5 rounded-xl border border-amber-150">
+                  <span className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider block">
+                    🎨 Escoge un sticker 3D para asociarlo a la categoría de pizzería:
+                  </span>
+                  <div className="flex gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-none max-w-full justify-start items-center">
+                    {PIZZA_STORE_STICKER_ITEMS.map(item => (
+                      <SelectorStickerItem
+                        key={item.label}
+                        item={item}
+                        selected={pizzaSelectedEmoji === item.url}
+                        onClick={() => setPizzaSelectedEmoji(item.url)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botón de Guardado Específico */}
+                <div className="pt-1.5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleSavePizzaCategories}
+                    disabled={!isUnlocked || loading}
+                    className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-extrabold text-xs py-2.5 rounded-xl transition-all shadow-3xs cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Categorías de Pizzería</span>
+                  </button>
+                  {notifySavedPizzaCats && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 p-2 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold animate-in fade-in duration-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
+                      <span>¡Categorías de pizzería guardadas con éxito!</span>
                     </div>
                   )}
                 </div>

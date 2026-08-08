@@ -2,6 +2,12 @@ export type UnidadMedida =
   | 'unidad'
   | 'kg'
   | 'g'
+  | 'litro'
+  | 'familiar'
+  | 'mediana'
+  | 'personal'
+  | 'combo_2x'
+  | 'pack'
   | 'saco_5kg'
   | 'saco_10kg'
   | 'saco_25kg'
@@ -17,6 +23,12 @@ export function getUnidadLabel(unit?: string): string {
   switch (u) {
     case 'kg': return 'Kg';
     case 'g': return 'g';
+    case 'litro': case 'l': return 'Litro (L)';
+    case 'familiar': case 'familiar_8c': case 'familiar (8 cortes)': return 'Familiar (8 Cortes)';
+    case 'mediana': case 'mediana_6c': case 'mediana (6 cortes)': return 'Mediana (6 Cortes)';
+    case 'personal': case 'personal_4c': case 'personal (4 cortes)': return 'Personal (4 Cortes)';
+    case 'combo_2x': case 'promo_2x': case 'combo': return 'Combo / Promoción 2x';
+    case 'pack': case 'caja_pack': case 'caja': return 'Caja / Pack';
     case 'saco_5kg': case 'saco 5 kg': case 'saco 5kg': return 'Saco 5 Kg';
     case 'saco_10kg': case 'saco 10 kg': case 'saco 10kg': return 'Saco 10 Kg';
     case 'saco_25kg': case 'saco 25 kg': case 'saco 25kg': return 'Saco 25 Kg';
@@ -34,6 +46,12 @@ export function getUnidadShortSuffix(unit?: string): string {
   switch (u) {
     case 'kg': return ' / Kg';
     case 'g': return ' / g';
+    case 'litro': case 'l': return ' / L';
+    case 'familiar': case 'familiar_8c': return ' / Familiar (8 Cortes)';
+    case 'mediana': case 'mediana_6c': return ' / Mediana (6 Cortes)';
+    case 'personal': case 'personal_4c': return ' / Personal (4 Cortes)';
+    case 'combo_2x': case 'promo_2x': return ' / Combo 2x';
+    case 'pack': case 'caja_pack': return ' / Pack';
     case 'saco_5kg': case 'saco 5 kg': case 'saco 5kg': return ' / Saco 5 Kg';
     case 'saco_10kg': case 'saco 10 kg': case 'saco 10kg': return ' / Saco 10 Kg';
     case 'saco_25kg': case 'saco 25 kg': case 'saco 25kg': return ' / Saco 25 Kg';

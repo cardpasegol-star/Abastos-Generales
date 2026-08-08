@@ -15,6 +15,8 @@ interface InventarioTabProps {
   onDeleteProduct: (id: string) => Promise<void>;
   config?: BusinessConfig;
   userRole?: 'admin' | 'cajero';
+  tenantId?: string;
+  storeId?: string;
 }
 
 const PRESET_IMAGES = [
@@ -25,6 +27,14 @@ const PRESET_IMAGES = [
   { label: 'Aguacate', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBKHwCOIzMAguRTJrr8d3e9LlqCNrcvXChDmwyJ1INeC785VEq3zcb45qJdduZ9B6w7bfW9jjndYhiQPZj7lj26Bgi1WzCZVsFJsuBcFxJpotpFRcpH2zYvlED5lNmPNsJVcxg8CNTNelLVp8qzpLtmTDTVKRDElFVy3faTWb2hpCI_4taE5AeM4sj72NwNWlIRla2wcowcktVwejxl7gXRzeZFXDH5jzXm92SUW4wybAAAKORVhJec7LUNiT2kSro5ZAvRcsE02h4' },
   { label: 'Naranjas', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCU7Odb9m9LVBsEv4N50b5NJeq4bSmQe9fWnrbQ_MFFXlflgpuektEG3pJlhrq7JEaqzZrPWP2wTS98S5M9PtW9BzjAdNjOSiwD1Y3PD5dMyCLmBdA2gQh4D-irqFYEnTAYsx4taGp5CeNQPF3IVGtIqXbNothSbFsLQ_mciNmM9EkZh-UbZ01BldH3wTPcc1FpP7CPqXQtAZ-XoR8rA9IeA4qX1I2omsgUwU-vJzzLY6QnBDuq3vZ9EIEmaLMtEC2tf8Z2no7Dvw0' },
   { label: 'Aceite', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC0w6AWq-EHcBx5SuE1-ScX63fUy0pIOosoofZhQgWqRScufztzr1Cf2VtxDJmQVWbXZ3jwI5MHC640Tl9S-TPjjKr3mbyNjtKH0lwvpmtd16tk4KmQIbDOEpGxPoV9ekw_84kwl4Uebrv2OkS-9u84SA7YXTiFaDx-bNGvjGiM1j56mtdqwCMCuCArG-m3tmWksTH_a83vwvtRkNRyd3Xo8H6ZQD-O8nilMNJt70pim4Hz42_qeiAvcSLQ_jYF89-NYb-FPWUMklw' }
+];
+
+const PIZZA_PRESET_IMAGES = [
+  { label: 'Pizzas Tradicionales', url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400' },
+  { label: 'Pepperoni', url: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400' },
+  { label: 'Papas Fritas', url: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=400' },
+  { label: 'Palitos de Ajo', url: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=400' },
+  { label: 'Bebidas y Jugos', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFlYMgz-vIQcuMIgjuYTAgcl-nd2AxDuI4_1FzyqcDEeVhAdW0OMPH_hMf-2C_eoEWwjLtXF4OE6iINZPMLbLMPO44e1oZxox9whWwTNOL4EEpG_rzZKL-LTzue0SQzGQv6aW0DnZNBvZt71AsIjOj2IF7awSBI9J_pOpz9wbMiCISokAb8O2qvKoM3MgiKcse0wWbI4-VgkmYMCKIXWaneBXBg2GJxZR3Ky7cG2N7kn_qQSEnxMVl57dbd74Es_rMsFscsjqwjk' }
 ];
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -52,6 +62,22 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Vitaminas y Suplementos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Dna.png',
   'Adulto Mayor': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Probing%20Cane.png',
   'Conveniencia': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Travel%20Places/Convenience%20Store.png',
+  'Pizzas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+  'Pizzas Tradicionales': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+  'Promos 2x / Económicas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Promociones 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Promos 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png',
+  'Acompañamientos / Papas Fritas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+  'Acompañamientos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png',
+  'Palitos de Ajo / Baguettes': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+  'Palitos de Ajo': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+  'Salsas y Extras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Canned%20Food.png',
+  'Bebidas y Jugos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cup%20With%20Straw.png',
+  'Postres y Dulces': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png',
+  'Queso Extra / Mozzarella': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png',
+  'Pepperoni / Cecinas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bacon.png',
+  'Ajo / Especias': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Garlic.png',
+  'Ají / Picante': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hot%20Pepper.png',
 };
 
 export function getCategoryIcon(cat: string, config?: BusinessConfig): string {
@@ -68,6 +94,19 @@ export function getCategoryIcon(cat: string, config?: BusinessConfig): string {
   if (CATEGORY_ICONS[cat]) return CATEGORY_ICONS[cat];
 
   const lower = cat.toLowerCase();
+  if (lower.includes('pizza')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png';
+  if (lower.includes('promo') || lower.includes('2x') || lower.includes('oferta')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Activities/Fire.png';
+  if (lower.includes('papas fritas') || lower.includes('acompaña') || lower.includes('fritas')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/French%20Fries.png';
+  if (lower.includes('palitos') || lower.includes('baguette') || lower.includes('pan')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png';
+  if (lower.includes('salsa') || lower.includes('extra') || lower.includes('aderezo')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Canned%20Food.png';
+  if (lower.includes('jugo') || lower.includes('bebida') || lower.includes('gaseosa') || lower.includes('refresco')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cup%20With%20Straw.png';
+  if (lower.includes('postre') || lower.includes('dulce') || lower.includes('torta') || lower.includes('tiramis')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shortcake.png';
+  if (lower.includes('mozzarella') || lower.includes('queso')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png';
+  if (lower.includes('pepperoni') || lower.includes('cecina') || lower.includes('jamón') || lower.includes('jamon') || lower.includes('tocino')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Bacon.png';
+  if (lower.includes('ajo') || lower.includes('especia')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Garlic.png';
+  if (lower.includes('ají') || lower.includes('aji') || lower.includes('picante')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Hot%20Pepper.png';
+  if (lower.includes('cebolla')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Onion.png';
+  if (lower.includes('champiñ') || lower.includes('champin') || lower.includes('seta') || lower.includes('hongo')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Mushroom.png';
   if (lower.includes('medicamento') || lower.includes('remedio') || lower.includes('fármaco') || lower.includes('farmaco') || lower.includes('píldora') || lower.includes('pastilla')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png';
   if (lower.includes('salud') || lower.includes('médico') || lower.includes('estetoscopio')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Stethoscope.png';
   if (lower.includes('mamá') || lower.includes('bebé') || lower.includes('bebe') || lower.includes('biberón') || lower.includes('mamadera')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baby%20Bottle.png';
@@ -82,12 +121,26 @@ export function getCategoryIcon(cat: string, config?: BusinessConfig): string {
   if (lower.includes('dental') || lower.includes('dientes') || lower.includes('cepillo')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Toothbrush.png';
   if (lower.includes('jabón') || lower.includes('jabon')) return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Soap.png';
 
-  return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Pill.png';
+  return 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png';
 }
 
 export function getCategoryIconEmoji(cat: string, config?: BusinessConfig): string {
   const icon = getCategoryIcon(cat, config);
   if (icon && icon.startsWith('http')) {
+    if (icon.includes('Pizza.png')) return '🍕';
+    if (icon.includes('Fire.png')) return '🔥';
+    if (icon.includes('French%20Fries.png')) return '🍟';
+    if (icon.includes('Baguette%20Bread.png')) return '🥖';
+    if (icon.includes('Canned%20Food.png')) return '🥫';
+    if (icon.includes('Cup%20With%20Straw.png')) return '🥤';
+    if (icon.includes('Shortcake.png')) return '🍰';
+    if (icon.includes('Cheese%20Wedge.png')) return '🧀';
+    if (icon.includes('Bacon.png')) return '🥓';
+    if (icon.includes('Garlic.png')) return '🧄';
+    if (icon.includes('Hot%20Pepper.png')) return '🌶️';
+    if (icon.includes('Onion.png')) return '🧅';
+    if (icon.includes('Mushroom.png')) return '🍄';
+    if (icon.includes('Herb.png')) return '🌿';
     if (icon.includes('Pill.png')) return '💊';
     if (icon.includes('Stethoscope.png')) return '🩺';
     if (icon.includes('Baby%20Bottle.png') || icon.includes('Baby_Bottle')) return '🍼';
@@ -267,7 +320,7 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
 }
 
 
-export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct, config, userRole }: InventarioTabProps) {
+export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct, config, userRole, tenantId, storeId }: InventarioTabProps) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -275,12 +328,81 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   
   const invUrlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const invUrlTienda = invUrlParams?.get('tienda') || invUrlParams?.get('id_tienda') || invUrlParams?.get('modulo');
-  const isFruteriaByUrl = invUrlTienda === 'fruteria' || invUrlTienda === 'frutería' || invUrlTienda === 'fruteria_principe_gales';
+  const activeTenant = (tenantId || storeId || invUrlTienda || (config as any)?.storeKey || (config as any)?.storeId || (typeof window !== 'undefined' ? (localStorage.getItem('tenant_tienda_id') || localStorage.getItem('id_tienda')) : '') || '').toLowerCase();
 
-  const isFruteria = isFruteriaByUrl ||
+  const isPizzeria = activeTenant === 'pasion-pizzas' ||
+                     activeTenant === 'pasion_pizzas' ||
+                     activeTenant === 'pasion' ||
+                     activeTenant === 'pizzas' ||
+                     activeTenant === 'pasionpizzas' ||
+                     activeTenant === 'pizza' ||
+                     activeTenant === 'pizzeria' ||
+                     activeTenant === 'pizzería' ||
+                     (config as any)?.storeKey === 'pasion-pizzas' ||
+                     config?.name?.toLowerCase().includes('pasión') ||
+                     config?.name?.toLowerCase().includes('pasion') ||
+                     config?.name?.toLowerCase().includes('pizza');
+
+  const isFruteriaByUrl = activeTenant === 'fruteria' || activeTenant === 'frutería' || activeTenant === 'fruteria_principe_gales';
+
+  const isFruteria = !isPizzeria && (
+                     isFruteriaByUrl ||
                      config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
-                     (isModuleActive('frutería', config) && !isModuleActive('tiendaAbarrotes', config));
+                     (isModuleActive('frutería', config) && !isModuleActive('tiendaAbarrotes', config))
+  );
+
+  const isFarmacia = !isPizzeria && (
+                     activeTenant === 'farmacia' || activeTenant === 'barrioseguro' || activeTenant === 'farmacia_barrio_seguro' ||
+                     (config as any)?.storeKey === 'farmacia' ||
+                     config?.name?.toLowerCase().includes('farmacia') ||
+                     config?.name?.toLowerCase().includes('seguro')
+  );
+
+  const isArtico = !isPizzeria && !isFarmacia && (
+                   activeTenant === 'artico' || activeTenant === 'artico_congelados' || activeTenant === 'congelados' ||
+                   (config as any)?.storeKey === 'artico' ||
+                   config?.name?.toLowerCase().includes('ártico') ||
+                   config?.name?.toLowerCase().includes('artico') ||
+                   config?.name?.toLowerCase().includes('congelados')
+  );
+
+  const OFFICIAL_PIZZA_CATEGORIES = [
+    'Pizzas Tradicionales',
+    'Promos 2x / Económicas',
+    'Acompañamientos / Papas Fritas',
+    'Palitos de Ajo / Baguettes',
+    'Salsas y Extras',
+    'Bebidas y Jugos',
+    'Postres y Dulces',
+    'Queso Extra / Mozzarella',
+    'Pepperoni / Cecinas',
+    'Ajo / Especias',
+    'Ají / Picante'
+  ];
+
+  const getPizzaCategoriesList = (): string[] => {
+    let list: string[] = [];
+    if ((config as any)?.pizzaCategories && (config as any).pizzaCategories.length > 0) {
+      list = (config as any).pizzaCategories;
+    } else if (config?.productCategories && isPizzeria && config.productCategories.length > 0) {
+      list = config.productCategories;
+    } else if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('pizza_categories_v1') || localStorage.getItem('pasion_pizzas_categories_data');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            list = parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    if (list.length === 0) {
+      list = OFFICIAL_PIZZA_CATEGORIES;
+    }
+    return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ/+-]+/, '').trim()).filter(Boolean)));
+  };
 
   const OFFICIAL_FRUTERIA_CATEGORIES = [
     'Frutas',
@@ -358,26 +480,24 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const rawProductCats = config?.productCategories || ['Bebidas', 'Abarrotes', 'Lácteos', 'Snacks'];
   const rawFruteriaCats = config?.fruteriaCategories || OFFICIAL_FRUTERIA_CATEGORIES;
 
-  const isFarmacia = invUrlTienda === 'farmacia' || invUrlTienda === 'barrioseguro' || invUrlTienda === 'farmacia_barrio_seguro' ||
-                     (config as any)?.storeKey === 'farmacia' ||
-                     config?.name?.toLowerCase().includes('farmacia') ||
-                     config?.name?.toLowerCase().includes('seguro');
+  const productCats = isPizzeria
+    ? getPizzaCategoriesList()
+    : isArtico
+      ? getArticoCategoriesList()
+      : isFarmacia
+        ? getFarmaciaCategoriesList()
+        : isFruteria
+          ? Array.from(new Set([...(config?.fruteriaCategories || []), ...OFFICIAL_FRUTERIA_CATEGORIES]))
+          : Array.from(new Set([
+              ...(isModuleActive('tiendaAbarrotes', config) ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
+              ...(isModuleActive('frutería', config) ? rawFruteriaCats.filter(cat => isModuleActive(cat, config)) : []),
+              ...(isModuleActive('congelados', config) ? getArticoCategoriesList().filter(cat => isModuleActive(cat, config)) : []),
+              ...(isModuleActive('farmacia', config) ? getFarmaciaCategoriesList().filter(cat => isModuleActive(cat, config)) : [])
+            ]));
 
-  const isArtico = invUrlTienda === 'artico' || (config as any)?.storeKey === 'artico' || config?.name?.toLowerCase().includes('ártico') || config?.name?.toLowerCase().includes('artico') || config?.name?.toLowerCase().includes('congelados');
-
-  const productCats = isArtico
-    ? getArticoCategoriesList()
-    : isFarmacia
-      ? getFarmaciaCategoriesList()
-      : isFruteria
-        ? Array.from(new Set([...(config?.fruteriaCategories || []), ...OFFICIAL_FRUTERIA_CATEGORIES]))
-        : Array.from(new Set([
-            ...(isModuleActive('tiendaAbarrotes', config) ? rawProductCats.filter(cat => isModuleActive(cat, config)) : []),
-            ...(isModuleActive('frutería', config) ? rawFruteriaCats.filter(cat => isModuleActive(cat, config)) : []),
-            ...(isModuleActive('congelados', config) ? getArticoCategoriesList().filter(cat => isModuleActive(cat, config)) : []),
-            ...(isModuleActive('farmacia', config) ? getFarmaciaCategoriesList().filter(cat => isModuleActive(cat, config)) : [])
-          ]));
-  const defaultCategory = productCats.length > 0 ? productCats[0] : 'Frutas';
+  const defaultCategory = productCats.length > 0
+    ? productCats[0]
+    : (isPizzeria ? 'Pizzas Tradicionales' : (isFruteria ? 'Frutas' : 'Abarrotes'));
 
   const [formData, setFormData] = useState<{
     sku: string;
@@ -392,12 +512,14 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     imageUrl: string;
     enOferta: boolean;
     precioOferta: string | number;
-    unidadMedida?: 'unidad' | 'kg' | 'g';
+    unidadMedida?: 'unidad' | 'kg' | 'g' | 'familiar' | 'mediana' | 'personal' | 'combo_2x' | 'pack' | 'litro' | string;
   }>({
     sku: '', name: '', category: defaultCategory, subcategoria: '', marca: '',
-    stock: 0, price: '', cost: '', precioNeto: '', imageUrl: PRESET_IMAGES[0].url,
+    stock: isPizzeria ? 20 : (isFruteria ? 50 : 12),
+    price: '', cost: '', precioNeto: '',
+    imageUrl: isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url,
     enOferta: false, precioOferta: '',
-    unidadMedida: isFruteria ? 'kg' : 'unidad'
+    unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad')
   });
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -1528,6 +1650,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
 
   const activeProducts = products.filter(product => {
     const catRaw = product.category || '';
+    if (isPizzeria) return true;
     if (isFarmacia) return isFarmaciaModuleActive(catRaw, config);
     return isModuleActive(catRaw, config);
   });
@@ -1540,8 +1663,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase()) ||
       product.sku.toLowerCase().includes(search.toLowerCase());
     const catRaw = product.category || '';
-    const cleanSelected = selectedCategory.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
-    const cleanCatRaw = catRaw.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
+    const cleanSelected = selectedCategory.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ/+-]+/, '').trim().toLowerCase();
+    const cleanCatRaw = catRaw.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ/+-]+/, '').trim().toLowerCase();
 
     const matchesCat = selectedCategory === 'Todos' ||
       selectedCategory === 'Todo' ||
@@ -1557,15 +1680,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     setSuggestionError(null);
     setFormData({
       sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
-      name: '', category: defaultCategory, subcategoria: '', marca: '', stock: 12, price: '', cost: '',
+      name: '', category: defaultCategory, subcategoria: '', marca: '',
+      stock: isPizzeria ? 20 : (isFruteria ? 50 : 12),
+      price: '', cost: '',
       precioNeto: '',
-      imageUrl: PRESET_IMAGES[0].url,
+      imageUrl: isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url,
       enOferta: false,
       precioOferta: '',
-      unidadMedida: isFruteria ? 'kg' : 'unidad'
+      unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad')
     });
     setShowAddModal(true);
-  }, [defaultCategory, isFruteria]);
+  }, [defaultCategory, isFruteria, isPizzeria]);
 
   const handleOpenEdit = useCallback((product: Product) => {
     setEditingItem(product);
@@ -1587,13 +1712,13 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       price: initPrice,
       cost: product.cost,
       precioNeto: initNeto,
-      imageUrl: product.imageUrl || PRESET_IMAGES[0].url,
+      imageUrl: product.imageUrl || (isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url),
       enOferta: product.enOferta || false,
       precioOferta: product.precioOferta !== undefined && product.precioOferta !== null ? String(product.precioOferta) : '',
-      unidadMedida: product.unidadMedida || 'unidad'
+      unidadMedida: product.unidadMedida || (isPizzeria ? 'unidad' : 'unidad')
     });
     setShowAddModal(true);
-  }, []);
+  }, [isPizzeria]);
 
   /* ── SISTEMA DE ENRUTAMIENTO DE ESCANEO DE CODIGO DE BARRAS (REGLA 6) ── */
   const handleBarcodeScanResult = useCallback((barcode: string) => {
@@ -1623,19 +1748,20 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           sku: barcode,
           name: '',
           category: defaultCategory,
-          stock: 12,
+          stock: isPizzeria ? 20 : 12,
           price: '',
           cost: '',
-          imageUrl: PRESET_IMAGES[0].url,
+          imageUrl: isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url,
           enOferta: false,
-          precioOferta: ''
+          precioOferta: '',
+          unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad')
         });
         setShowAddModal(true);
         // Auto-buscar detalles desde bases de datos externas Open Food Facts / UPCitemdb
         lookupBarcode(barcode);
       }
     }
-  }, [products, handleOpenEdit, lookupBarcode, defaultCategory, userRole]);
+  }, [products, handleOpenEdit, lookupBarcode, defaultCategory, userRole, isPizzeria, isFruteria]);
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
@@ -1663,13 +1789,13 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         price: parsedPrice,
         precioNeto: parsedNeto,
         cost: parseFloat(String(formData.cost)) || 0,
-        imageUrl: formData.imageUrl || PRESET_IMAGES[0].url,
+        imageUrl: formData.imageUrl || (isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url),
         enOferta: formData.enOferta ? true : false,
         esOferta: formData.enOferta ? true : false,
         precioOferta: formData.enOferta ? (parseFloat(String(formData.precioOferta)) || null) : null,
-        unidadMedida: formData.unidadMedida || (isFrut ? 'kg' : 'unidad'),
-        store: isFruteria ? 'fruteria' : (isArtico ? 'artico' : (isFarmacia ? 'barrioseguro' : 'turco')),
-        module: isFruteria ? 'fruteria' : (isFarmacia ? 'farmacia' : 'tiendaAbarrotes')
+        unidadMedida: formData.unidadMedida || (isPizzeria ? 'unidad' : (isFrut ? 'kg' : 'unidad')),
+        store: isPizzeria ? 'pasion-pizzas' : (isFruteria ? 'fruteria' : (isArtico ? 'artico' : (isFarmacia ? 'barrioseguro' : 'turco'))),
+        module: isPizzeria ? 'pizzeria' : (isFruteria ? 'fruteria' : (isFarmacia ? 'farmacia' : 'tiendaAbarrotes'))
       };
       if (formData.subcategoria?.trim()) parsedData.subcategoria = formData.subcategoria.trim();
       if (formData.marca?.trim()) parsedData.marca = formData.marca.trim();
@@ -2027,7 +2153,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                 </div>
               </div>
               <div className="flex gap-2 overflow-x-auto py-1.5">
-                {PRESET_IMAGES.map((img, i) => (
+                {(isPizzeria ? PIZZA_PRESET_IMAGES : PRESET_IMAGES).map((img, i) => (
                   <button key={i} type="button" onClick={() => setFormData({ ...formData, imageUrl: img.url })}
                     className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${formData.imageUrl === img.url ? 'ring-2 ring-emerald-500 scale-105 border-emerald-600' : 'border-slate-200 opacity-60'}`}>
                     <img src={img.url} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
@@ -2037,7 +2163,8 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">O pegar URL de Imagen Externa</label>
                 {(() => {
-                  const isPresetUrl = PRESET_IMAGES.some(img => img.url === formData.imageUrl);
+                  const activePresetList = isPizzeria ? PIZZA_PRESET_IMAGES : PRESET_IMAGES;
+                  const isPresetUrl = activePresetList.some(img => img.url === formData.imageUrl);
                   const isBase64Url = formData.imageUrl?.startsWith('data:');
                   const displayUrl = (isPresetUrl || isBase64Url) ? '' : formData.imageUrl;
                   return (
@@ -2172,8 +2299,31 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
               </div>
             )}
 
-            {/* Unidad de Medida (Para Frutería, Verdulería y Almacén) */}
-            {(getModuleForCategory(formData.category || defaultCategory) === 'frutería' || isFruteria || (formData.category || '').toLowerCase().includes('frut') || (formData.category || '').toLowerCase().includes('verdur')) && (
+            {/* Unidad de Venta Dinámica según Tienda */}
+            {isPizzeria ? (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Unidad de Venta *</label>
+                <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
+                  value={formData.unidadMedida || 'unidad'} 
+                  onChange={(e) => setFormData({ ...formData, unidadMedida: e.target.value as any })}>
+                  <optgroup label="🍕 Formatos y Porciones Gastronómicas">
+                    <option value="unidad">Por Unidad / Porción</option>
+                    <option value="familiar">Familiar (8 Cortes)</option>
+                    <option value="mediana">Mediana (6 Cortes)</option>
+                    <option value="personal">Personal (4 Cortes)</option>
+                    <option value="combo_2x">Combo / Promoción 2x</option>
+                    <option value="pack">Caja / Pack</option>
+                  </optgroup>
+                  <optgroup label="🥤 Líquidos y Bebidas">
+                    <option value="litro">Por Litro (L)</option>
+                  </optgroup>
+                  <optgroup label="⚖️ Insumos y Cocina">
+                    <option value="g">Por Gramos (g)</option>
+                    <option value="kg">Por Kilo (Kg)</option>
+                  </optgroup>
+                </select>
+              </div>
+            ) : ((getModuleForCategory(formData.category || defaultCategory) === 'frutería' || isFruteria || (formData.category || '').toLowerCase().includes('frut') || (formData.category || '').toLowerCase().includes('verdur')) && (
               <div className="space-y-1.5 animate-in fade-in duration-200">
                 <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Unidad de Venta *</label>
                 <select className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-3 py-3.5 text-sm outline-none font-bold text-slate-950 focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white cursor-pointer"
@@ -2197,7 +2347,7 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   </optgroup>
                 </select>
               </div>
-            )}
+            ))}
 
             {/* Precios y Stock (Separación entre Ártico y Comercio General) */}
             {isArtico ? (

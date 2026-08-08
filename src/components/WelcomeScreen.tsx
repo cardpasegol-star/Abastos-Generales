@@ -73,6 +73,17 @@ const MOCK_STORES: StoreItem[] = [
     bannerUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=800',
     tagColor: 'bg-emerald-700 text-white',
     btnBg: 'bg-emerald-700 hover:bg-emerald-800 text-white'
+  },
+  { 
+    id: 'pasion-pizzas', 
+    name: 'Pizzería "Pasión por las Pizzas"', 
+    comuna: 'Providencia / Ñuñoa', 
+    badge: '🍕 Pizzas & Promos 2x',
+    description: 'Pizzas artesanales a la piedra, masa madre, promociones 2x, calzones, palitos de ajo, tiramisú y bebidas frías.', 
+    emoji: '🍕',
+    bannerUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800',
+    tagColor: 'bg-red-600 text-white',
+    btnBg: 'bg-red-600 hover:bg-red-700 text-white'
   }
 ];
 
@@ -140,6 +151,7 @@ export default function WelcomeScreen({ onSelectStore }: WelcomeScreenProps) {
     if (clean === 'fruteria' || clean === 'frutería') clean = 'fruteria_principe_gales';
     if (clean === 'turco') clean = 'el_turco';
     if (clean === 'artico' || clean === 'congelados') clean = 'artico_congelados';
+    if (clean === 'pasion' || clean === 'pizzas' || clean === 'pasion_pizzas' || clean === 'pasionpizzas') clean = 'pasion-pizzas';
     localStorage.setItem('id_tienda', clean);
     localStorage.setItem('tenant_tienda_id', clean);
     onSelectStore(clean);

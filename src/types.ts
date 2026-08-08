@@ -202,6 +202,8 @@ export interface BusinessConfig {
   id: string;
   storeKey?: string;
   name: string;
+  rut?: string;
+  address?: string;
   whatsapp: string;
   gps: string;
   adminPin: string;
@@ -211,6 +213,7 @@ export interface BusinessConfig {
   foodItemCategories?: string[];
   fruteriaCategories?: string[];
   articoCategories?: string[];
+  pizzaCategories?: string[];
   farmaciaCategories?: string[];
   categoryIcons?: Record<string, string>;
   schedule?: ScheduleConfig;

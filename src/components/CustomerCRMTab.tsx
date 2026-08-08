@@ -82,7 +82,78 @@ const DEFAULT_CUSTOMERS: CustomerProfile[] = [
   }
 ];
 
+const PIZZA_DEFAULT_CUSTOMERS: CustomerProfile[] = [
+  {
+    id: 'cust-piz-1',
+    name: 'Sebastián Valenzuela',
+    phone: '+56998877665',
+    address: 'Av. Providencia 2100, Depto 402',
+    comuna: 'Providencia',
+    deliveryRing: 'Sector Central / Providencia',
+    creditLimit: 50000,
+    currentDebt: 21980,
+    notes: 'Cliente frecuente de Pizzas Tradicionales y Promos 2x Familiar los fines de semana.',
+    createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
+    orderCount: 12,
+    totalSpent: 165000,
+    ledger: [
+      {
+        id: 'led-p1',
+        date: new Date(Date.now() - 4 * 86400000).toISOString(),
+        type: 'cargo',
+        amount: 21980,
+        description: 'Pedido Delivery #PZ-771 (2 Familiar Pepperoni + Bebida)'
+      }
+    ]
+  },
+  {
+    id: 'cust-piz-2',
+    name: 'Carolina Morales',
+    phone: '+56987651234',
+    address: 'Av. Los Leones 1540, Providencia',
+    comuna: 'Providencia',
+    deliveryRing: 'Sector Central / Providencia',
+    creditLimit: 40000,
+    currentDebt: 0,
+    notes: 'Pide pizzas vegetarianas y palitos de ajo. Paga con transferencia al recibir.',
+    createdAt: new Date(Date.now() - 40 * 86400000).toISOString(),
+    orderCount: 9,
+    totalSpent: 112000,
+    ledger: []
+  },
+  {
+    id: 'cust-piz-3',
+    name: 'Empresa Creativa SpA (Rodrigo)',
+    phone: '+56976549988',
+    address: 'Av. Andrés Bello 2777, Torre Costanera',
+    comuna: 'Providencia',
+    deliveryRing: 'Sector Central / Providencia',
+    creditLimit: 120000,
+    currentDebt: 45960,
+    notes: 'Cuenta corriente corporativa para eventos de oficina los días viernes.',
+    createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
+    orderCount: 22,
+    totalSpent: 380000,
+    ledger: [
+      {
+        id: 'led-p2',
+        date: new Date(Date.now() - 2 * 86400000).toISOString(),
+        type: 'cargo',
+        amount: 45960,
+        description: 'Pedido Oficina (4 Pizzas Familiares + 4 Bebidas)'
+      }
+    ]
+  }
+];
+
 export default function CustomerCRMTab({ config, transactions = [], tenantId }: CustomerCRMTabProps) {
+  const isPizzaTenant = tenantId?.toLowerCase() === 'pasion-pizzas' ||
+                        tenantId?.toLowerCase() === 'pasion_pizzas' ||
+                        tenantId?.toLowerCase() === 'pasion' ||
+                        tenantId?.toLowerCase() === 'pizzas' ||
+                        tenantId?.toLowerCase() === 'pasionpizzas';
+
+  const initialDefaults = isPizzaTenant ? PIZZA_DEFAULT_CUSTOMERS : DEFAULT_CUSTOMERS;
   const storageKey = `crm_customers_${tenantId || 'default'}`;
 
   const [customers, setCustomers] = useState<CustomerProfile[]>(() => {
@@ -90,7 +161,7 @@ export default function CustomerCRMTab({ config, transactions = [], tenantId }: 
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
     } catch {}
-    return DEFAULT_CUSTOMERS;
+    return initialDefaults;
   });
 
   const [searchTerm, setSearchTerm] = useState('');

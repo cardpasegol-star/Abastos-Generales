@@ -33,6 +33,10 @@ const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Mariscos y Pescados': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Shrimp.png',
   'Refrigerados y Cecinas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cheese%20Wedge.png',
   'Kits y Huevos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png',
+  'Pizzas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Pizza.png',
+  'Promociones 2x': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Symbols/Sparkles.png',
+  'Acompañamientos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Baguette%20Bread.png',
+  'Salsas y Extras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Cooking.png',
 };
 
 function getCategoryIcon(cat: string, config?: BusinessConfig): string {
@@ -87,7 +91,11 @@ function CategoryIcon({ cat, config, sizeClass = "w-5 h-5 object-contain inline-
     if (lower.includes('dado') || lower.includes('azar') || lower.includes('juego')) return '🎲';
     if (lower.includes('caramelo') || lower.includes('dulce') || lower.includes('candy')) return '🍬';
     if (lower.includes('chocolate')) return '🍫';
-    if (lower.includes('baguette')) return '🥖';
+    if (lower.includes('baguette') || lower.includes('palito') || lower.includes('acompaña') || lower.includes('pan')) return '🥖';
+    if (lower.includes('pizza')) return '🍕';
+    if (lower.includes('promo') || lower.includes('combo')) return '✨';
+    if (lower.includes('salsa') || lower.includes('extra')) return '🥫';
+    if (lower.includes('tiramisú') || lower.includes('tiramisu') || lower.includes('calzone')) return '🍰';
     if (lower.includes('congelado') || lower.includes('hielo')) return '🧊';
     if (lower.includes('mascota') || lower.includes('huella')) return '🐾';
     if (lower.includes('ferretería') || lower.includes('llave') || lower.includes('herramienta')) return '🔧';
@@ -252,6 +260,7 @@ function getStoreOriginComuna(): string {
     if (activeTenant.includes('turco')) return 'La Pintana';
     if (activeTenant.includes('buencorte')) return 'La Florida';
     if (activeTenant.includes('barrioseguro')) return 'Santiago Centro';
+    if (activeTenant.includes('pasion') || activeTenant.includes('pizza')) return 'Providencia';
   } catch (e) {
     console.error(e);
   }
@@ -271,7 +280,8 @@ function getDeliveryFeeForComuna(targetComuna: string, originComuna: string): nu
     "la florida": ["la pintana", "puente alto", "san ramón", "san ramon", "macul", "peñalolén", "peñalolen", "san joaquín", "san joaquin", "la granja", "ñuñoa", "nunoa", "providencia", "las condes"],
     "la pintana": ["la florida", "puente alto", "san ramón", "san ramon", "la granja", "el bosque", "san bernardo"],
     "santiago centro": ["providencia", "ñuñoa", "nunoa", "recoleta", "independencia", "quinta normal", "estación central", "estacion central", "san miguel", "san joaquín", "san joaquin", "pedro aguirre cerda", "macul"],
-    "ñuñoa": ["providencia", "macul", "peñalolén", "peñalolen", "las condes", "santiago centro", "san joaquín", "san joaquin", "la reina"]
+    "ñuñoa": ["providencia", "macul", "peñalolén", "peñalolen", "las condes", "santiago centro", "san joaquín", "san joaquin", "la reina"],
+    "providencia": ["ñuñoa", "nunoa", "santiago centro", "las condes", "la reina", "recoleta", "vitacura", "macul"]
   };
   
   const vecinas = vecinasMap[originNorm] || vecinasMap["la florida"];
@@ -289,6 +299,7 @@ function getStoreCoordinates(): { lat: number; lon: number } {
     if (activeTenant.includes('turco')) return { lat: -33.5857, lon: -70.6276 };
     if (activeTenant.includes('buencorte')) return { lat: -33.5226, lon: -70.5987 };
     if (activeTenant.includes('barrioseguro')) return { lat: -33.4489, lon: -70.6693 };
+    if (activeTenant.includes('pasion') || activeTenant.includes('pizza')) return { lat: -33.4263, lon: -70.6128 };
   } catch (e) {
     console.error(e);
   }
@@ -456,18 +467,28 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const urlTienda = urlParams?.get('tienda') || urlParams?.get('id_tienda') || urlParams?.get('modulo');
   const isFruteriaByUrl = urlTienda === 'fruteria' || urlTienda === 'frutería' || urlTienda === 'fruteria_principe_gales';
   const isArticoByUrl = urlTienda === 'artico' || urlTienda === 'artico_congelados' || urlTienda === 'congelados';
+  const isFarmaciaByUrl = urlTienda === 'farmacia' || urlTienda === 'barrioseguro' || urlTienda === 'farmacia_barrio_seguro';
+  const isPizzeriaByUrl = urlTienda === 'pasion-pizzas' || urlTienda === 'pasion_pizzas' || urlTienda === 'pizza' || urlTienda === 'pizzeria' || urlTienda === 'pizzería' || urlTienda === 'pasion';
 
-  const isArtico = isArticoByUrl ||
+  const isPizzeria = isPizzeriaByUrl ||
+                     config?.name?.toLowerCase().includes('pasión') ||
+                     config?.name?.toLowerCase().includes('pasion') ||
+                     config?.name?.toLowerCase().includes('pizza');
+
+  const isArtico = !isPizzeria && (
+                   isArticoByUrl ||
                    config?.name?.toLowerCase().includes('ártico') ||
                    config?.name?.toLowerCase().includes('artico') ||
-                   config?.name?.toLowerCase().includes('congelados');
+                   config?.name?.toLowerCase().includes('congelados')
+  );
 
-  const isFarmaciaByUrl = urlTienda === 'farmacia' || urlTienda === 'barrioseguro' || urlTienda === 'farmacia_barrio_seguro';
-  const isFarmacia = isFarmaciaByUrl ||
+  const isFarmacia = !isPizzeria && !isArtico && (
+                     isFarmaciaByUrl ||
                      config?.name?.toLowerCase().includes('farmacia') ||
-                     config?.name?.toLowerCase().includes('seguro');
+                     config?.name?.toLowerCase().includes('seguro')
+  );
 
-  const isFruteria = !isArtico && !isFarmacia && (
+  const isFruteria = !isPizzeria && !isArtico && !isFarmacia && (
                      isFruteriaByUrl ||
                      config?.name?.toLowerCase().includes('frutería') || 
                      config?.name?.toLowerCase().includes('gales') || 
@@ -743,6 +764,20 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     'Conveniencia'
   ];
 
+  const OFFICIAL_PIZZA_CATEGORIES = [
+    'Pizzas Tradicionales',
+    'Promos 2x / Económicas',
+    'Acompañamientos / Papas Fritas',
+    'Palitos de Ajo / Baguettes',
+    'Salsas y Extras',
+    'Bebidas y Jugos',
+    'Postres y Dulces',
+    'Queso Extra / Mozzarella',
+    'Pepperoni / Cecinas',
+    'Ajo / Especias',
+    'Ají / Picante'
+  ];
+
   const getArticoCategoriesList = (): string[] => {
     let list: string[] = [];
     if (config?.articoCategories && config.articoCategories.length > 0) {
@@ -760,6 +795,27 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     }
     if (list.length === 0) {
       list = OFFICIAL_ARTICO_CATEGORIES;
+    }
+    return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
+  };
+
+  const getPizzaCategoriesList = (): string[] => {
+    let list: string[] = [];
+    if (config?.pizzaCategories && config.pizzaCategories.length > 0) {
+      list = config.pizzaCategories;
+    } else if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('pizza_categories_v1') || localStorage.getItem('pizza_categories_data');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            list = parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    if (list.length === 0) {
+      list = OFFICIAL_PIZZA_CATEGORIES;
     }
     return Array.from(new Set(list.map(c => c.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim()).filter(Boolean)));
   };
@@ -791,7 +847,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       ? ['Todo', ...getArticoCategoriesList()]
       : isFarmacia
         ? ['Todo', ...getFarmaciaCategoriesList()]
-        : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')]
+        : isPizzeria
+          ? ['Todo', ...getPizzaCategoriesList()]
+          : ['Todo', ...activeProductCategories.filter(cat => getModuleForCategory(cat) !== 'frutería')]
   ));
   const fruteriaCategories = Array.from(new Set(isFruteria
     ? ['Todo', ...Array.from(new Set(productosNormalizados.map(p => p.category || (p as any).categoria).filter(Boolean)))]
@@ -2838,11 +2896,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   <ShoppingBag className="w-4 h-4" />
                 </span>
                 <h3 className="font-black text-slate-950 text-lg font-sans tracking-tight">
-                  {isFarmacia ? 'Catálogo de Farmacia 💊' : 'Productos de Tienda 📦'}
+                  {isPizzeria ? 'Menú y Carta de Pizzería 🍕' : isFarmacia ? 'Catálogo de Farmacia 💊' : 'Productos de Tienda 📦'}
                 </h3>
               </div>
               <p className="text-xs text-slate-600 font-bold font-sans">
-                {isFarmacia ? 'Medicamentos, cuidado personal, higiene, belleza y suplementos para tu bienestar' : 'Víveres, latas, bebidas frías, lácteos y snacks indispensables'}
+                {isPizzeria ? 'Pizzas familiares, tradicionales, promociones 2x, acompañamientos y salsas' : isFarmacia ? 'Medicamentos, cuidado personal, higiene, belleza y suplementos para tu bienestar' : 'Víveres, latas, bebidas frías, lácteos y snacks indispensables'}
               </p>
             </div>
           </div>

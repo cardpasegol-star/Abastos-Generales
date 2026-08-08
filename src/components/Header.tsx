@@ -79,11 +79,14 @@ function getAllComunasFromConfig(rutas?: Record<string, SectorConfig>): string[]
 export default function Header({ config, currentEmployee, onLogout, onOpenAdmin, selectedComuna, onSelectComuna }: HeaderProps) {
   const isArtico = config.name?.toLowerCase().includes('ártico') || config.name?.toLowerCase().includes('artico') || config.name?.toLowerCase().includes('congelados');
   const isFruteria = config.name?.toLowerCase().includes('frutería') || config.name?.toLowerCase().includes('fruteria') || config.name?.toLowerCase().includes('gales');
+  const isPizzeria = config.name?.toLowerCase().includes('pasión') || config.name?.toLowerCase().includes('pasion') || config.name?.toLowerCase().includes('pizza');
 
   const defaultBanner = isArtico
     ? 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800'
     : isFruteria
     ? 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800'
+    : isPizzeria
+    ? 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800'
     : 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800';
 
   const bannerImage = config.bannerUrl || defaultBanner;
