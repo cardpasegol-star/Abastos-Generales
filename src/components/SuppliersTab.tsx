@@ -115,6 +115,57 @@ const PIZZA_DEFAULT_SUPPLIERS: Supplier[] = [
   }
 ];
 
+const FRUTERIA_DEFAULT_SUPPLIERS: Supplier[] = [
+  {
+    id: 'sup-frut-1',
+    rut: '77.890.111-2',
+    name: 'Lo Valledor Central - Mayorista Frutas & Cítricos',
+    contactPerson: 'Don Hernán Valenzuela',
+    phone: '+56988223344',
+    email: 'pedidos@lovalledorfrutas.cl',
+    category: 'Frutas Frescas',
+    address: 'Patio Mayorista Frutas N° 12, Lo Valledor, Pedro Aguirre Cerda',
+    notes: 'Proveedor principal de manzanas Royal Gala, plátanos Cavendish y limones sutiles.',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'sup-frut-2',
+    rut: '79.234.567-8',
+    name: 'Agrícola Valle de Quillota (Paltas & Hortalizas)',
+    contactPerson: 'Marcela Soto',
+    phone: '+56977445566',
+    email: 'ventas@agricolaquillota.cl',
+    category: 'Verduras y Hortalizas',
+    address: 'Camino Troncal 450, Quillota / Despacho directo a bodega',
+    notes: 'Palta Hass Grado 1, tomates Larga Vida y lechugas hidropónicas.',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'sup-frut-3',
+    rut: '82.901.234-5',
+    name: 'Cooperativa Apícola & Frutos Secos del Sur',
+    contactPerson: 'Esteban Morales',
+    phone: '+56966554433',
+    email: 'contacto@apicoladelsur.cl',
+    category: 'Frutos Secos y Miel',
+    address: 'Ruta 5 Sur Km 240, Talca',
+    notes: 'Miel pura de Ulmo nativa 1kg, nueces mariposa y almendras tostadas.',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'sup-frut-4',
+    rut: '85.678.901-2',
+    name: 'Huevos de Campo La Granja Feliz',
+    contactPerson: 'Ignacio Fuentes',
+    phone: '+56955332211',
+    email: 'despachos@lagranjafeliz.cl',
+    category: 'Huevos de Campo',
+    address: 'Camino a Melipilla 8900, Padre Hurtado',
+    notes: 'Huevos de gallina libre de jaula, bandejas de 12 y 30 unidades.',
+    createdAt: new Date().toISOString()
+  }
+];
+
 export default function SuppliersTab({ products, onEditProduct, config, tenantId }: SuppliersTabProps) {
   const isPizzaTenant = tenantId?.toLowerCase() === 'pasion-pizzas' ||
                         tenantId?.toLowerCase() === 'pasion_pizzas' ||
@@ -122,9 +173,20 @@ export default function SuppliersTab({ products, onEditProduct, config, tenantId
                         tenantId?.toLowerCase() === 'pizzas' ||
                         tenantId?.toLowerCase() === 'pasionpizzas';
 
-  const initialDefaults = isPizzaTenant ? PIZZA_DEFAULT_SUPPLIERS : DEFAULT_SUPPLIERS;
-  const storageKey = `suppliers_${tenantId || 'default'}`;
-  const poStorageKey = `purchase_orders_${tenantId || 'default'}`;
+  const isFruteriaTenant = tenantId?.toLowerCase() === 'fruteria_principe_gales' ||
+                           tenantId?.toLowerCase() === 'fruteria-principe' ||
+                           tenantId?.toLowerCase() === 'fruteria_principe' ||
+                           tenantId?.toLowerCase() === 'principe-gales' ||
+                           tenantId?.toLowerCase() === 'principe_gales' ||
+                           tenantId?.toLowerCase() === 'fruteria' ||
+                           tenantId?.toLowerCase() === 'frutería' ||
+                           tenantId?.toLowerCase() === 'fruteriaprincipegales' ||
+                           tenantId?.toLowerCase() === 'principe';
+
+  const initialDefaults = isPizzaTenant ? PIZZA_DEFAULT_SUPPLIERS : isFruteriaTenant ? FRUTERIA_DEFAULT_SUPPLIERS : DEFAULT_SUPPLIERS;
+  const canonicalTenant = isFruteriaTenant ? 'fruteria_principe_gales' : isPizzaTenant ? 'pasion-pizzas' : (tenantId || 'default');
+  const storageKey = `suppliers_${canonicalTenant}`;
+  const poStorageKey = `purchase_orders_${canonicalTenant}`;
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
     try {

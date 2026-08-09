@@ -1,6 +1,7 @@
 import { collection, writeBatch, doc, getDocs, deleteDoc, query, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { Product, FoodItem, Transaction, BusinessConfig } from './types';
+import { INITIAL_FRUTERIA_PRODUCTS, DEFAULT_FRUTERIA_CONFIG } from './modules/fruteria';
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
@@ -210,161 +211,50 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   rutasCamion: {
     comunasDiarias: {
       name: "Comunas Diarias",
-      comunas: ["Estación Central", "Independencia", "Quinta Normal", "Recoleta", "San Miguel"],
+      comunas: ["Estación Central", "Independencia", "Quinta Normal", "Recoleta", "San Miguel", "Santiago Centro"],
       days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
       fee: 3400
     },
     ejeCentral: {
       name: "Eje Central",
-      comunas: ["Santiago Centro", "Ñuñoa", "Providencia"],
+      comunas: ["Ñuñoa", "Providencia", "Santiago Centro"],
       days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
       fee: 3400
     },
     norte: {
       name: "Sector Norte",
-      comunas: ["Lampa", "Quilicura", "Renca", "Conchalí", "Huechuraba"],
+      comunas: ["Colina", "Conchalí", "Huechuraba", "Independencia", "Lampa", "Quilicura", "Recoleta", "Renca"],
       days: ["Lunes", "Jueves", "Sábado"],
       fee: 3400
     },
     poniente: {
       name: "Sector Poniente",
-      comunas: ["Pedro Aguirre Cerda", "Cerrillos", "Pudahuel", "Maipú"],
+      comunas: ["Cerrillos", "Cerro Navia", "Estación Central", "Lo Prado", "Maipú", "Padre Hurtado", "Pedro Aguirre Cerda", "Peñaflor", "Pudahuel", "Quinta Normal", "Talagante"],
       days: ["Lunes", "Jueves"],
       fee: 3400
     },
     sur: {
       name: "Sector Sur",
-      comunas: ["Buin", "El Bosque", "San Bernardo", "La Cisterna"],
+      comunas: ["Buin", "Calera de Tango", "El Bosque", "La Cisterna", "La Granja", "La Pintana", "Lo Espejo", "Puente Alto", "San Bernardo", "San Ramón"],
       days: ["Martes", "Viernes", "Sábado"],
       fee: 3400
     },
     oriente: {
       name: "Sector Oriente",
-      comunas: ["Vitacura", "Las Condes", "Lo Barnechea", "La Reina", "Peñalolén"],
+      comunas: ["La Reina", "Las Condes", "Lo Barnechea", "Ñuñoa", "Peñalolén", "Providencia", "Vitacura"],
       days: ["Martes", "Miércoles", "Viernes"],
       fee: 3400
     },
     surOriente: {
       name: "Sector Sur Oriente",
-      comunas: ["Macul", "La Florida", "San Joaquín"],
+      comunas: ["La Florida", "La Granja", "La Pintana", "Macul", "Pirque", "Puente Alto", "San Joaquín", "San José de Maipo", "San Miguel", "San Ramón"],
       days: ["Miércoles", "Sábado"],
       fee: 3400
     }
   }
 };
 
-const INITIAL_FRUIT_PRODUCTS: Product[] = [
-  {
-    id: 'gales-manzana-roja',
-    sku: 'FR-001',
-    name: 'Manzana Roja Royal Gala',
-    category: 'Frutas Frescas',
-    stock: 120,
-    price: 1890,
-    cost: 950,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'gales-platano',
-    sku: 'FR-002',
-    name: 'Plátano Cavendish',
-    category: 'Frutas',
-    stock: 95,
-    price: 1490,
-    cost: 700,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'gales-tomate',
-    sku: 'VD-001',
-    name: 'Tomate Larga Vida',
-    category: 'Verduras',
-    stock: 80,
-    price: 1990,
-    cost: 1100,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1595855759920-86582396756a?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'gales-palta-hass',
-    sku: 'VD-002',
-    name: 'Palta Hass Premium',
-    category: 'Verduras',
-    stock: 60,
-    price: 4990,
-    cost: 3200,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString(),
-    enOferta: true,
-    precioOferta: 3990
-  },
-  {
-    id: 'gales-frutilla',
-    sku: 'FR-003',
-    name: 'Frutilla Seleccionada',
-    category: 'Frutas',
-    stock: 50,
-    price: 2500,
-    cost: 1500,
-    unidadMedida: 'g',
-    imageUrl: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'gales-papas',
-    sku: 'VD-003',
-    name: 'Papa Patagonia',
-    category: 'Verduras',
-    stock: 250,
-    price: 1200,
-    cost: 600,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'gales-cebolla',
-    sku: 'VD-004',
-    name: 'Cebolla Guarda',
-    category: 'Verduras',
-    stock: 150,
-    price: 990,
-    cost: 450,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'gales-zanahoria',
-    sku: 'VD-005',
-    name: 'Zanahoria',
-    category: 'Verduras',
-    stock: 110,
-    price: 1100,
-    cost: 500,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'gales-limon',
-    sku: 'FR-004',
-    name: 'Limón Sutil',
-    category: 'Frutas',
-    stock: 130,
-    price: 1690,
-    cost: 800,
-    unidadMedida: 'kg',
-    imageUrl: 'https://images.unsplash.com/photo-1590502593747-42a996133562?auto=format&fit=crop&q=80&w=300',
-    updatedAt: new Date().toISOString()
-  }
-];
+export const INITIAL_FRUIT_PRODUCTS: Product[] = INITIAL_FRUTERIA_PRODUCTS;
 
 export const INITIAL_ARTICO_PRODUCTS: Product[] = [
   {
@@ -654,7 +544,15 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
 
 export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
   const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
-  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' ||
+                          tenantId.toLowerCase() === 'fruteria-principe' ||
+                          tenantId.toLowerCase() === 'fruteria_principe' ||
+                          tenantId.toLowerCase() === 'principe-gales' ||
+                          tenantId.toLowerCase() === 'principe_gales' ||
+                          tenantId.toLowerCase() === 'fruteria' ||
+                          tenantId.toLowerCase() === 'frutería' ||
+                          tenantId.toLowerCase() === 'fruteriaprincipegales' ||
+                          tenantId.toLowerCase() === 'principe';
   const isFarmacia = tenantId.toLowerCase() === 'barrioseguro' || tenantId.toLowerCase() === 'farmacia';
   const isArtico = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
   const isPasionPizzas = tenantId.toLowerCase() === 'pasion-pizzas' ||
@@ -803,55 +701,7 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
   }
 
   if (isPrincipeGales) {
-    return {
-      ...DEFAULT_CONFIG,
-      id: 'business_info',
-      name: 'Frutería Príncipe de Gales',
-      adminPin: '2026',
-      gps: 'Av. Príncipe de Gales #5800, Ñuñoa',
-      bannerUrl: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=800',
-      whatsapp: '+56920262026',
-      fruteriaCategories: [
-        'Frutas',
-        'Verduras',
-        'Frutos Secos',
-        'Semillas',
-        'Huevos',
-        'Mermeladas',
-        'Miel',
-        'Abarrotes / Varios'
-      ],
-      categoryIcons: {
-        'Frutas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Red%20Apple.png',
-        'Verduras': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Broccoli.png',
-        'Frutos Secos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Peanuts.png',
-        'Semillas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Beans.png',
-        'Huevos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Egg.png',
-        'Mermeladas': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Food%20Drink/Honey%20Pot.png',
-        'Miel': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Animals/Honeybee.png',
-        'Abarrotes / Varios': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Package.png'
-      },
-      modulosPermitidos: {
-        tiendaAbarrotes: true,
-        cocinaAlmuerzos: false,
-        bodega: false,
-        farmacia: false,
-        frutería: true
-      },
-      modulosActivos: {
-        tiendaAbarrotes: false,
-        cocinaAlmuerzos: false,
-        bodega: false,
-        farmacia: false,
-        frutería: true
-      },
-      modules: {
-        rutasCamion: true,
-        fruteria: true,
-        almuerzos: false,
-        tienda: false
-      }
-    };
+    return DEFAULT_FRUTERIA_CONFIG;
   }
 
   if (isFarmacia) {
@@ -899,7 +749,15 @@ export function getTenantSpecificConfig(tenantId: string): BusinessConfig {
 
 export function getTenantEmployees(tenantId: string) {
   const isTurco = tenantId.toLowerCase() === 'turco' || tenantId.toLowerCase() === 'el_turco';
-  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+  const isPrincipeGales = tenantId.toLowerCase() === 'fruteria_principe_gales' ||
+                          tenantId.toLowerCase() === 'fruteria-principe' ||
+                          tenantId.toLowerCase() === 'fruteria_principe' ||
+                          tenantId.toLowerCase() === 'principe-gales' ||
+                          tenantId.toLowerCase() === 'principe_gales' ||
+                          tenantId.toLowerCase() === 'fruteria' ||
+                          tenantId.toLowerCase() === 'frutería' ||
+                          tenantId.toLowerCase() === 'fruteriaprincipegales' ||
+                          tenantId.toLowerCase() === 'principe';
   const isPasionPizzas = tenantId.toLowerCase() === 'pasion-pizzas' ||
                          tenantId.toLowerCase() === 'pasion_pizzas' ||
                          tenantId.toLowerCase() === 'pasion' ||
@@ -941,7 +799,15 @@ export async function bootstrapDatabaseIfEmpty(tenantId: string) {
 
       // Write products
       const isArticoTenant = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
-      const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+      const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' ||
+                               tenantId.toLowerCase() === 'fruteria-principe' ||
+                               tenantId.toLowerCase() === 'fruteria_principe' ||
+                               tenantId.toLowerCase() === 'principe-gales' ||
+                               tenantId.toLowerCase() === 'principe_gales' ||
+                               tenantId.toLowerCase() === 'fruteria' ||
+                               tenantId.toLowerCase() === 'frutería' ||
+                               tenantId.toLowerCase() === 'fruteriaprincipegales' ||
+                               tenantId.toLowerCase() === 'principe';
       const isPizzaTenant = tenantId.toLowerCase() === 'pasion-pizzas' ||
                             tenantId.toLowerCase() === 'pasion_pizzas' ||
                             tenantId.toLowerCase() === 'pasion' ||
@@ -1020,7 +886,15 @@ export async function resetDatabaseToDefault(tenantId: string) {
     batch.set(doc(db, 'tenants', tenantId, 'config', DEFAULT_CONFIG.id), tenantConfig);
 
     const isArticoTenant = tenantId.toLowerCase().includes('artico') || tenantId.toLowerCase().includes('congelados');
-    const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' || tenantId.toLowerCase() === 'principe_gales' || tenantId.toLowerCase() === 'fruteria';
+    const isFruteriaTenant = tenantId.toLowerCase() === 'fruteria_principe_gales' ||
+                             tenantId.toLowerCase() === 'fruteria-principe' ||
+                             tenantId.toLowerCase() === 'fruteria_principe' ||
+                             tenantId.toLowerCase() === 'principe-gales' ||
+                             tenantId.toLowerCase() === 'principe_gales' ||
+                             tenantId.toLowerCase() === 'fruteria' ||
+                             tenantId.toLowerCase() === 'frutería' ||
+                             tenantId.toLowerCase() === 'fruteriaprincipegales' ||
+                             tenantId.toLowerCase() === 'principe';
     const isPizzaTenant = tenantId.toLowerCase() === 'pasion-pizzas' ||
                           tenantId.toLowerCase() === 'pasion_pizzas' ||
                           tenantId.toLowerCase() === 'pasion' ||

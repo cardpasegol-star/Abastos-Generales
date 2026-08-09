@@ -5,6 +5,7 @@ import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, ge
 import { sanitizeForFirestore, safeLocalStorageSetItem } from './utils';
 import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG, getTenantSpecificConfig } from './initDb';
 import { saveTurkoConfig, saveTurkoInventory } from './modules/turko';
+import { saveFruteriaConfig, saveFruteriaInventory, isFruteriaTenant, getFruteriaStoredInventory } from './modules/fruteria';
 
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
@@ -73,20 +74,19 @@ export default function App() {
   });
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const fruteriaData = localStorage.getItem('FRUTERIA_DATA');
-      if (fruteriaData) {
-        return JSON.parse(fruteriaData);
-      }
-      const appProducts = localStorage.getItem('APP_PRODUCTS_DATA');
-      if (appProducts) {
-        return JSON.parse(appProducts);
-      }
-      const savedTenantId = localStorage.getItem('tenant_tienda_id');
+      const savedTenantId = localStorage.getItem('tenant_tienda_id') || localStorage.getItem('id_tienda');
       if (savedTenantId) {
+        if (isFruteriaTenant(savedTenantId)) {
+          return getFruteriaStoredInventory();
+        }
         const cached = localStorage.getItem(`products_${savedTenantId}`);
         if (cached) {
           return JSON.parse(cached);
         }
+      }
+      const appProducts = localStorage.getItem('APP_PRODUCTS_DATA');
+      if (appProducts) {
+        return JSON.parse(appProducts);
       }
     } catch {}
     return [];
@@ -230,6 +230,8 @@ export default function App() {
           setConfig(cfg);
           if (tenantId === 'el_turco' || tenantId === 'turco') {
             saveTurkoConfig(cfg);
+          } else if (isFruteriaTenant(tenantId)) {
+            saveFruteriaConfig(cfg);
           }
         } else {
           // If deleted, restore default config tailored to tenantId
@@ -247,7 +249,7 @@ export default function App() {
       const productsQuery = query(collection(db, 'tenants', tenantId, 'products'), orderBy('sku', 'asc'));
       unsubProducts = onSnapshot(productsQuery, (snap) => {
         const prodList: Product[] = [];
-        const isFrut = tenantId.includes('fruteria') || tenantId.includes('principe') || tenantId === 'fruteria_principe_gales';
+        const isFrut = isFruteriaTenant(tenantId);
         snap.forEach(d => {
           const item = d.data() as Product;
           prodList.push(isFrut ? normalizeProductForFruteria(item) : item);
@@ -255,7 +257,9 @@ export default function App() {
         setProducts(prodList);
         safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(prodList));
         safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(prodList));
-        safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(prodList));
+        if (isFrut) {
+          saveFruteriaInventory(prodList);
+        }
         if (tenantId === 'el_turco' || tenantId === 'turco') {
           saveTurkoInventory(prodList);
         }
@@ -329,7 +333,9 @@ export default function App() {
         safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
       safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
+      if (isFruteriaTenant) {
+        saveFruteriaInventory(updated);
+      }
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
       return updated;
     });
@@ -371,7 +377,9 @@ export default function App() {
         safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
       safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
+      if (isFruteriaTenant) {
+        saveFruteriaInventory(updated);
+      }
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
       return updated;
     });
@@ -387,6 +395,7 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (id: string) => {
+    const isFruteria = isFruteriaTenant(tenantId) || config?.name?.toLowerCase().includes('frutería');
     // Immediate zero-latency local state & LocalStorage update
     setProducts((prev) => {
       const updated = prev.filter((p) => p.id !== id);
@@ -394,7 +403,9 @@ export default function App() {
         safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
       safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
+      if (isFruteria) {
+        saveFruteriaInventory(updated);
+      }
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('inventory_updated'));
       return updated;
     });
@@ -488,7 +499,9 @@ export default function App() {
         safeLocalStorageSetItem(`products_${tenantId}`, JSON.stringify(updated));
       }
       safeLocalStorageSetItem('APP_PRODUCTS_DATA', JSON.stringify(updated));
-      safeLocalStorageSetItem('FRUTERIA_DATA', JSON.stringify(updated));
+      if (isFruteriaTenant(tenantId)) {
+        saveFruteriaInventory(updated);
+      }
       return updated;
     });
 
@@ -545,6 +558,11 @@ export default function App() {
         safeLocalStorageSetItem(`config_${tenantId}`, JSON.stringify(merged));
         if (merged.bannerUrl) {
           safeLocalStorageSetItem(`${tenantId}_banner_v1`, merged.bannerUrl);
+        }
+        if (tenantId === 'el_turco' || tenantId === 'turco') {
+          saveTurkoConfig(merged);
+        } else if (isFruteriaTenant(tenantId)) {
+          saveFruteriaConfig(merged);
         }
       }
       (async () => {

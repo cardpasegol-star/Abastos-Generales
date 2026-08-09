@@ -204,6 +204,8 @@ export interface BusinessConfig {
   name: string;
   rut?: string;
   address?: string;
+  phone?: string;
+  email?: string;
   whatsapp: string;
   gps: string;
   adminPin: string;

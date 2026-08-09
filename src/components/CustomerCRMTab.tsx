@@ -146,6 +146,77 @@ const PIZZA_DEFAULT_CUSTOMERS: CustomerProfile[] = [
   }
 ];
 
+const FRUTERIA_DEFAULT_CUSTOMERS: CustomerProfile[] = [
+  {
+    id: 'cust-frut-1',
+    name: 'Don Héctor Silva',
+    phone: '+56991234567',
+    address: 'Av. Príncipe de Gales 6200, La Reina',
+    comuna: 'La Reina',
+    deliveryRing: 'Sector Oriente / La Reina',
+    creditLimit: 50000,
+    currentDebt: 16500,
+    notes: 'Cliente preferencial de frutas de estación y frutos secos. Paga los días 5 de cada mes.',
+    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+    orderCount: 18,
+    totalSpent: 215400,
+    ledger: [
+      {
+        id: 'led-f1',
+        date: new Date(Date.now() - 6 * 86400000).toISOString(),
+        type: 'cargo',
+        amount: 23500,
+        description: 'Compra en mesón: Manzanas, Paltas Hass y Miel de Ulmo'
+      },
+      {
+        id: 'led-f2',
+        date: new Date(Date.now() - 2 * 86400000).toISOString(),
+        type: 'abono',
+        amount: 7000,
+        description: 'Abono en efectivo en caja'
+      }
+    ]
+  },
+  {
+    id: 'cust-frut-2',
+    name: 'Sra. Carmen Gloria Vial',
+    phone: '+56987654321',
+    address: 'Av. Ossa 1120, Ñuñoa',
+    comuna: 'Ñuñoa',
+    deliveryRing: 'Sector Oriente / Ñuñoa',
+    creditLimit: 40000,
+    currentDebt: 0,
+    notes: 'Pide verduras para la semana y huevos de campo. Pago puntual vía transferencia.',
+    createdAt: new Date(Date.now() - 45 * 86400000).toISOString(),
+    orderCount: 12,
+    totalSpent: 148000,
+    ledger: []
+  },
+  {
+    id: 'cust-frut-3',
+    name: 'Familia Larraín (Sofía)',
+    phone: '+56976543210',
+    address: 'Av. Francisco Bilbao 4500, Providencia',
+    comuna: 'Providencia',
+    deliveryRing: 'Sector Central / Providencia',
+    creditLimit: 60000,
+    currentDebt: 28900,
+    notes: 'Fiado habilitado para despachos semanales de frutas, verduras y frutos secos.',
+    createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
+    orderCount: 20,
+    totalSpent: 285000,
+    ledger: [
+      {
+        id: 'led-f3',
+        date: new Date(Date.now() - 3 * 86400000).toISOString(),
+        type: 'cargo',
+        amount: 28900,
+        description: 'Despacho Semanal Frutas y Hortalizas #FR-904'
+      }
+    ]
+  }
+];
+
 export default function CustomerCRMTab({ config, transactions = [], tenantId }: CustomerCRMTabProps) {
   const isPizzaTenant = tenantId?.toLowerCase() === 'pasion-pizzas' ||
                         tenantId?.toLowerCase() === 'pasion_pizzas' ||
@@ -153,8 +224,19 @@ export default function CustomerCRMTab({ config, transactions = [], tenantId }: 
                         tenantId?.toLowerCase() === 'pizzas' ||
                         tenantId?.toLowerCase() === 'pasionpizzas';
 
-  const initialDefaults = isPizzaTenant ? PIZZA_DEFAULT_CUSTOMERS : DEFAULT_CUSTOMERS;
-  const storageKey = `crm_customers_${tenantId || 'default'}`;
+  const isFruteriaTenant = tenantId?.toLowerCase() === 'fruteria_principe_gales' ||
+                           tenantId?.toLowerCase() === 'fruteria-principe' ||
+                           tenantId?.toLowerCase() === 'fruteria_principe' ||
+                           tenantId?.toLowerCase() === 'principe-gales' ||
+                           tenantId?.toLowerCase() === 'principe_gales' ||
+                           tenantId?.toLowerCase() === 'fruteria' ||
+                           tenantId?.toLowerCase() === 'frutería' ||
+                           tenantId?.toLowerCase() === 'fruteriaprincipegales' ||
+                           tenantId?.toLowerCase() === 'principe';
+
+  const initialDefaults = isPizzaTenant ? PIZZA_DEFAULT_CUSTOMERS : isFruteriaTenant ? FRUTERIA_DEFAULT_CUSTOMERS : DEFAULT_CUSTOMERS;
+  const canonicalTenant = isFruteriaTenant ? 'fruteria_principe_gales' : isPizzaTenant ? 'pasion-pizzas' : (tenantId || 'default');
+  const storageKey = `crm_customers_${canonicalTenant}`;
 
   const [customers, setCustomers] = useState<CustomerProfile[]>(() => {
     try {

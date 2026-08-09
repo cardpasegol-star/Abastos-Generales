@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, ShoppingBag, Zap, RefreshCw, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Scan, Trash2, CreditCard, Banknote, ShoppingCart, Check, AlertCircle, ShoppingBag, Zap, RefreshCw, X, Search, Sparkles, Plus, ArrowRight } from 'lucide-react';
 import { Product, CartItem, Transaction, BusinessConfig } from '../types';
 import BarcodeScanner from './BarcodeScanner';
 import { isPharmacyApp, fetchPharmacyBarcodeProduct } from '../lib/pharmacyBarcodeApi';
@@ -97,6 +97,19 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
   const [errorMessage, setErrorMessage] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [scanSuccessMsg, setScanSuccessMsg] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Click outside listener to close real-time suggestions dropdown
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // API query lookup states
   const [isQueryingAPI, setIsQueryingAPI] = useState(false);
@@ -293,14 +306,31 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
     setScanSuccessMsg(`¡"${rand.name}" (Simulado) agregado al carrito!`);
   };
 
+  const handleSelectSuggestion = (product: Product) => {
+    const existing = cart.find(item => item.product.id === product.id);
+    const currentQtyInCart = existing ? existing.quantity : 0;
+
+    if (transactionType === 'Venta' && product.stock <= currentQtyInCart) {
+      setErrorMessage(`Stock insuficiente de "${product.name}" (${product.stock} disponibles)`);
+      return;
+    }
+
+    addToCart(product);
+    setScanSuccessMsg(`¡"${product.name}" agregado al carrito de Caja!`);
+    setShowSuggestions(false);
+    setBarcodeInput('');
+  };
+
   const handleManualSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    setShowSuggestions(false);
     if (!barcodeInput.trim()) return;
 
     // Search locally by exact robust SKU match or Name search
+    const cleanSearch = barcodeInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     const found = products.find(
       p => isBarcodeMatch(p.sku, barcodeInput) ||
-           p.name.toLowerCase().includes(barcodeInput.trim().toLowerCase())
+           (p.name && p.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(cleanSearch))
     );
 
     if (found) {
@@ -312,6 +342,7 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
         return;
       }
       addToCart(found);
+      setScanSuccessMsg(`¡"${found.name}" agregado al carrito!`);
       setBarcodeInput('');
     } else {
       // If it looks like a barcode lookup triggers remote query
@@ -569,27 +600,219 @@ export default function CajaTab({ products, onAddProduct, onAddTransaction, onUp
         </div>
       )}
 
-      {/* 3. Manual Lookup & Instant Checkout Action Fields */}
-      <section className="flex flex-col gap-3">
-        <form onSubmit={handleManualSearch} className="flex gap-2">
-          <div className="relative flex-grow">
-            <input
-              className="w-full bg-white border-2 border-slate-350 rounded-2xl pl-12 pr-4 py-3.5 text-base focus:ring-4 focus:ring-emerald-500/15 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-black text-slate-950 h-14"
-              placeholder="Escribe SKU o nombre de producto..."
-              type="text"
-              value={barcodeInput}
-              onChange={(e) => setBarcodeInput(e.target.value)}
-            />
-            <Scan className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 stroke-[2.5]" />
-          </div>
-          <button 
-            type="submit" 
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-2xl font-black text-sm active:scale-95 transition-all text-center h-14 inline-flex items-center justify-center cursor-pointer select-none border border-emerald-500 shadow-md"
-          >
-            Buscar
-          </button>
-        </form>
-        
+      {/* 3. Smart Search Input Box with Real-Time Autocomplete Dropdown & Quick Actions */}
+      <section ref={searchContainerRef} className="relative z-30 flex flex-col gap-3">
+        {(() => {
+          const cleanSearch = barcodeInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+          const isSearching = cleanSearch.length >= 1;
+
+          const matchingSuggestions = isSearching
+            ? products.filter(p => {
+                const pName = (p.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const pSku = (p.sku || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const pCat = (p.category || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return pName.includes(cleanSearch) || pSku.includes(cleanSearch) || pCat.includes(cleanSearch) || isBarcodeMatch(p.sku, barcodeInput);
+              }).slice(0, 10)
+            : [];
+
+          return (
+            <div className="relative">
+              <form onSubmit={handleManualSearch} className="flex gap-2">
+                <div className="relative flex-grow">
+                  <input
+                    className="w-full bg-white border-2 border-slate-350 rounded-2xl pl-12 pr-24 py-3.5 text-base focus:ring-4 focus:ring-emerald-500/15 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-black text-slate-950 h-14 shadow-xs"
+                    placeholder="🔍 Escribe nombre, SKU o código de barra..."
+                    type="text"
+                    value={barcodeInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBarcodeInput(val);
+                      if (val.trim().length >= 1) {
+                        setShowSuggestions(true);
+                      } else {
+                        setShowSuggestions(false);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (barcodeInput.trim().length >= 1) {
+                        setShowSuggestions(true);
+                      }
+                    }}
+                  />
+                  <Scan className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 stroke-[2.5]" />
+                  {barcodeInput && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setBarcodeInput('');
+                        setShowSuggestions(false);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-100 hover:bg-slate-200 text-slate-750 transition-colors rounded-xl px-3 py-1.5 text-xs font-black border border-slate-250 cursor-pointer flex items-center gap-1 shadow-2xs"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Limpiar</span>
+                    </button>
+                  )}
+                </div>
+                <button 
+                  type="submit" 
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-2xl font-black text-sm active:scale-95 transition-all text-center h-14 inline-flex items-center justify-center cursor-pointer select-none border border-emerald-500 shadow-md shrink-0"
+                >
+                  Buscar
+                </button>
+              </form>
+
+              {/* Real-time Suggestions Dropdown Menu */}
+              {showSuggestions && isSearching && (
+                <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border-2 border-slate-300 shadow-2xl z-50 overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-slate-100 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-3xs">
+                    <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🔍 Sugerencias en tiempo real</span>
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-black">
+                        {matchingSuggestions.length}
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-bold hidden sm:inline">
+                      Haz clic o pulsa "+ Agregar" para cargar a la venta
+                    </span>
+                  </div>
+
+                  {matchingSuggestions.length === 0 ? (
+                    <div className="p-5 text-center space-y-2">
+                      <p className="text-sm font-black text-slate-700">Sin coincidencias en inventario local</p>
+                      <p className="text-xs text-slate-500 font-medium">Prueba con otra palabra clave, nombre o SKU</p>
+                      {/^\d{5,15}$/.test(barcodeInput.trim()) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSuggestions(false);
+                            handleLocalOrAPILookup(barcodeInput.trim());
+                          }}
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3.5 py-2 rounded-xl transition-all cursor-pointer"
+                        >
+                          <Sparkles className="w-4 h-4 text-emerald-600" />
+                          <span>Buscar código "{barcodeInput}" en catálogos globales (Open Food Facts / UPC)</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    matchingSuggestions.map((p) => {
+                      const effectivePrice = getProductPrice(p);
+                      const displayPriceStr = `$${effectivePrice.toLocaleString('es-CL')}`;
+                      const isOutOfStock = transactionType === 'Venta' && p.stock <= 0;
+
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            if (!isOutOfStock) {
+                              handleSelectSuggestion(p);
+                            }
+                          }}
+                          className={`p-3 transition-colors flex items-center justify-between gap-3 group ${
+                            isOutOfStock 
+                              ? 'bg-slate-50/70 opacity-60 cursor-not-allowed' 
+                              : 'hover:bg-emerald-50/80 cursor-pointer'
+                          }`}
+                        >
+                          {/* Thumbnail + Details */}
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 shrink-0 overflow-hidden flex items-center justify-center p-1 relative">
+                              {p.imageUrl ? (
+                                <img
+                                  src={p.imageUrl}
+                                  alt={p.name}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <span className="text-xl">
+                                  {getCategoryIconEmoji(p.category, config)}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-black text-slate-900 group-hover:text-emerald-950 truncate leading-snug">
+                                  {p.name}
+                                </p>
+                                {p.enOferta && (
+                                  <span className="bg-rose-100 text-rose-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                    🔥 Oferta
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 text-xs flex-wrap">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                                  <span>{getCategoryIconEmoji(p.category, config)}</span>
+                                  <span>{p.category}</span>
+                                </span>
+
+                                {p.sku && (
+                                  <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                                    SKU: {p.sku}
+                                  </span>
+                                )}
+
+                                {isOutOfStock ? (
+                                  <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                    Agotado (0 un)
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-slate-600">
+                                    Disp: <strong className="text-slate-900">{p.stock}</strong> {p.unidadMedida || 'un'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Price & Action Button */}
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <div className="text-right">
+                              <span className="text-sm font-black text-slate-950 group-hover:text-emerald-700 block leading-tight">
+                                {displayPriceStr}
+                              </span>
+                              {p.enOferta && p.precioOferta !== null && p.precioOferta !== undefined && (
+                                <span className="text-[10px] line-through text-slate-400 block">
+                                  ${p.price.toLocaleString('es-CL')}
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={isOutOfStock}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectSuggestion(p);
+                              }}
+                              className={`text-xs font-black px-3 py-2 rounded-xl transition-all flex items-center gap-1 shadow-xs shrink-0 select-none ${
+                                isOutOfStock
+                                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white cursor-pointer border border-emerald-500'
+                              }`}
+                            >
+                              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                              <span>Agregar</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         <button
           onClick={handleCobroRapido}
           className="w-full bg-amber-50 hover:bg-amber-100 text-amber-950 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all border-2 border-amber-200 shadow-sm cursor-pointer"

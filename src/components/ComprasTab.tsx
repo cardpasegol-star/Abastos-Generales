@@ -124,43 +124,43 @@ function CategoryIcon({ cat, config, sizeClass = "w-5 h-5 object-contain inline-
 const DEFAULT_RUTAS_CAMION: Record<string, SectorConfig> = {
   comunasDiarias: {
     name: "Comunas Diarias",
-    comunas: ["Estación Central", "Independencia", "Quinta Normal", "Recoleta", "San Miguel"],
+    comunas: ["Estación Central", "Independencia", "Quinta Normal", "Recoleta", "San Miguel", "Santiago Centro"],
     days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
     fee: 3400
   },
   ejeCentral: {
     name: "Eje Central",
-    comunas: ["Santiago Centro", "Ñuñoa", "Providencia"],
+    comunas: ["Ñuñoa", "Providencia", "Santiago Centro"],
     days: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
     fee: 3400
   },
   norte: {
     name: "Sector Norte",
-    comunas: ["Lampa", "Quilicura", "Renca", "Conchalí", "Huechuraba"],
+    comunas: ["Colina", "Conchalí", "Huechuraba", "Independencia", "Lampa", "Quilicura", "Recoleta", "Renca"],
     days: ["Lunes", "Jueves", "Sábado"],
     fee: 3400
   },
   poniente: {
     name: "Sector Poniente",
-    comunas: ["Pedro Aguirre Cerda", "Cerrillos", "Pudahuel", "Maipú"],
+    comunas: ["Cerrillos", "Cerro Navia", "Estación Central", "Lo Prado", "Maipú", "Padre Hurtado", "Pedro Aguirre Cerda", "Peñaflor", "Pudahuel", "Quinta Normal", "Talagante"],
     days: ["Lunes", "Jueves"],
     fee: 3400
   },
   sur: {
     name: "Sector Sur",
-    comunas: ["Buin", "El Bosque", "San Bernardo", "La Cisterna"],
+    comunas: ["Buin", "Calera de Tango", "El Bosque", "La Cisterna", "La Granja", "La Pintana", "Lo Espejo", "Puente Alto", "San Bernardo", "San Ramón"],
     days: ["Martes", "Viernes", "Sábado"],
     fee: 3400
   },
   oriente: {
     name: "Sector Oriente",
-    comunas: ["Vitacura", "Las Condes", "Lo Barnechea", "La Reina", "Peñalolén"],
+    comunas: ["La Reina", "Las Condes", "Lo Barnechea", "Ñuñoa", "Peñalolén", "Providencia", "Vitacura"],
     days: ["Martes", "Miércoles", "Viernes"],
     fee: 3400
   },
   surOriente: {
     name: "Sector Sur Oriente",
-    comunas: ["Macul", "La Florida", "San Joaquín"],
+    comunas: ["La Florida", "La Granja", "La Pintana", "Macul", "Pirque", "Puente Alto", "San Joaquín", "San José de Maipo", "San Miguel", "San Ramón"],
     days: ["Miércoles", "Sábado"],
     fee: 3400
   }
@@ -180,8 +180,20 @@ function getAllComunasFromRutas(rutas?: Record<string, SectorConfig>): string[] 
       });
     }
   });
-  set.add("Lampa");
-  set.add("Buin");
+  
+  // Garantizar lista completa de comunas clave de la Región Metropolitana
+  const baseComunas = [
+    "Buin", "Calera de Tango", "Cerrillos", "Cerro Navia", "Colina", "Conchalí",
+    "El Bosque", "Estación Central", "Huechuraba", "Independencia", "La Cisterna",
+    "La Florida", "La Granja", "La Pintana", "La Reina", "Lampa", "Las Condes",
+    "Lo Barnechea", "Lo Espejo", "Lo Prado", "Macul", "Maipú", "Ñuñoa",
+    "Padre Hurtado", "Pedro Aguirre Cerda", "Peñaflor", "Peñalolén", "Pirque",
+    "Providencia", "Pudahuel", "Puente Alto", "Quilicura", "Quinta Normal",
+    "Recoleta", "Renca", "San Bernardo", "San Joaquín", "San José de Maipo",
+    "San Miguel", "San Ramón", "Santiago Centro", "Talagante", "Vitacura"
+  ];
+  baseComunas.forEach(c => set.add(c));
+
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
 }
 
@@ -2210,7 +2222,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                       : "bg-white border-2 border-slate-300 rounded-lg px-2.5 py-1 text-[11px] font-black text-slate-950 outline-none focus:border-emerald-500 cursor-pointer"
                     }
                   >
-                    {RM_COMUNAS.map((c) => (
+                    {activeComunasList.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
