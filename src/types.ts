@@ -20,6 +20,8 @@ export interface Product {
   comunas?: string[]; // Allowed delivery zones/communes for this product (empty or undefined = available in all zones)
   supplierId?: string;
   supplierName?: string;
+  ingredients?: string;
+  description?: string;
 }
 
 export interface Supplier {

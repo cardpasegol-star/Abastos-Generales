@@ -513,13 +513,17 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
     enOferta: boolean;
     precioOferta: string | number;
     unidadMedida?: 'unidad' | 'kg' | 'g' | 'familiar' | 'mediana' | 'personal' | 'combo_2x' | 'pack' | 'litro' | string;
+    ingredients?: string;
+    description?: string;
   }>({
     sku: '', name: '', category: defaultCategory, subcategoria: '', marca: '',
     stock: isPizzeria ? 20 : (isFruteria ? 50 : 12),
     price: '', cost: '', precioNeto: '',
     imageUrl: isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url,
     enOferta: false, precioOferta: '',
-    unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad')
+    unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad'),
+    ingredients: '',
+    description: ''
   });
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -1687,7 +1691,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       imageUrl: isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url,
       enOferta: false,
       precioOferta: '',
-      unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad')
+      unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad'),
+      ingredients: '',
+      description: ''
     });
     setShowAddModal(true);
   }, [defaultCategory, isFruteria, isPizzeria]);
@@ -1715,7 +1721,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       imageUrl: product.imageUrl || (isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url),
       enOferta: product.enOferta || false,
       precioOferta: product.precioOferta !== undefined && product.precioOferta !== null ? String(product.precioOferta) : '',
-      unidadMedida: product.unidadMedida || (isPizzeria ? 'unidad' : 'unidad')
+      unidadMedida: product.unidadMedida || (isPizzeria ? 'unidad' : 'unidad'),
+      ingredients: product.ingredients || product.description || '',
+      description: product.description || product.ingredients || ''
     });
     setShowAddModal(true);
   }, [isPizzeria]);
@@ -1754,7 +1762,9 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           imageUrl: isPizzeria ? PIZZA_PRESET_IMAGES[0].url : PRESET_IMAGES[0].url,
           enOferta: false,
           precioOferta: '',
-          unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad')
+          unidadMedida: isPizzeria ? 'unidad' : (isFruteria ? 'kg' : 'unidad'),
+          ingredients: '',
+          description: ''
         });
         setShowAddModal(true);
         // Auto-buscar detalles desde bases de datos externas Open Food Facts / UPCitemdb
@@ -1799,6 +1809,13 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       };
       if (formData.subcategoria?.trim()) parsedData.subcategoria = formData.subcategoria.trim();
       if (formData.marca?.trim()) parsedData.marca = formData.marca.trim();
+      if (formData.ingredients?.trim()) {
+        parsedData.ingredients = formData.ingredients.trim();
+        parsedData.description = formData.ingredients.trim();
+      } else if (formData.description?.trim()) {
+        parsedData.ingredients = formData.description.trim();
+        parsedData.description = formData.description.trim();
+      }
       if (editingItem) {
         await onEditProduct({ ...editingItem, ...parsedData, updatedAt: new Date().toISOString() });
       } else {
@@ -2042,6 +2059,11 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
                   <h3 className="font-extrabold text-slate-950 text-xl leading-tight truncate">
                     {p.name}
                   </h3>
+                  {(p.ingredients || p.description) && (
+                    <p className="text-xs text-slate-600 font-medium italic mt-1 line-clamp-2 leading-relaxed">
+                      🍕 {p.ingredients || p.description}
+                    </p>
+                  )}
                   <p className="text-xs text-slate-500 font-extrabold tracking-wide mt-1 font-mono">SKU: {p.sku}</p>
                 </div>
                 
@@ -2202,10 +2224,33 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
             {/* Nombre */}
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-755 uppercase tracking-wider block">Nombre *</label>
-              <input type="text" placeholder="Ej. Coca Cola 3L"
+              <input type="text" placeholder={isPizzeria ? "Ej. Pizza Mechada BBQ Familiar" : "Ej. Coca Cola 3L"}
                 className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-3.5 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 focus:bg-white outline-none font-bold text-slate-950"
                 value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             </div>
+
+            {/* INGREDIENTES / DESCRIPCIÓN DE LA PIZZA (Exclusivo Pasión por las Pizzas) */}
+            {isPizzeria && (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <label className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span>🍕</span>
+                    <span>INGREDIENTES / DESCRIPCIÓN DE LA PIZZA</span>
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400 normal-case">(Opcional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder='Ej: "Queso mozzarella, churrasco, pepperoni, chorizo, jamón"'
+                  className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none font-semibold text-slate-900 focus:ring-4 focus:ring-amber-500/15 focus:border-amber-600 focus:bg-white resize-none shadow-xs placeholder:text-slate-400 placeholder:font-normal leading-relaxed"
+                  value={formData.ingredients || formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, ingredients: e.target.value, description: e.target.value })}
+                />
+                <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                  Muestra la receta o ingredientes en el catálogo de clientes bajo el nombre de la pizza.
+                </p>
+              </div>
+            )}
 
             {/* SKU */}
             <div className="space-y-1.5">

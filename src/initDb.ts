@@ -378,7 +378,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 4200,
     imageUrl: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Salsa pomodoro San Marzano, queso mozzarella fior di latte, albahaca fresca, aceite de oliva extra virgen'
   },
   {
     id: 'pizza-pepperoni',
@@ -390,7 +391,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 4800,
     imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Salsa pomodoro, abundante queso mozzarella, pepperoni americano premium, orégano'
   },
   {
     id: 'pizza-cuatro-quesos',
@@ -402,7 +404,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 5200,
     imageUrl: 'https://images.unsplash.com/photo-1573821663912-569905455b1c?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Queso mozzarella, queso gorgonzola, queso parmesano grana padano, queso provolone'
   },
   {
     id: 'pizza-mechada-bbq',
@@ -414,7 +417,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 5800,
     imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Carne mechada de vacuno, salsa BBQ ahumada, cebolla caramelizada, queso mozzarella'
   },
   {
     id: 'pizza-napolitana',
@@ -426,7 +430,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 4500,
     imageUrl: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Salsa pomodoro, queso mozzarella, jamón pierna artesanal, rodajas de tomate natural, aceitunas negras, orégano'
   },
   {
     id: 'pizza-vegetariana',
@@ -438,7 +443,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 4400,
     imageUrl: 'https://images.unsplash.com/photo-1511688878353-3a2f5be94cd7?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Salsa pomodoro, queso mozzarella, champiñones frescos, pimientos asados, cebolla morada, choclo, aceitunas'
   },
   {
     id: 'promo-duo-pizzas',
@@ -452,7 +458,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     precioOferta: 18990,
     imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Elige 2 pizzas familiares a elección con masa madre artesanal a la piedra'
   },
   {
     id: 'promo-combo-completo',
@@ -466,7 +473,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     precioOferta: 14990,
     imageUrl: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: '1 Pizza familiar a elección + Porción de palitos de ajo con queso + Bebida 1.5L'
   },
   {
     id: 'palitos-ajo-queso',
@@ -478,7 +486,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 1400,
     imageUrl: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Masa de pizza crujiente horneada con mantequilla de ajo, queso parmesano y orégano'
   },
   {
     id: 'bastones-mozzarella',
@@ -490,7 +499,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 1900,
     imageUrl: 'https://images.unsplash.com/photo-1548340748-6d2b7d7da280?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: '6 Bastones de queso mozzarella apanados y horneados con dip de salsa pomodoro'
   },
   {
     id: 'coca-cola-15',
@@ -526,7 +536,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 1600,
     imageUrl: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Bizcochos soletilla bañados en café espresso, crema de mascarpone y cacao amargo'
   },
   {
     id: 'calzone-nutella',
@@ -538,7 +549,8 @@ export const INITIAL_PIZZA_PRODUCTS: Product[] = [
     cost: 2100,
     imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400',
     updatedAt: new Date().toISOString(),
-    unidadMedida: 'unidad'
+    unidadMedida: 'unidad',
+    ingredients: 'Masa doblada rellena de abundante Nutella y frutillas frescas, espolvoreada con azúcar flor'
   }
 ];
 

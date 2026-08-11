@@ -902,7 +902,8 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
     const matchesSearch = !searchClean || 
                           productName.includes(searchClean) ||
-                          productSku.includes(searchClean);
+                          productSku.includes(searchClean) ||
+                          ((product.ingredients || product.description || '').toLowerCase().includes(searchClean));
 
     const cleanSelected = selectedProductCategory.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
     const cleanCatRaw = catRaw.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ]+/, '').trim().toLowerCase();
@@ -1030,6 +1031,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
               <p className="text-slate-950 font-black text-sm sm:text-base leading-snug">
                 {productName}
               </p>
+              {(p.ingredients || p.description) && (
+                <p className="text-[11px] sm:text-xs text-slate-600 font-medium italic leading-relaxed line-clamp-2">
+                  🍕 {p.ingredients || p.description}
+                </p>
+              )}
               <p className="text-xs text-slate-500 font-extrabold font-mono truncate">
                 SKU: {p.sku || p.id}
               </p>
@@ -2408,6 +2414,11 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                 </span>
                               )}
                             </div>
+                            {Boolean((item.rawItem as any)?.ingredients || (item.rawItem as any)?.description) && (
+                              <p className="text-[11px] text-slate-600 font-medium italic line-clamp-1 leading-tight">
+                                🍕 {((item.rawItem as any).ingredients || (item.rawItem as any).description)}
+                              </p>
+                            )}
 
                             <div className="flex items-center gap-2 text-xs">
                               <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
