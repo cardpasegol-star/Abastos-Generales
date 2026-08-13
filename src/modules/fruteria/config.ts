@@ -21,6 +21,14 @@ export const DEFAULT_FRUTERIA_CONFIG: FruteriaBusinessConfig = {
   licenseStatus: 'active',
   licenseExpirationDate: '2028-12-31',
   licenseMessage: 'Licencia Activa - Módulo Independiente Frutería Príncipe de Gales',
+  enabledModules: {
+    inventario: true,
+    caja: true,
+    reportes: true,
+    proveedores: true,
+    clientes: true,
+    compras: true
+  },
   ivaPercentage: 15,
   siiEnabled: true,
   fruteriaCategories: [

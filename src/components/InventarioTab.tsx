@@ -322,6 +322,22 @@ function generateStockPDF(title: string, items: Product[], tipo: 'bajo' | 'agota
 
 export default function InventarioTab({ products, onAddProduct, onEditProduct, onDeleteProduct, config, userRole, tenantId, storeId }: InventarioTabProps) {
   const [search, setSearch] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
@@ -1663,9 +1679,18 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
   const lowStockItems = activeProducts.filter(p => p.stock > 0 && p.stock <= 5);
   const outOfStockItems = activeProducts.filter(p => p.stock === 0);
 
+  const searchClean = search.trim().toLowerCase();
+  const isSearching = searchClean.length >= 1;
+
   const filteredProducts = activeProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase()) ||
-      product.sku.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = !searchClean ||
+      product.name.toLowerCase().includes(searchClean) ||
+      product.sku.toLowerCase().includes(searchClean) ||
+      ((product.ingredients || product.description || '').toLowerCase().includes(searchClean)) ||
+      ((product.marca || '').toLowerCase().includes(searchClean)) ||
+      ((product.subcategoria || '').toLowerCase().includes(searchClean)) ||
+      ((product.category || '').toLowerCase().includes(searchClean));
+
     const catRaw = product.category || '';
     const cleanSelected = selectedCategory.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ/+-]+/, '').trim().toLowerCase();
     const cleanCatRaw = catRaw.replace(/^[^\w\sÁÉÍÓÚáéíóúÑñ/+-]+/, '').trim().toLowerCase();
@@ -1676,6 +1701,22 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
       cleanCatRaw === cleanSelected;
     return matchesSearch && matchesCat;
   });
+
+  const matchingSuggestions = isSearching ? activeProducts.filter(product => {
+    const pName = (product.name || '').toLowerCase();
+    const pSku = (product.sku || '').toLowerCase();
+    const pIng = (product.ingredients || product.description || '').toLowerCase();
+    const pCat = (product.category || '').toLowerCase();
+    const pSub = (product.subcategoria || '').toLowerCase();
+    const pMarca = (product.marca || '').toLowerCase();
+
+    return pName.includes(searchClean) ||
+           pSku.includes(searchClean) ||
+           pIng.includes(searchClean) ||
+           pCat.includes(searchClean) ||
+           pSub.includes(searchClean) ||
+           pMarca.includes(searchClean);
+  }).slice(0, 10) : [];
 
   const handleOpenAdd = useCallback(() => {
     setEditingItem(null);
@@ -1963,24 +2004,182 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
         </button>
       )}
 
-      {/* ── BÚSQUEDA CON BOTÓN DE ESCÁNER DE BARRAS DIRECTO (REGLA 6) ── */}
-      <div className="flex gap-2">
+      {/* ── BÚSQUEDA INTELIGENTE CON SUGERENCIAS EN TIEMPO REAL ── */}
+      <div className="flex gap-2 relative z-30" ref={searchContainerRef}>
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 stroke-[2.5]" />
           <input
-            className="w-full pl-11 pr-10 py-4 bg-white border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 transition-all text-base placeholder:text-slate-500 font-extrabold shadow-sm text-slate-950"
-            placeholder="Buscar por nombre o SKU..."
+            className="w-full pl-11 pr-24 py-4 bg-white border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 transition-all text-base placeholder:text-slate-500 font-extrabold shadow-sm text-slate-950"
+            placeholder={isPizzeria ? "🔍 Buscar por nombre, ingrediente (ej: mozzarella) o SKU..." : "🔍 Buscar por nombre, categoría, ingrediente o SKU..."}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearch(val);
+              if (val.trim().length >= 1) {
+                setShowSuggestions(true);
+              } else {
+                setShowSuggestions(false);
+              }
+            }}
+            onFocus={() => {
+              if (search.trim().length >= 1) {
+                setShowSuggestions(true);
+              }
+            }}
           />
           {search && (
-            <button type="button" onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 text-xl font-black cursor-pointer bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center">×</button>
+            <button 
+              type="button" 
+              onClick={() => {
+                setSearch('');
+                setShowSuggestions(false);
+              }} 
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 text-xs font-black cursor-pointer bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-xl border border-slate-200"
+            >
+              Limpiar
+            </button>
+          )}
+
+          {/* Menú Desplegable con Sugerencias Interactivas en Tiempo Real */}
+          {showSuggestions && isSearching && (
+            <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border-2 border-slate-300 shadow-2xl z-50 overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-slate-100 font-sans animate-in fade-in duration-150">
+              <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-3xs">
+                <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🔍 Sugerencias de Inventario</span>
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-black">
+                    {matchingSuggestions.length}
+                  </span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-bold hidden sm:inline">
+                  Haz clic para ir al producto
+                </span>
+              </div>
+
+              {matchingSuggestions.length === 0 ? (
+                <div className="p-5 text-center space-y-1">
+                  <p className="text-sm font-black text-slate-700">Sin coincidencias en inventario</p>
+                  <p className="text-xs text-slate-500 font-medium">Revisa la ortografía o busca por ingrediente o categoría.</p>
+                </div>
+              ) : (
+                matchingSuggestions.map((item) => {
+                  const isOutOfStock = item.stock === 0;
+                  const isLowStock = item.stock > 0 && item.stock <= 5;
+                  const displayPrice = item.enOferta && item.precioOferta ? Number(item.precioOferta) : item.price;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedCategory('Todos');
+                        setSearch(item.name);
+                        setShowSuggestions(false);
+                        setTimeout(() => {
+                          const el = document.getElementById(`inventory-product-card-${item.id}`);
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setHighlightedCardId(item.id);
+                            setTimeout(() => setHighlightedCardId(null), 2500);
+                          }
+                        }, 50);
+                      }}
+                      className="p-3 hover:bg-emerald-50/80 transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+                    >
+                      {/* Thumbnail + Info */}
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 shrink-0 overflow-hidden flex items-center justify-center p-1 relative">
+                          <img
+                            src={item.imageUrl || getCategoryPlaceholder(item.category)}
+                            alt={item.name}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-contain"
+                            onError={(e) => handleImageError(e, item.category)}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-black text-slate-900 group-hover:text-emerald-950 truncate leading-snug">
+                              {item.name}
+                            </p>
+                            {item.enOferta && (
+                              <span className="bg-rose-100 text-rose-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                Oferta
+                              </span>
+                            )}
+                          </div>
+
+                          {(item.ingredients || item.description) && (
+                            <p className="text-[11px] text-slate-600 font-medium italic line-clamp-1 leading-tight">
+                              🍕 {item.ingredients || item.description}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                              <CategoryIcon cat={item.category} config={config} className="w-3.5 h-3.5 object-contain inline-block" />
+                              <span>{item.category}</span>
+                            </span>
+
+                            <span className="text-[10px] text-slate-400 font-mono font-bold">
+                              SKU: {item.sku}
+                            </span>
+
+                            {isOutOfStock ? (
+                              <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                                Agotado
+                              </span>
+                            ) : isLowStock ? (
+                              <span className="text-[10px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                ⚠️ Bajo ({item.stock})
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-500">
+                                Stock: {item.stock} {getUnidadLabel(item.unidadMedida)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right side: Price & Edit button */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <span className="text-sm font-black text-emerald-600 group-hover:text-emerald-700 block leading-tight">
+                            ${displayPrice.toLocaleString('es-CL')}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 block">
+                            CLP{getUnidadShortSuffix(item.unidadMedida)}
+                          </span>
+                        </div>
+
+                        {userRole === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowSuggestions(false);
+                              handleOpenEdit(item);
+                            }}
+                            className="bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 p-2 rounded-xl transition-all border border-emerald-200 text-xs font-extrabold flex items-center gap-1 cursor-pointer shrink-0"
+                            title="Editar Producto"
+                          >
+                            <span>✏️</span>
+                            <span className="hidden sm:inline">Editar</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
         </div>
+
         <button
           type="button"
           onClick={() => setShowScanner(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-md border-2 border-emerald-500 active:scale-95 text-xs font-black gap-1.5"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-md border-2 border-emerald-500 active:scale-95 text-xs font-black gap-1.5 shrink-0"
           title="Scanner de Código de Barras"
         >
           <ScanBarcode className="w-5 h-5 stroke-[2.5]" />
@@ -2015,14 +2214,18 @@ export default function InventarioTab({ products, onAddProduct, onEditProduct, o
           const isOutOfStock = p.stock === 0;
           const isLowStock = p.stock > 0 && p.stock <= 5;
           const marginPercent = p.price > 0 ? Math.round(((p.price - p.cost) / p.cost) * 100) : 0;
+          const isHighlighted = highlightedCardId === p.id;
           return (
             <div
               key={p.id}
+              id={`inventory-product-card-${p.id}`}
               onClick={userRole === 'admin' ? () => handleOpenEdit(p) : undefined}
-              className={`bg-white rounded-2xl overflow-hidden border-2 transition-all flex flex-col shadow-sm ${
+              className={`bg-white rounded-2xl overflow-hidden border-2 transition-all duration-300 flex flex-col shadow-sm ${
                 userRole !== 'admin' ? 'cursor-default' : 'cursor-pointer active:border-emerald-500 hover:shadow-md'
               } ${
-                isOutOfStock ? 'border-slate-200 opacity-75 bg-slate-50' : isLowStock ? 'border-amber-400 ring-2 ring-amber-400/10' : 'border-slate-200'
+                isHighlighted
+                  ? 'ring-4 ring-emerald-500 border-emerald-600 scale-[1.01] shadow-xl z-20 animate-pulse'
+                  : isOutOfStock ? 'border-slate-200 opacity-75 bg-slate-50' : isLowStock ? 'border-amber-400 ring-2 ring-amber-400/10' : 'border-slate-200'
               }`}
             >
               <div className="relative h-44 w-full bg-slate-100 shrink-0">

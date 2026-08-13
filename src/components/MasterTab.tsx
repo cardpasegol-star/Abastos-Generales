@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Calendar, ShieldAlert, CheckCircle2, Lock, Unlock, Clock, Save, LogOut, ArrowRight, MessageSquare, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BusinessConfig, Product, Transaction } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Calendar, ShieldAlert, CheckCircle2, Lock, Unlock, Clock, Save, LogOut, ArrowRight, MessageSquare, AlertTriangle, RefreshCw, Layers, ToggleLeft, ToggleRight } from 'lucide-react';
+import { BusinessConfig, Product, Transaction, EnabledModules } from '../types';
 import { resetDatabaseToDefault } from '../initDb';
 
 interface MasterTabProps {
@@ -16,6 +16,14 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
   const [status, setStatus] = useState<'active' | 'suspended'>(config.licenseStatus || 'active');
   const [expirationDate, setExpirationDate] = useState(config.licenseExpirationDate || '2026-12-31');
   const [message, setMessage] = useState(config.licenseMessage || 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.');
+  const [enabledModules, setEnabledModules] = useState<EnabledModules>(() => ({
+    inventario: config.enabledModules?.inventario ?? true,
+    caja: config.enabledModules?.caja ?? true,
+    reportes: config.enabledModules?.reportes ?? true,
+    proveedores: config.enabledModules?.proveedores ?? true,
+    clientes: config.enabledModules?.clientes ?? true,
+    compras: config.enabledModules?.compras ?? true,
+  }));
   const [modulosPermitidos, setModulosPermitidos] = useState(config.modulosPermitidos || {
     tiendaAbarrotes: true,
     cocinaAlmuerzos: true,
@@ -34,7 +42,17 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
     farmacia: config.modules?.farmacia ?? true,
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (config.enabledModules) {
+      setEnabledModules({
+        inventario: config.enabledModules.inventario ?? true,
+        caja: config.enabledModules.caja ?? true,
+        reportes: config.enabledModules.reportes ?? true,
+        proveedores: config.enabledModules.proveedores ?? true,
+        clientes: config.enabledModules.clientes ?? true,
+        compras: config.enabledModules.compras ?? true,
+      });
+    }
     if (config.modules) {
       setModules({
         rutasCamion: config.modules.rutasCamion ?? true,
@@ -129,10 +147,34 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
       licenseMessage: message.trim(),
       modulosPermitidos: newPermitidos,
       mostrarAlmuerzos: newPermitidos.cocinaAlmuerzos !== false,
-      modules: newModules
+      modules: newModules,
+      enabledModules,
+      enabledTabs: enabledModules
     };
 
     onUpdateConfig(updatedConfig).catch(err => console.error('Error auto-updating config:', err));
+  };
+
+  const handleToggleTabModule = (key: keyof EnabledModules, val: boolean) => {
+    const updatedEnabledModules = {
+      ...enabledModules,
+      [key]: val,
+    };
+    setEnabledModules(updatedEnabledModules);
+
+    const updatedConfig: BusinessConfig = {
+      ...config,
+      licenseStatus: status,
+      licenseExpirationDate: expirationDate,
+      licenseMessage: message.trim(),
+      modulosPermitidos,
+      mostrarAlmuerzos,
+      modules,
+      enabledModules: updatedEnabledModules,
+      enabledTabs: updatedEnabledModules
+    };
+
+    onUpdateConfig(updatedConfig).catch(err => console.error('Error auto-updating config enabledModules:', err));
   };
 
   const handleSave = async () => {
@@ -148,7 +190,9 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
         licenseMessage: message.trim(),
         modulosPermitidos,
         mostrarAlmuerzos,
-        modules
+        modules,
+        enabledModules,
+        enabledTabs: enabledModules
       };
       
       await onUpdateConfig(updatedConfig);
@@ -305,6 +349,70 @@ export default function MasterTab({ config, products, transactions, onUpdateConf
                   {btn.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* ⚡ MÓDULOS Y PLAN PREMIUM (CONTROL DE PESTAÑAS Y PERMISOS) */}
+          <div className="space-y-3.5 border-t border-gray-100 pt-3.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-emerald-600" />
+                  <span>⚡ MÓDULOS Y PLAN PREMIUM (ACTIVACIÓN DE PESTAÑAS)</span>
+                </h4>
+                <p className="text-[10px] text-slate-500 font-medium leading-normal font-sans mt-0.5">
+                  Control de Feature Flags por tienda (<span className="font-mono text-indigo-600 font-bold">{tenantId || 'general'}</span>). Desactiva o activa pestañas en la barra inferior en tiempo real sin eliminar ningún dato guardado.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { key: 'inventario' as keyof EnabledModules, label: '📦 Inventario', desc: 'Catálogo, stock, precios e ingredientes' },
+                { key: 'caja' as keyof EnabledModules, label: '🧾 Caja (POS)', desc: 'Punto de venta, cobros, fiado y boletas' },
+                { key: 'reportes' as keyof EnabledModules, label: '📊 Reportes', desc: 'Analítica de ventas y productos top' },
+                { key: 'proveedores' as keyof EnabledModules, label: '🚚 Proveedores', desc: 'Directorio, facturas y órdenes de compra' },
+                { key: 'clientes' as keyof EnabledModules, label: '👥 Clientes (CRM)', desc: 'Directorio de clientes, cuentas corrientes y fiados' },
+                { key: 'compras' as keyof EnabledModules, label: '🛒 Compras (Catálogo)', desc: 'Vista pública para pedidos de clientes' },
+              ].map((m) => {
+                const isActive = enabledModules[m.key] !== false;
+                return (
+                  <div
+                    key={m.key}
+                    className={`p-3.5 border-2 rounded-2xl flex items-center justify-between gap-3 transition-all ${
+                      isActive
+                        ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-400 opacity-80'
+                    }`}
+                  >
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black uppercase tracking-wide block font-sans truncate">
+                          {m.label}
+                        </span>
+                        <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase ${
+                          isActive ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {isActive ? 'Activo' : 'Desactivado'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-600 block font-sans line-clamp-1">
+                        {m.desc}
+                      </span>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={isActive}
+                        onChange={(e) => handleToggleTabModule(m.key, e.target.checked)}
+                      />
+                      <div className="w-10 h-5.5 bg-slate-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-emerald-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

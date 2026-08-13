@@ -200,6 +200,16 @@ export interface ScheduleConfig {
   weeklySchedule?: Record<string, DaySchedule>;
 }
 
+export interface EnabledModules {
+  inventario?: boolean;
+  caja?: boolean;
+  reportes?: boolean;
+  proveedores?: boolean;
+  clientes?: boolean;
+  compras?: boolean;
+  [key: string]: boolean | undefined;
+}
+
 export interface BusinessConfig {
   id: string;
   storeKey?: string;
@@ -232,6 +242,8 @@ export interface BusinessConfig {
   articoActiveModules?: Record<string, boolean>;
   farmaciaActiveModules?: Record<string, boolean>;
   modulosPermitidos?: ModulosPermitidos;
+  enabledModules?: EnabledModules;
+  enabledTabs?: EnabledModules;
   rutasCamion?: Record<string, SectorConfig>;
   mostrarAlmuerzos?: boolean;
   modules?: {
@@ -242,6 +254,26 @@ export interface BusinessConfig {
     congelados?: boolean;
     farmacia?: boolean;
   };
+}
+
+export function isTabEnabledForStore(tab: string, config?: BusinessConfig): boolean {
+  if (tab === 'Master' || tab === 'Mant.' || tab === 'InicioTurno') return true;
+  if (!config) return true;
+  const mods = config.enabledModules || config.enabledTabs;
+  if (!mods) return true;
+
+  const map: Record<string, keyof EnabledModules> = {
+    'Inventario': 'inventario',
+    'Caja': 'caja',
+    'Reportes': 'reportes',
+    'Proveedores': 'proveedores',
+    'Clientes': 'clientes',
+    'Compras': 'compras'
+  };
+
+  const key = map[tab];
+  if (!key) return true;
+  return mods[key] !== false;
 }
 
 export type ActiveTab = 'Inventario' | 'Caja' | 'Reportes' | 'Comidas' | 'Compras' | 'Mant.' | 'Master' | 'Proveedores' | 'Clientes';

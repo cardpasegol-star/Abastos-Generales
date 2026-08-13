@@ -188,6 +188,14 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   licenseStatus: 'active',
   licenseMessage: 'Su acceso ha vencido o se encuentra suspendido. Por favor, regularice su servicio mensual contactando al administrador.',
   mostrarAlmuerzos: true,
+  enabledModules: {
+    inventario: true,
+    caja: true,
+    reportes: true,
+    proveedores: true,
+    clientes: true,
+    compras: true
+  },
   modulosActivos: {
     tiendaAbarrotes: true,
     cocinaAlmuerzos: true,

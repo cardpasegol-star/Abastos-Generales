@@ -1026,55 +1026,93 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         </div>
 
         <div className="flex-1 flex flex-col justify-between space-y-3 font-sans">
-          <div className="flex justify-between items-start gap-2.5">
-            <div className="space-y-1 min-w-0 flex-1">
-              <p className="text-slate-950 font-black text-sm sm:text-base leading-snug">
-                {productName}
-              </p>
-              {(p.ingredients || p.description) && (
-                <p className="text-[11px] sm:text-xs text-slate-600 font-medium italic leading-relaxed line-clamp-2">
-                  🍕 {p.ingredients || p.description}
+          {isPizzeria ? (
+            /* Custom non-overlapping dynamic layout for Pasión por las Pizzas */
+            <div className="flex justify-between items-start gap-2.5">
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-slate-950 font-black text-sm sm:text-base leading-snug break-words">
+                  {productName}
                 </p>
-              )}
-              <p className="text-xs text-slate-500 font-extrabold font-mono truncate">
-                SKU: {p.sku || p.id}
-              </p>
-              {isClosedVolumeUnit(p.unidadMedida) && (
-                <span className="inline-block text-[10px] bg-emerald-100 text-emerald-900 font-extrabold px-2 py-0.5 rounded-md mt-0.5 border border-emerald-200">
-                  📦 {getUnidadLabel(p.unidadMedida)}
-                </span>
-              )}
-              {p.unidadMedida && p.unidadMedida !== 'unidad' && !isClosedVolumeUnit(p.unidadMedida) && (
-                <div className="text-xs font-extrabold text-indigo-700 uppercase tracking-wide mt-0.5">
-                  Base: {isOferta ? (
-                    <span>
-                      <span className="line-through text-slate-400 mr-1">${basePrice.toLocaleString('es-CL')}</span>
-                      <span className="text-rose-600">${ofertaPrice.toLocaleString('es-CL')}</span>
+                {(p.ingredients || p.description) && (
+                  <p className="text-xs text-slate-600 font-medium italic leading-relaxed">
+                    🍕 {p.ingredients || p.description}
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-500 font-extrabold font-mono">
+                  SKU: {p.sku || p.id}
+                </p>
+              </div>
+
+              <div className="text-right shrink-0 min-w-[80px] pl-1">
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-wide block">Precio</span>
+                {isOferta ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs text-slate-400 line-through font-extrabold leading-tight">
+                      ${Math.round(basePrice).toLocaleString('es-CL')}
                     </span>
-                  ) : (
-                    <span>${basePrice.toLocaleString('es-CL')}{getUnidadShortSuffix(p.unidadMedida)}</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="text-right shrink-0">
-              <span className="text-[10px] text-slate-500 font-black uppercase tracking-wide block">Precio</span>
-              {isOferta ? (
-                <div className="flex flex-col items-end">
-                  <span className="text-xs text-slate-400 line-through font-extrabold leading-none mb-0.5">
-                    ${basePrice.toFixed(2)}
+                    <span className="text-base sm:text-lg font-black text-rose-600 leading-tight">
+                      ${Math.round(ofertaPrice).toLocaleString('es-CL')}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-base sm:text-lg font-black text-slate-950 leading-tight block">
+                    ${Math.round(basePrice).toLocaleString('es-CL')}
                   </span>
-                  <span className="text-base sm:text-lg font-black text-rose-600 leading-none">
-                    ${ofertaPrice.toFixed(2)}{getUnidadShortSuffix(p.unidadMedida)}
-                  </span>
-                </div>
-              ) : (
-                <span className="text-base sm:text-lg font-black text-slate-950 leading-none">
-                  ${basePrice.toFixed(2)}{getUnidadShortSuffix(p.unidadMedida)}
-                </span>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Original layout for non-pizza stores */
+            <div className="flex justify-between items-start gap-2.5">
+              <div className="space-y-1 min-w-0 flex-1">
+                <p className="text-slate-950 font-black text-sm sm:text-base leading-snug">
+                  {productName}
+                </p>
+                {(p.ingredients || p.description) && (
+                  <p className="text-[11px] sm:text-xs text-slate-600 font-medium italic leading-relaxed line-clamp-2">
+                    🍕 {p.ingredients || p.description}
+                  </p>
+                )}
+                <p className="text-xs text-slate-500 font-extrabold font-mono truncate">
+                  SKU: {p.sku || p.id}
+                </p>
+                {isClosedVolumeUnit(p.unidadMedida) && (
+                  <span className="inline-block text-[10px] bg-emerald-100 text-emerald-900 font-extrabold px-2 py-0.5 rounded-md mt-0.5 border border-emerald-200">
+                    📦 {getUnidadLabel(p.unidadMedida)}
+                  </span>
+                )}
+                {p.unidadMedida && p.unidadMedida !== 'unidad' && !isClosedVolumeUnit(p.unidadMedida) && (
+                  <div className="text-xs font-extrabold text-indigo-700 uppercase tracking-wide mt-0.5">
+                    Base: {isOferta ? (
+                      <span>
+                        <span className="line-through text-slate-400 mr-1">${basePrice.toLocaleString('es-CL')}</span>
+                        <span className="text-rose-600">${ofertaPrice.toLocaleString('es-CL')}</span>
+                      </span>
+                    ) : (
+                      <span>${basePrice.toLocaleString('es-CL')}{getUnidadShortSuffix(p.unidadMedida)}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="text-right shrink-0">
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-wide block">Precio</span>
+                {isOferta ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs text-slate-400 line-through font-extrabold leading-none mb-0.5">
+                      ${basePrice.toFixed(2)}
+                    </span>
+                    <span className="text-base sm:text-lg font-black text-rose-600 leading-none">
+                      ${ofertaPrice.toFixed(2)}{getUnidadShortSuffix(p.unidadMedida)}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-base sm:text-lg font-black text-slate-950 leading-none">
+                    ${basePrice.toFixed(2)}{getUnidadShortSuffix(p.unidadMedida)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-200 font-sans gap-2">
             <span className="text-xs text-slate-600 font-extrabold truncate">

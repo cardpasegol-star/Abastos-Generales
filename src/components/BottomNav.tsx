@@ -1,6 +1,6 @@
 import React from 'react';
 import { Package2, Receipt, BarChart3, Settings, ShoppingCart, KeyRound, Truck, Users } from 'lucide-react';
-import { ActiveTab, Empleado } from '../types';
+import { ActiveTab, Empleado, BusinessConfig, isTabEnabledForStore } from '../types';
 
 interface BottomNavProps {
   activeTab: ActiveTab;
@@ -8,6 +8,7 @@ interface BottomNavProps {
   currentEmployee: Empleado | null;
   isAdminUnlocked?: boolean;
   isMasterUnlocked?: boolean;
+  config?: BusinessConfig;
 }
 
 export default function BottomNav({ 
@@ -15,7 +16,8 @@ export default function BottomNav({
   setActiveTab, 
   currentEmployee, 
   isAdminUnlocked = false, 
-  isMasterUnlocked = false 
+  isMasterUnlocked = false,
+  config
 }: BottomNavProps) {
   const navItems = [
     { id: 'Inventario' as ActiveTab, label: 'Inventario', icon: Package2 },
@@ -31,22 +33,29 @@ export default function BottomNav({
   }
 
   const visibleNavItems = navItems.filter((item) => {
-    // 1. Desarrollador (Master) sees everything
+    // Check feature flag for the store first (except Master)
+    if (item.id !== 'Master' && item.id !== 'Mant.') {
+      if (!isTabEnabledForStore(item.id, config)) {
+        return false;
+      }
+    }
+
+    // 1. Desarrollador (Master) sees all enabled tabs + Master
     if (isMasterUnlocked) {
       return true;
     }
 
-    // 2. Dueño (Admin) sees: 'Inventario', 'Caja', 'Reportes', 'Proveedores', 'Clientes', 'Compras'
+    // 2. Dueño (Admin) sees enabled operational tabs
     if (isAdminUnlocked) {
       return true;
     }
 
-    // 3. Empleado (Cajero) sees: 'Inventario', 'Caja', 'Reportes', 'Proveedores', 'Clientes', 'Compras'
+    // 3. Empleado (Cajero) sees enabled operational tabs
     if (currentEmployee && currentEmployee.role === 'cajero') {
       return true;
     }
 
-    // 4. Default / Cliente Público (Not authenticated) sees only 'Compras'
+    // 4. Default / Cliente Público (Not authenticated) sees only 'Compras' if enabled
     return item.id === 'Compras';
   });
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
+import { Lock, ArrowRight, Settings, ShieldAlert } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from './firebase';
-import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory, normalizeProductForFruteria } from './types';
+import { Product, FoodItem, Transaction, BusinessConfig, ActiveTab, Empleado, getModuleForCategory, normalizeProductForFruteria, isTabEnabledForStore } from './types';
 import { sanitizeForFirestore, safeLocalStorageSetItem } from './utils';
 import { bootstrapDatabaseIfEmpty, DEFAULT_CONFIG, getTenantSpecificConfig } from './initDb';
 import { saveTurkoConfig, saveTurkoInventory } from './modules/turko';
@@ -22,6 +23,70 @@ import InicioTurno from './components/InicioTurno';
 import WelcomeScreen from './components/WelcomeScreen';
 import AdminDeliveryPanel from './components/AdminDeliveryPanel';
 
+function PremiumModuleBlockedCard({
+  tabName,
+  config,
+  onNavigateToActiveTab,
+  isMasterUnlocked,
+  onOpenMaster
+}: {
+  tabName: string;
+  config: BusinessConfig;
+  onNavigateToActiveTab: () => void;
+  isMasterUnlocked?: boolean;
+  onOpenMaster?: () => void;
+}) {
+  return (
+    <div className="min-h-[65vh] flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-20 h-20 bg-emerald-50 border-2 border-emerald-200/80 rounded-3xl flex items-center justify-center text-emerald-600 shadow-lg shadow-emerald-100 mb-5">
+        <Lock className="w-9 h-9 stroke-[2.2]" />
+      </div>
+
+      <span className="px-3.5 py-1 bg-amber-100/90 text-amber-900 border border-amber-200/80 rounded-full text-[11px] font-black uppercase tracking-wider mb-3 shadow-2xs">
+        Módulo Premium / Plan Pro
+      </span>
+
+      <h2 className="text-2xl font-black text-slate-900 tracking-tight max-w-md">
+        El Módulo de <span className="text-emerald-600">{tabName}</span> no está activo
+      </h2>
+
+      <p className="text-slate-600 text-sm font-medium mt-2 max-w-md leading-relaxed">
+        Esta funcionalidad requiere activación en el plan de suscripción de <strong className="text-slate-800">{config.name}</strong>. Todos sus datos guardados permanecen seguros e intactos.
+      </p>
+
+      <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm">
+        <button
+          onClick={onNavigateToActiveTab}
+          className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-md shadow-emerald-600/20 transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+        >
+          <ArrowRight className="w-4 h-4" />
+          <span>Ir a Módulos Activos</span>
+        </button>
+
+        {isMasterUnlocked && onOpenMaster && (
+          <button
+            onClick={onOpenMaster}
+            className="w-full sm:w-auto px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 border border-slate-200"
+          >
+            <Settings className="w-4 h-4 text-indigo-600" />
+            <span>Activar en Dev Panel</span>
+          </button>
+        )}
+      </div>
+
+      <div className="mt-8 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl max-w-md text-left text-xs text-slate-500 font-sans space-y-1">
+        <div className="font-bold text-slate-700 flex items-center gap-1.5">
+          <ShieldAlert className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>Garantía de conservación de datos</span>
+        </div>
+        <p className="leading-snug text-[11px]">
+          Desactivar o restringir pestañas oculta la interfaz de navegación, pero NO modifica ni elimina los registros de inventario, ventas o proveedores en la base de datos.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tenantId, setTenantId] = useState<string | null>(() => {
     try {
@@ -29,7 +94,7 @@ export default function App() {
       const urlTienda = params.get('tienda') || params.get('id_tienda') || params.get('modulo');
       if (urlTienda) {
         let clean = urlTienda.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-        if (clean === 'fruteria' || clean === 'frutería') {
+        if (clean === 'fruteria' || clean === 'frutería' || clean === 'fruteria-principe' || clean === 'fruteria_principe' || clean === 'fruteria_principe_gales') {
           clean = 'fruteria_principe_gales';
         } else if (clean === 'turco') {
           clean = 'el_turco';
@@ -167,7 +232,7 @@ export default function App() {
       const tiendaParam = params.get('tienda') || params.get('modulo') || params.get('id_tienda');
       if (tiendaParam) {
         let clean = tiendaParam.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-        if (clean === 'fruteria' || clean === 'frutería') {
+        if (clean === 'fruteria' || clean === 'frutería' || clean === 'fruteria-principe' || clean === 'fruteria_principe' || clean === 'fruteria_principe_gales') {
           clean = 'fruteria_principe_gales';
         } else if (clean === 'turco') {
           clean = 'el_turco';
@@ -726,6 +791,16 @@ export default function App() {
     }
   }
 
+  const getFirstActiveTab = (): ActiveTab => {
+    const candidates: ActiveTab[] = ['Compras', 'Caja', 'Inventario', 'Reportes', 'Proveedores', 'Clientes'];
+    for (const c of candidates) {
+      if (isTabEnabledForStore(c, config)) {
+        return c;
+      }
+    }
+    return 'Compras';
+  };
+
   // 4. Primary client layout canvas with persistent bottom nav
   return (
     <div className="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased text-body-md select-none relative">
@@ -801,6 +876,14 @@ export default function App() {
             onUpdateProductStock={handleUpdateProductStock}
             onAddTransaction={handleAddTransaction}
             config={config}
+          />
+        ) : !isTabEnabledForStore(currentTab, config) ? (
+          <PremiumModuleBlockedCard
+            tabName={currentTab}
+            config={config}
+            onNavigateToActiveTab={() => setActiveTab(getFirstActiveTab())}
+            isMasterUnlocked={isMasterUnlocked}
+            onOpenMaster={() => setActiveTab('Master')}
           />
         ) : (
           <>
@@ -933,6 +1016,7 @@ export default function App() {
         currentEmployee={currentEmployee} 
         isMasterUnlocked={isMasterUnlocked}
         isAdminUnlocked={isAdminUnlocked}
+        config={config}
       />
     </div>
   );
