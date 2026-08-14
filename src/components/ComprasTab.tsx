@@ -1297,13 +1297,16 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   // Aggregated mathematics
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
-  const ivaPercentage = config?.ivaPercentage !== undefined ? config.ivaPercentage : 15;
+  const ivaPercentage = 19;
   const subtotalVal = cart.reduce((sum, item) => {
     return sum + getItemPrice(item) * item.quantity;
   }, 0);
-  const taxVal = subtotalVal * (ivaPercentage / 100);
+  // En Chile, los precios publicados YA INCLUYEN el 19% de IVA.
+  // Cálculo informativo de IVA (19% incluido):
+  const montoNetoInformativo = subtotalVal / 1.19;
+  const taxVal = subtotalVal - montoNetoInformativo;
   const platformFeeVal = subtotalVal * 0.10; // 10% platform service fee
-  const totalCartCost = subtotalVal + taxVal + (shippingMethod === 'Domicilio' ? deliveryFee : 0) + platformFeeVal;
+  const totalCartCost = subtotalVal + (shippingMethod === 'Domicilio' ? deliveryFee : 0) + platformFeeVal;
 
   // PDF Ticket Downloader for Clients
   const downloadReceiptPDF = (tx: Transaction) => {
@@ -1392,13 +1395,12 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
     // Totals Block
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text('SUBTOTAL:', 35, currentY);
-    doc.text(`$${tx.subtotal.toFixed(2)}`, 75, currentY, { align: 'right' });
+    doc.text('SUBTOTAL (IVA Inc.):', 35, currentY);
+    doc.text(`$${Math.round(tx.subtotal).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
     currentY += 3.5;
 
-    const calculatedIvaRate = tx.subtotal > 0 ? Math.round((tx.tax / tx.subtotal) * 100) : (config?.ivaPercentage !== undefined ? config.ivaPercentage : 15);
-    doc.text(`IVA (${calculatedIvaRate}%):`, 35, currentY);
-    doc.text(`$${tx.tax.toFixed(2)}`, 75, currentY, { align: 'right' });
+    doc.text('IVA 19% (Incluido):', 35, currentY);
+    doc.text(`$${Math.round(tx.tax).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
     currentY += 4.5;
 
     if (tx.shippingMethod === 'Domicilio' && tx.deliveryFee) {
@@ -1634,17 +1636,34 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         paymentStatus = 'APPROVED';
 
         // Mercado Pago Split Payment Preference Object Structure
-        const mpPreferencePayload = {
-          items: txItems.map(item => ({
+        const mpPreferenceItems = [
+          ...txItems.map(item => ({
             title: item.name,
             quantity: item.qty,
-            unit_price: item.price,
+            unit_price: Math.round(item.price),
             currency_id: 'CLP'
           })),
+          ...(shippingMethod === 'Domicilio' && deliveryFee > 0 ? [{
+            title: 'Envío (Delivery / Flete Programado)',
+            quantity: 1,
+            unit_price: Math.round(deliveryFee),
+            currency_id: 'CLP'
+          }] : []),
+          ...(platformFeeVal > 0 ? [{
+            title: 'Tarifa de Uso de Plataforma (10%)',
+            quantity: 1,
+            unit_price: Math.round(platformFeeVal),
+            currency_id: 'CLP'
+          }] : [])
+        ];
+
+        const mpPreferencePayload = {
+          items: mpPreferenceItems,
           marketplace_fee: marketplaceFee,
           metadata: {
             store_id: config?.name || 'principal',
-            platform_commission: marketplaceFee
+            platform_commission: marketplaceFee,
+            delivery_fee: shippingMethod === 'Domicilio' ? deliveryFee : 0
           }
         };
         console.log("=== MERCADO PAGO PREFERENCE PAYLOAD (SPLIT PAYMENT) ===", JSON.stringify(mpPreferencePayload, null, 2));
@@ -1851,11 +1870,12 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         msg += `------------------------------------\n`;
 
         if (shippingMethod === 'Domicilio') {
-          msg += `🚚 *Costo de Envío:* $${deliveryFee.toFixed(2)}\n`;
+          msg += `🚚 *Costo de Envío:* $${Math.round(deliveryFee).toLocaleString('es-CL')}\n`;
         }
-        msg += `⚡ *Tarifa de Uso de Plataforma (10%):* $${platformFeeVal.toFixed(2)}\n`;
+        msg += `⚡ *Tarifa de Uso de Plataforma (10%):* $${Math.round(platformFeeVal).toLocaleString('es-CL')}\n`;
+        msg += `ℹ️ _IVA 19% Incluido en precios: $${Math.round(taxVal).toLocaleString('es-CL')}_\n`;
 
-        msg += `\n💵 *TOTAL PAGADO: $${totalCartCost.toFixed(2)}*\n`;
+        msg += `\n💵 *TOTAL PAGADO: $${Math.round(totalCartCost).toLocaleString('es-CL')}*\n`;
         if (docUrl) {
           msg += `📥 *Ver Documento SII:* ${docUrl}\n`;
         }
@@ -1933,13 +1953,13 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         }
 
         msg += `\n💵 *RESUMEN DE PAGO:*\n`;
-        msg += `• Subtotal: $${subtotalVal.toFixed(2)}\n`;
-        msg += `• IVA (${ivaPercentage}%): $${taxVal.toFixed(2)}\n`;
+        msg += `• Subtotal Artículos (IVA Inc.): $${Math.round(subtotalVal).toLocaleString('es-CL')}\n`;
+        msg += `• IVA (19% Incluido): $${Math.round(taxVal).toLocaleString('es-CL')}\n`;
         if (shippingMethod === 'Domicilio' && deliveryFee > 0) {
-          msg += `• Envío (Delivery): $${deliveryFee.toFixed(2)}\n`;
+          msg += `• Envío (Delivery): $${Math.round(deliveryFee).toLocaleString('es-CL')}\n`;
         }
-        msg += `• Tarifa de Uso de Plataforma (10%): $${platformFeeVal.toFixed(2)}\n`;
-        msg += `• *TOTAL COMPLETO A PAGAR: $${totalCartCost.toFixed(2)}*\n\n`;
+        msg += `• Tarifa de Uso de Plataforma (10%): $${Math.round(platformFeeVal).toLocaleString('es-CL')}\n`;
+        msg += `• *TOTAL COMPLETO A PAGAR: $${Math.round(totalCartCost).toLocaleString('es-CL')}*\n\n`;
         if (simulatedPdfUrl) {
           msg += `📥 *Descargar Comprobante SII:* ${simulatedPdfUrl}\n\n`;
         }
@@ -3687,26 +3707,26 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                 <>
                   <div className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 space-y-2 text-xs font-sans">
                     <div className="flex justify-between text-slate-700 font-medium">
-                      <span>Subtotal Artículos:</span>
-                      <span className="font-mono font-bold">${subtotalVal.toFixed(2)}</span>
+                      <span>Subtotal Artículos (IVA Inc.):</span>
+                      <span className="font-mono font-bold">${Math.round(subtotalVal).toLocaleString('es-CL')}</span>
                     </div>
-                    <div className="flex justify-between text-slate-700 font-medium">
-                      <span>IVA ({ivaPercentage}%):</span>
-                      <span className="font-mono font-bold">${taxVal.toFixed(2)}</span>
+                    <div className="flex justify-between text-slate-500 text-[11px] font-medium italic bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                      <span>IVA (19% Incluido en el precio):</span>
+                      <span className="font-mono font-bold">${Math.round(taxVal).toLocaleString('es-CL')}</span>
                     </div>
                     {shippingMethod === 'Domicilio' && (
                       <div className="flex justify-between text-slate-700 font-medium">
-                        <span>Envío (Delivery):</span>
-                        <span className="font-mono font-bold">${deliveryFee.toFixed(2)}</span>
+                        <span>Envío (Delivery / Flete):</span>
+                        <span className="font-mono font-bold">${Math.round(deliveryFee).toLocaleString('es-CL')}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-amber-950 font-bold bg-amber-50 p-2 rounded-xl border border-amber-250">
                       <span>TARIFA DE USO DE PLATAFORMA (10%):</span>
-                      <span className="font-mono font-black">${platformFeeVal.toFixed(2)}</span>
+                      <span className="font-mono font-black">${Math.round(platformFeeVal).toLocaleString('es-CL')}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-200">
                       <span className="text-slate-900 font-extrabold uppercase font-sans">TOTAL A PAGAR:</span>
-                      <span className="text-xl font-black text-emerald-600 font-mono">${totalCartCost.toFixed(2)}</span>
+                      <span className="text-xl font-black text-emerald-600 font-mono">${Math.round(totalCartCost).toLocaleString('es-CL')}</span>
                     </div>
                   </div>
 
@@ -3936,18 +3956,18 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                 {/* Final Totals summary */}
                 <div className="border-t border-dashed border-slate-200 pt-3 text-xs space-y-1.5 font-medium text-slate-650 font-sans font-sans">
                   <div className="flex justify-between font-sans">
-                    <span>SUBTOTAL:</span>
-                    <span className="font-mono">${successTx.subtotal.toFixed(2)}</span>
+                    <span>SUBTOTAL (IVA Inc.):</span>
+                    <span className="font-mono">${Math.round(successTx.subtotal).toLocaleString('es-CL')}</span>
                   </div>
-                  <div className="flex justify-between font-sans">
-                    <span>IVA ({ivaPercentage}%):</span>
-                    <span className="font-mono">${successTx.tax.toFixed(2)}</span>
+                  <div className="flex justify-between font-sans text-slate-500 italic">
+                    <span>IVA 19% (Incluido):</span>
+                    <span className="font-mono">${Math.round(successTx.tax).toLocaleString('es-CL')}</span>
                   </div>
                   {successTx.shippingMethod === 'Domicilio' && successTx.deliveryFee ? (
                     <div className="space-y-0.5 pt-0.5 border-t border-dashed border-slate-100 font-sans">
                       <div className="flex justify-between">
-                        <span>ENVIO (DELIVERY):</span>
-                        <span className="font-mono">${successTx.deliveryFee.toFixed(2)}</span>
+                        <span>ENVÍO (DELIVERY):</span>
+                        <span className="font-mono">${Math.round(successTx.deliveryFee).toLocaleString('es-CL')}</span>
                       </div>
                       <p className="text-[10px] text-slate-500 italic font-sans text-left">
                         📍 Despacho: {successTx.deliveryAddress}, {successTx.deliveryComuna}
@@ -3956,14 +3976,14 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                   ) : null}
                   <div className="flex justify-between font-sans font-bold text-amber-950 bg-amber-50 p-1.5 rounded-lg border border-amber-200 my-1">
                     <span>TARIFA DE USO DE PLATAFORMA (10%):</span>
-                    <span className="font-mono">${(successTx.platformFee ?? (successTx.subtotal * 0.10)).toFixed(2)}</span>
+                    <span className="font-mono">${Math.round(successTx.platformFee ?? (successTx.subtotal * 0.10)).toLocaleString('es-CL')}</span>
                   </div>
                   <div className="flex justify-between pt-1.5 border-t border-slate-100 items-baseline font-sans">
                     <span className="font-black text-xs text-slate-950 uppercase font-sans">
                       {successTx.method === 'Tarjeta' ? 'TOTAL PAGADO:' : 'TOTAL A PAGAR:'}
                     </span>
                     <span className="font-mono font-black text-base text-emerald-600 font-sans">
-                      ${successTx.total.toFixed(2)}
+                      ${Math.round(successTx.total).toLocaleString('es-CL')}
                     </span>
                   </div>
                 </div>
