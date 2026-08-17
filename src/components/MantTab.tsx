@@ -15,7 +15,7 @@ const DEFAULT_WEEKLY_SCHEDULE: Record<string, DaySchedule> = {
   'Sábado': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
   'Domingo': { isOpen: true, openTime: '08:00', closeTime: '20:00' },
 };
-import { checkStoreOpenStatus } from '../utils';
+import { checkStoreOpenStatus, safeLocalStorageSetItem } from '../utils';
 
 const FOOD_PRESET_IMAGES = [
   { label: 'Salada', url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200' },
@@ -1529,7 +1529,7 @@ export default function MantTab({
           const compressed = canvas.toDataURL('image/jpeg', 0.65);
           setLocalBannerUrl(compressed);
           const activeStore = getActiveStoreInfo();
-          localStorage.setItem(`${activeStore.key}_banner_v1`, compressed);
+          safeLocalStorageSetItem(`${activeStore.key}_banner_v1`, compressed);
         }
       };
     };

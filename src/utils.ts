@@ -70,20 +70,28 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
   } catch (err) {
     console.warn(`[localStorage] Cuota de almacenamiento alcanzada al guardar "${key}". Optimizando datos...`, err);
     try {
+      // 1. Clean legacy redundant caches to free up localStorage space
+      const redundantKeys = ['APP_PRODUCTS_DATA', 'fruteria_products_legacy', 'products_temp_backup'];
+      redundantKeys.forEach((k) => {
+        if (k !== key) {
+          try { localStorage.removeItem(k); } catch {}
+        }
+      });
+
+      // 2. If it's a JSON array or object, sanitize heavy fields (data: images or > 250 chars)
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) {
-        // Essential records protection: keep key product attributes (name, SKU, price, category, stock, cost, etc.)
-        // and replace heavy image URLs/base64 strings with standard category placeholders
         const cleaned = parsed.map((item: any) => {
           if (item && typeof item === 'object') {
             const copy = { ...item };
-            if (copy.imageUrl && (copy.imageUrl.length > 300 || copy.imageUrl.startsWith('data:'))) {
+            if (copy.imageUrl && (copy.imageUrl.length > 250 || copy.imageUrl.startsWith('data:'))) {
               copy.imageUrl = getCategoryPlaceholder(copy.category);
             }
             return copy;
           }
           return item;
         });
+
         localStorage.setItem(key, JSON.stringify(cleaned));
         console.info(`[localStorage] Se guardaron los datos esenciales para "${key}" optimizando las imágenes.`);
         if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -92,9 +100,12 @@ export function safeLocalStorageSetItem(key: string, value: string): boolean {
           }));
         }
         return true;
+      } else {
+        localStorage.setItem(key, value);
+        return true;
       }
     } catch (cleanErr) {
-      console.error("[localStorage] No se pudo guardar ni tras optimizar los datos:", cleanErr);
+      console.warn("[localStorage] No se pudo persistir en localStorage debido a cuota máxima. Los datos se mantendrán en memoria.", cleanErr);
     }
     return false;
   }

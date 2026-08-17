@@ -1,5 +1,6 @@
 import { BusinessConfig } from '../../types';
 import { TurkoProduct, TurkoBusinessConfig } from './types';
+import { safeLocalStorageSetItem } from '../../utils';
 
 export const TURKO_STORE_DATA_KEY = 'turko_store_data';
 export const TURKO_STORE_CONFIG_KEY = 'turko_store_config';
@@ -64,9 +65,9 @@ export function getTurkoStoredConfig(): TurkoBusinessConfig {
 
 export function saveTurkoConfig(config: BusinessConfig): void {
   try {
-    localStorage.setItem(TURKO_STORE_CONFIG_KEY, JSON.stringify(config));
+    safeLocalStorageSetItem(TURKO_STORE_CONFIG_KEY, JSON.stringify(config));
   } catch (err) {
-    console.error('Error saving Turko config:', err);
+    console.warn('Error saving Turko config:', err);
   }
 }
 
@@ -80,9 +81,9 @@ export function getTurkoStoredInventory(): TurkoProduct[] {
 
 export function saveTurkoInventory(products: TurkoProduct[]): void {
   try {
-    localStorage.setItem(TURKO_INVENTORY_KEY, JSON.stringify(products));
+    safeLocalStorageSetItem(TURKO_INVENTORY_KEY, JSON.stringify(products));
   } catch (err) {
-    console.error('Error saving Turko inventory:', err);
+    console.warn('Error saving Turko inventory:', err);
   }
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TurkoProduct, TurkoCartItem, TurkoTransaction } from './types';
 import { BusinessConfig } from '../../types';
+import { safeLocalStorageSetItem } from '../../utils';
 import {
   TURKO_STORE_DATA_KEY,
   TURKO_STORE_CONFIG_KEY,
@@ -235,7 +236,7 @@ export function useTurkoStore(
       try {
         const storedTxs: TurkoTransaction[] = JSON.parse(localStorage.getItem(TURKO_TRANSACTIONS_KEY) || '[]');
         storedTxs.unshift(fullTx);
-        localStorage.setItem(TURKO_TRANSACTIONS_KEY, JSON.stringify(storedTxs));
+        safeLocalStorageSetItem(TURKO_TRANSACTIONS_KEY, JSON.stringify(storedTxs.slice(0, 50)));
       } catch {}
 
       // Open WhatsApp with detailed order notification

@@ -1,5 +1,6 @@
 import { BusinessConfig, Product } from '../../types';
 import { FruteriaBusinessConfig, FruteriaProduct } from './types';
+import { safeLocalStorageSetItem } from '../../utils';
 
 export const FRUTERIA_STORE_CONFIG_KEY = 'fruteria_store_config';
 export const FRUTERIA_INVENTORY_KEY = 'fruteria_inventory_data';
@@ -380,10 +381,10 @@ export function getFruteriaStoredConfig(): FruteriaBusinessConfig {
 
 export function saveFruteriaConfig(config: BusinessConfig): void {
   try {
-    localStorage.setItem(FRUTERIA_STORE_CONFIG_KEY, JSON.stringify(config));
-    localStorage.setItem(`config_${FRUTERIA_TENANT_ID}`, JSON.stringify(config));
+    safeLocalStorageSetItem(FRUTERIA_STORE_CONFIG_KEY, JSON.stringify(config));
+    safeLocalStorageSetItem(`config_${FRUTERIA_TENANT_ID}`, JSON.stringify(config));
   } catch (err) {
-    console.error('Error saving Frutería config:', err);
+    console.warn('Error saving Frutería config:', err);
   }
 }
 
@@ -397,11 +398,9 @@ export function getFruteriaStoredInventory(): FruteriaProduct[] {
 
 export function saveFruteriaInventory(products: FruteriaProduct[]): void {
   try {
-    localStorage.setItem(FRUTERIA_INVENTORY_KEY, JSON.stringify(products));
-    localStorage.setItem(`products_${FRUTERIA_TENANT_ID}`, JSON.stringify(products));
-    localStorage.setItem(FRUTERIA_DATA_LEGACY_KEY, JSON.stringify(products));
+    safeLocalStorageSetItem(FRUTERIA_INVENTORY_KEY, JSON.stringify(products));
   } catch (err) {
-    console.error('Error saving Frutería inventory:', err);
+    console.warn('Error saving Frutería inventory:', err);
   }
 }
 

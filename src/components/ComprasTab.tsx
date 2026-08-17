@@ -3070,17 +3070,17 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
       {/* Cart Drawer / Modal Checkout */}
       {showCartModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-end justify-center">
-          <div className="w-full max-w-md bg-white rounded-t-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up-custom border-t border-slate-100">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-slide-up-custom border border-slate-100 relative">
             {/* Modal Header */}
-            <div className="p-4 border-b-2 border-slate-200 flex items-center justify-between bg-white text-slate-950">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-white text-slate-950 shrink-0">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-emerald-600 stroke-[2.5]" />
                 <h3 className="text-base font-black text-slate-950 text-left font-sans">
                   {checkoutStep === 'ready' ? 'Pedido listo para WhatsApp' : 'Tu Pedido Integrado'}
                 </h3>
                 <span className="bg-emerald-50 text-emerald-800 text-xs font-black px-2.5 py-1 rounded-full border border-emerald-200">
-                  {totalItemsCount} ítems
+                  {totalItemsCount} {totalItemsCount === 1 ? 'ítem' : 'ítems'}
                 </span>
               </div>
               <button
@@ -3090,7 +3090,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                 <X className="w-4 h-4 stroke-[2.5]" />
               </button>
             </div>
-            <div className="p-4 flex-1 overflow-y-auto space-y-4 font-sans text-xs">
+            <div className="p-4 flex-1 overflow-y-auto overscroll-contain space-y-4 font-sans text-xs pb-10">
               {checkoutStep === 'form' ? (
                 <>
                   {/* Product list items */}
@@ -3632,6 +3632,35 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     </div>
                   </div>
 
+                  {/* Detailed Order Summary (Inside Scrollable Form) */}
+                  <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 space-y-2.5 text-xs font-sans shadow-xs">
+                    <span className="text-xs font-black text-slate-700 uppercase tracking-widest block font-sans">
+                      Resumen del Pedido
+                    </span>
+                    <div className="flex justify-between text-slate-700 font-medium">
+                      <span>Subtotal Artículos (IVA Inc.):</span>
+                      <span className="font-mono font-bold">${Math.round(subtotalVal).toLocaleString('es-CL')}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-500 text-[11px] font-medium italic bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                      <span>IVA (19% Incluido en el precio):</span>
+                      <span className="font-mono font-bold">${Math.round(taxVal).toLocaleString('es-CL')}</span>
+                    </div>
+                    {shippingMethod === 'Domicilio' && (
+                      <div className="flex justify-between text-slate-700 font-medium">
+                        <span>Envío (Delivery / Flete):</span>
+                        <span className="font-mono font-bold">${Math.round(deliveryFee).toLocaleString('es-CL')}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-amber-950 font-bold bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                      <span>TARIFA DE USO DE PLATAFORMA (10%):</span>
+                      <span className="font-mono font-black">${Math.round(platformFeeVal).toLocaleString('es-CL')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-200">
+                      <span className="text-slate-900 font-extrabold uppercase font-sans">TOTAL A PAGAR:</span>
+                      <span className="text-xl font-black text-emerald-600 font-mono">${Math.round(totalCartCost).toLocaleString('es-CL')}</span>
+                    </div>
+                  </div>
+
                   {/* Error messages if validations fail */}
                   {validationError && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-red-600 font-bold text-[11px] leading-tight flex items-start gap-1 p-2.5 animate-bounce-subtle">
@@ -3701,63 +3730,55 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
               )}
             </div>
 
-            {/* Modal Footer with Submit Order to WhatsApp */}
-            <div className="p-4 bg-slate-100 border-t-2 border-slate-200 space-y-4 font-sans">
+            {/* Modal Sticky/Compact Footer with Total and Action Button */}
+            <div className="p-3.5 sm:p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl shrink-0 font-sans space-y-2.5">
               {checkoutStep === 'form' ? (
                 <>
-                  <div className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 space-y-2 text-xs font-sans">
-                    <div className="flex justify-between text-slate-700 font-medium">
-                      <span>Subtotal Artículos (IVA Inc.):</span>
-                      <span className="font-mono font-bold">${Math.round(subtotalVal).toLocaleString('es-CL')}</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                        TOTAL A PAGAR
+                      </span>
+                      <span className="text-lg sm:text-2xl font-black text-emerald-600 font-mono tracking-tight leading-none">
+                        ${Math.round(totalCartCost).toLocaleString('es-CL')}
+                      </span>
                     </div>
-                    <div className="flex justify-between text-slate-500 text-[11px] font-medium italic bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
-                      <span>IVA (19% Incluido en el precio):</span>
-                      <span className="font-mono font-bold">${Math.round(taxVal).toLocaleString('es-CL')}</span>
-                    </div>
-                    {shippingMethod === 'Domicilio' && (
-                      <div className="flex justify-between text-slate-700 font-medium">
-                        <span>Envío (Delivery / Flete):</span>
-                        <span className="font-mono font-bold">${Math.round(deliveryFee).toLocaleString('es-CL')}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-amber-950 font-bold bg-amber-50 p-2 rounded-xl border border-amber-250">
-                      <span>TARIFA DE USO DE PLATAFORMA (10%):</span>
-                      <span className="font-mono font-black">${Math.round(platformFeeVal).toLocaleString('es-CL')}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-200">
-                      <span className="text-slate-900 font-extrabold uppercase font-sans">TOTAL A PAGAR:</span>
-                      <span className="text-xl font-black text-emerald-600 font-mono">${Math.round(totalCartCost).toLocaleString('es-CL')}</span>
-                    </div>
+
+                    <button
+                      onClick={handlePrepareOrder}
+                      className="flex-1 max-w-[260px] sm:max-w-[280px] bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black py-3.5 px-3 rounded-2xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm cursor-pointer font-sans border border-emerald-500 shrink-0"
+                    >
+                      {paymentMethod === 'MercadoPago' ? (
+                        <>
+                          <CreditCard className="w-4 h-4 shrink-0" />
+                          <span className="truncate">Pagar con Mercado Pago</span>
+                        </>
+                      ) : paymentMethod === 'Webpay' ? (
+                        <>
+                          <CreditCard className="w-4 h-4 shrink-0" />
+                          <span className="truncate">Pagar con Webpay Plus</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 stroke-[3] shrink-0" />
+                          <span className="truncate">Confirmar Pedido</span>
+                        </>
+                      )}
+                    </button>
                   </div>
 
-                  <button
-                    onClick={handlePrepareOrder}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all duration-200 active:scale-98 text-sm cursor-pointer font-sans border border-emerald-550"
-                  >
-                    {paymentMethod === 'MercadoPago' ? (
-                      <>
-                        <CreditCard className="w-5 h-5 text-white" />
-                        <span>💳 Pagar con Mercado Pago Sandbox</span>
-                      </>
-                    ) : paymentMethod === 'Webpay' ? (
-                      <>
-                        <CreditCard className="w-5 h-5 text-white" />
-                        <span>💳 Pagar con Webpay Plus Sandbox</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-5 h-5 text-white stroke-[3]" />
-                        <span>Confirmar Pedido (Pago al Recibir)</span>
-                      </>
-                    )}
-                  </button>
+                  {!config.whatsapp && (
+                    <p className="text-center text-[10px] text-amber-700 font-bold leading-tight font-sans bg-amber-50 rounded-xl p-1.5 border border-amber-200">
+                      ⚠️ WhatsApp no configurado en "Mant.". Se usará número por defecto.
+                    </p>
+                  )}
                 </>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <button
                     onClick={handleSendWhatsAppAndClear}
                     disabled={isCheckingOut}
-                    className="w-full bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-65 text-white font-black py-4 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] text-sm text-center cursor-pointer font-sans border-0 flex justify-center items-center"
+                    className="w-full bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-65 text-white font-black py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] text-sm text-center cursor-pointer font-sans border-0"
                   >
                     <Send className="w-5 h-5 fill-white text-transparent" />
                     {isCheckingOut ? 'Registrando y abriendo WhatsApp...' : 'Iniciar Chat y Enviar Pedido'}
@@ -3767,7 +3788,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     <button
                       type="button"
                       onClick={() => setCheckoutStep('form')}
-                      className="py-3 rounded-xl border-2 border-slate-300 text-slate-800 bg-white hover:bg-slate-50 font-bold text-xs cursor-pointer font-sans"
+                      className="py-2.5 rounded-xl border-2 border-slate-300 text-slate-800 bg-white hover:bg-slate-50 font-bold text-xs cursor-pointer font-sans"
                     >
                       ⬅️ Modificar Datos
                     </button>
@@ -3781,18 +3802,12 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                         setCheckoutStep('form');
                         setShowCartModal(false);
                       }}
-                      className="py-3 rounded-xl border-2 border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 font-bold text-xs cursor-pointer font-sans"
+                      className="py-2.5 rounded-xl border-2 border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 font-bold text-xs cursor-pointer font-sans"
                     >
                       🗑️ Cancelar Pedido
                     </button>
                   </div>
                 </div>
-              )}
-
-              {!config.whatsapp && checkoutStep === 'form' && (
-                <p className="text-center text-xs text-amber-700 font-black leading-tight font-sans bg-amber-50 rounded-xl p-2.5 border border-amber-200">
-                  ⚠️ Atención: El número de WhatsApp no ha sido configurado en "Mant.". Se enviará al número por defecto (+5491112345678).
-                </p>
               )}
             </div>
           </div>
