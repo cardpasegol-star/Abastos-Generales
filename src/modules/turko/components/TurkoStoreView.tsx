@@ -369,7 +369,7 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
 
             {/* SUGERENCIAS EN TIEMPO REAL Panel */}
             {searchQuery.trim().length >= 1 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border-2 border-slate-200 shadow-2xl overflow-hidden z-50 animate-in fade-in duration-150">
+              <div className="absolute top-full left-0 right-0 w-full mt-2 bg-white rounded-2xl border-2 border-slate-200 shadow-2xl overflow-hidden z-50 animate-in fade-in duration-150">
                 {/* Header */}
                 <div className="px-4 py-3 bg-slate-50/90 border-b border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -382,7 +382,7 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                     </span>
                   </div>
                   <span className="text-[11px] font-extrabold text-slate-400 hidden sm:inline">
-                    Haz clic para ir al producto
+                    Haz clic para agregar o ver producto
                   </span>
                 </div>
 
@@ -401,64 +401,72 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                       return (
                         <div
                           key={prod.id}
-                          className="p-3 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-3 group"
+                          className="p-3 sm:p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-3 relative"
                         >
-                          {/* Thumbnail & Info */}
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 shrink-0 overflow-hidden p-1 flex items-center justify-center">
-                              <img
-                                src={prod.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400'}
-                                alt={prod.name}
-                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="font-black text-xs sm:text-sm text-slate-900 truncate">
-                                {prod.name}
-                              </h4>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200 uppercase">
-                                  {getCategoryEmoji(prod.category)} {prod.category}
+                          {/* Izquierda: Thumbnail */}
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white border border-slate-200 shrink-0 overflow-hidden p-1.5 flex items-center justify-center shadow-2xs">
+                            <img
+                              src={prod.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400'}
+                              alt={prod.name}
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                            />
+                          </div>
+
+                          {/* Centro: Columna Vertical estructurada sin solapamientos */}
+                          <div className="flex-1 min-w-0 flex flex-col gap-1 relative">
+                            {/* Nombre del producto */}
+                            <h4 className="font-black text-xs sm:text-sm text-slate-900 leading-snug truncate">
+                              {prod.name}
+                            </h4>
+
+                            {/* Etiqueta de Categoría con margen propio */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider">
+                                {getCategoryEmoji(prod.category)} {prod.category || 'Abarrotes'}
+                              </span>
+                              {prod.unidadMedida && (
+                                <span className="text-[10px] text-slate-500 font-bold">
+                                  {getUnidadLabel(prod.unidadMedida)}
                                 </span>
-                                {prod.stock !== undefined && (
-                                  <span className="text-[10px] font-bold text-slate-500">
-                                    Disp: {prod.stock} unidades
-                                  </span>
-                                )}
-                              </div>
+                              )}
+                            </div>
+
+                            {/* Precio y Disponibilidad separados */}
+                            <div className="flex items-baseline gap-2 flex-wrap pt-0.5">
+                              <span className="font-mono font-black text-xs sm:text-sm text-slate-950">
+                                ${Math.round(displayPrice).toLocaleString('es-CL')}
+                              </span>
+                              {prod.enOferta && prod.precioOferta && (
+                                <span className="text-[10px] text-slate-400 line-through font-mono font-bold">
+                                  ${Math.round(prod.price).toLocaleString('es-CL')}
+                                </span>
+                              )}
+                              {prod.stock !== undefined && (
+                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                                  Disp: {prod.stock} {prod.unidadMedida ? getUnidadShortSuffix(prod.unidadMedida) : 'unidades'}
+                                </span>
+                              )}
                             </div>
                           </div>
 
-                          {/* Price & Action */}
-                          <div className="flex items-center gap-3 shrink-0">
-                            <div className="text-right">
-                              {prod.enOferta && prod.precioOferta && (
-                                <span className="text-[10px] text-slate-400 line-through font-mono font-bold block leading-none">
-                                  ${prod.price.toFixed(0)}
-                                </span>
-                              )}
-                              <span className="font-mono font-black text-sm text-slate-950 block">
-                                ${displayPrice.toFixed(0)}
-                              </span>
-                              <span className="text-[9px] text-slate-400 font-extrabold block">por unidades</span>
-                            </div>
-
+                          {/* Derecha: Botón Agregar o Cantidad Centrado Verticalmente */}
+                          <div className="shrink-0 flex items-center self-center pl-1">
                             {inCart ? (
-                              <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-300 rounded-xl p-1">
+                              <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-300 rounded-xl p-1 shadow-2xs">
                                 <button
                                   type="button"
                                   onClick={() => updateCartQuantity(prod.id, inCart.quantity - 1)}
-                                  className="w-6 h-6 bg-white text-emerald-800 rounded-lg flex items-center justify-center font-bold text-xs shadow-2xs hover:bg-emerald-100 cursor-pointer"
+                                  className="w-7 h-7 bg-white text-emerald-800 rounded-lg flex items-center justify-center font-bold text-xs shadow-2xs hover:bg-emerald-100 cursor-pointer"
                                 >
                                   -
                                 </button>
-                                <span className="font-mono font-black text-xs text-emerald-950 px-1">
+                                <span className="font-mono font-black text-xs text-emerald-950 px-1.5">
                                   {inCart.quantity}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => updateCartQuantity(prod.id, inCart.quantity + 1)}
-                                  className="w-6 h-6 bg-emerald-600 text-white rounded-lg flex items-center justify-center font-bold text-xs shadow-2xs hover:bg-emerald-700 cursor-pointer"
+                                  className="w-7 h-7 bg-emerald-600 text-white rounded-lg flex items-center justify-center font-bold text-xs shadow-2xs hover:bg-emerald-700 cursor-pointer"
                                 >
                                   +
                                 </button>
@@ -467,9 +475,9 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => addToCart(prod, 1)}
-                                className="py-1.5 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs flex items-center gap-1 transition-all cursor-pointer active:scale-95 border border-emerald-500"
+                                className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border border-emerald-500 whitespace-nowrap"
                               >
-                                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                                <Plus className="w-4 h-4 stroke-[3]" />
                                 <span>Agregar</span>
                               </button>
                             )}
