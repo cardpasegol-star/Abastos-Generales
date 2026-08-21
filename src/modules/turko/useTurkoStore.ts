@@ -78,6 +78,7 @@ export function useTurkoStore(
 
   // Ticket modal state
   const [activeTicket, setActiveTicket] = useState<TurkoTransaction | null>(null);
+  const [pendingApprovalTx, setPendingApprovalTx] = useState<TurkoTransaction | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState<boolean>(false);
 
   // Filtered products list
@@ -287,8 +288,12 @@ export function useTurkoStore(
         }
       }
 
-      // Set Active Ticket Modal & Clear Cart directly
-      setActiveTicket(fullTx);
+      // For digital payment gateways (Mercado Pago / Webpay Sandbox), show intermediate approval modal first
+      if (paymentMethod === 'Mercado Pago' || paymentMethod === 'MercadoPago' || paymentMethod === 'Webpay') {
+        setPendingApprovalTx(fullTx);
+      } else {
+        setActiveTicket(fullTx);
+      }
       clearCart();
     } catch (err) {
       console.error('Error in executeCheckout:', err);
@@ -338,6 +343,8 @@ export function useTurkoStore(
     totals,
     activeTicket,
     setActiveTicket,
+    pendingApprovalTx,
+    setPendingApprovalTx,
     isProcessingCheckout,
     executeCheckout
   };
