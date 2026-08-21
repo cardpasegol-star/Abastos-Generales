@@ -122,6 +122,8 @@ export interface Transaction {
   deliveryAddress?: string;
   deliveryComuna?: string;
   deliveryFee?: number;
+  deliveryId?: string;
+  trackingUrl?: string;
   paymentStatus?: 'APPROVED' | 'PENDING' | string;
   paymentStatusText?: string;
   marketplaceFee?: number;

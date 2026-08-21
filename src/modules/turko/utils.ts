@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import { TurkoTransaction, TurkoCartItem, TurkoBusinessConfig } from './types';
 import { TURKO_PLATFORM_FEE_PERCENTAGE } from './config';
 import { getUnidadShortSuffix } from '../../utils/unitHelpers';
+import { isModuleActive } from '../../types';
 
 export interface TurkoCalculatedTotals {
   subtotal: number;
@@ -15,20 +16,22 @@ export function calculateTurkoTotals(
   cart: TurkoCartItem[],
   shippingMethod: 'Retiro' | 'Domicilio',
   deliveryFee: number,
-  ivaPercentage: number = 15
+  _ivaPercentage: number = 19
 ): TurkoCalculatedTotals {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * (ivaPercentage / 100);
+  // Regla Matemática: Los precios ya incluyen IVA 19%. IVA Informativo = Subtotal / 1.19 * 0.19
+  const tax = Math.round((subtotal / 1.19) * 0.19);
   const activeDeliveryFee = shippingMethod === 'Domicilio' ? deliveryFee : 0;
-  const platformFee = subtotal * TURKO_PLATFORM_FEE_PERCENTAGE;
-  const total = subtotal + tax + activeDeliveryFee + platformFee;
+  const platformFee = Math.round(subtotal * TURKO_PLATFORM_FEE_PERCENTAGE);
+  // Total a Pagar = Subtotal + Costo de Envío + Tarifa de Uso de Plataforma 10%
+  const total = subtotal + activeDeliveryFee + platformFee;
 
   return {
-    subtotal: parseFloat(subtotal.toFixed(2)),
-    tax: parseFloat(tax.toFixed(2)),
-    deliveryFee: parseFloat(activeDeliveryFee.toFixed(2)),
-    platformFee: parseFloat(platformFee.toFixed(2)),
-    total: parseFloat(total.toFixed(2))
+    subtotal: Math.round(subtotal),
+    tax: Math.round(tax),
+    deliveryFee: Math.round(activeDeliveryFee),
+    platformFee: Math.round(platformFee),
+    total: Math.round(total)
   };
 }
 
@@ -36,7 +39,7 @@ export function downloadTurkoReceiptPDF(tx: TurkoTransaction, config: TurkoBusin
   const headerHeight = 55;
   const itemsHeight = tx.items.length * 7;
   const platformFeeLineHeight = 5;
-  const totalsHeight = (tx.shippingMethod === 'Domicilio' ? 42 : 30) + platformFeeLineHeight;
+  const totalsHeight = (tx.shippingMethod === 'Domicilio' ? 45 : 35) + platformFeeLineHeight;
   const pdfHeight = headerHeight + itemsHeight + totalsHeight + 15;
 
   const doc = new jsPDF({
@@ -63,7 +66,7 @@ export function downloadTurkoReceiptPDF(tx: TurkoTransaction, config: TurkoBusin
   currentY += 4;
 
   doc.setFontSize(7);
-  doc.text(`Folio: #${tx.id.slice(-8).toUpperCase()}`, 40, currentY, { align: 'center' });
+  doc.text(`Folio: #${tx.id.replace('tx-', '').replace('TURKO-', '').toUpperCase()}`, 40, currentY, { align: 'center' });
   currentY += 3.5;
   doc.text(`Fecha: ${new Date(tx.createdAt).toLocaleString('es-CL', { timeZone: 'America/Santiago' })}`, 40, currentY, { align: 'center' });
   currentY += 3.5;
@@ -90,7 +93,7 @@ export function downloadTurkoReceiptPDF(tx: TurkoTransaction, config: TurkoBusin
 
     doc.text(`${qty}x`, 5, currentY);
     doc.text(nameTruncated, 18, currentY);
-    doc.text(`$${itemSubtotal.toFixed(2)}`, 75, currentY, { align: 'right' });
+    doc.text(`$${Math.round(itemSubtotal).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
     currentY += 4.5;
   });
 
@@ -98,40 +101,53 @@ export function downloadTurkoReceiptPDF(tx: TurkoTransaction, config: TurkoBusin
   doc.line(5, currentY, 75, currentY);
   currentY += 4;
 
+  const platformFee = tx.platformFee !== undefined
+    ? tx.platformFee
+    : Math.round(tx.subtotal * 0.10);
+
   // Totals
   doc.setFontSize(7);
-  doc.text('SUBTOTAL:', 35, currentY);
-  doc.text(`$${tx.subtotal.toFixed(2)}`, 75, currentY, { align: 'right' });
+  doc.text('SUBTOTAL ARTICULOS:', 30, currentY);
+  doc.text(`$${Math.round(tx.subtotal).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
   currentY += 3.5;
 
-  doc.text(`IVA (${config.ivaPercentage || 15}%):`, 35, currentY);
-  doc.text(`$${tx.tax.toFixed(2)}`, 75, currentY, { align: 'right' });
-  currentY += 3.5;
+  if (tx.discountAmount) {
+    doc.text('DESCUENTO CUPON:', 30, currentY);
+    doc.text(`-$${Math.round(tx.discountAmount).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
+    currentY += 3.5;
+  }
 
   if (tx.shippingMethod === 'Domicilio' && tx.deliveryFee) {
-    doc.text('ENVIO (DELIVERY):', 35, currentY);
-    doc.text(`$${tx.deliveryFee.toFixed(2)}`, 75, currentY, { align: 'right' });
+    doc.text('COSTO DE ENVIO:', 30, currentY);
+    doc.text(`$${Math.round(tx.deliveryFee).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
     currentY += 3.5;
   }
 
   // 10% Platform Fee Line
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.5);
-  doc.text('TARIFA DE USO DE PLATAFORMA (10%):', 5, currentY);
-  doc.text(`$${(tx.platformFee || (tx.subtotal * 0.10)).toFixed(2)}`, 75, currentY, { align: 'right' });
+  doc.text('TARIFA DE USO PLATAFORMA (10%):', 5, currentY);
+  doc.text(`$${Math.round(platformFee).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
+  currentY += 3.5;
+
+  // IVA Informativo
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('IVA 19% INCLUIDO EN PRECIOS:', 5, currentY);
+  doc.text(`$${Math.round(tx.tax).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
   currentY += 4.5;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('TOTAL A PAGAR:', 5, currentY);
-  doc.text(`$${tx.total.toFixed(2)}`, 75, currentY, { align: 'right' });
+  doc.text('TOTAL PAGADO:', 5, currentY);
+  doc.text(`$${Math.round(tx.total).toLocaleString('es-CL')}`, 75, currentY, { align: 'right' });
   currentY += 6;
 
   doc.setFontSize(6.5);
   doc.setFont('helvetica', 'italic');
   doc.text('¡Gracias por comprar en Minimarket El Turko!', 40, currentY, { align: 'center' });
 
-  doc.save(`Ticket_ElTurko_${tx.id.slice(-6)}.pdf`);
+  doc.save(`Ticket_ElTurko_${tx.id.replace('tx-', '').replace('TURKO-', '').slice(-6)}.pdf`);
 }
 
 export interface SectorConfig {
@@ -245,40 +261,73 @@ export function isTurkoProduct(product: any, turkoCategories?: string[]): boolea
 }
 
 export function generateTurkoWhatsAppMessage(
-
-
   tx: TurkoTransaction,
   config: TurkoBusinessConfig
 ): string {
-  let msg = `🛒 *NUEVO PEDIDO EN MINIMARKET "DONDE EL TURKO"*\n`;
-  msg += `------------------------------------------------\n`;
-  msg += `👤 *Cliente:* ${tx.customerName || 'Cliente General'}\n`;
-  msg += `📞 *Teléfono:* ${tx.customerPhone || 'Sin teléfono'}\n`;
-  msg += `🚚 *Método:* ${tx.shippingMethod === 'Domicilio' ? 'Despacho a Domicilio' : 'Retiro en Tienda'}\n`;
-  if (tx.shippingMethod === 'Domicilio') {
-    msg += `📍 *Dirección:* ${tx.deliveryAddress || 'No especificada'}, ${tx.deliveryComuna || ''}\n`;
+  const isRutasActive = isModuleActive('rutasCamion', config);
+  const isCamion = tx.shippingMethod === 'Domicilio' && isRutasActive && (tx as any).deliveryType === 'camion';
+
+  const shippingLabel = tx.shippingMethod === 'Domicilio'
+    ? (isCamion ? 'Flete Logístico Programado (Ruta Camión) 🚚' : 'Envío Inmediato / Exprés (Uber/Rappi) 🚀')
+    : 'Retiro en Local ($0) 🏬';
+
+  let progEntregaLine = '';
+  if (tx.shippingMethod === 'Domicilio' && isCamion) {
+    const sector = getSectorForComunaTurko(tx.deliveryComuna || '', config?.rutasCamion);
+    if (sector) {
+      progEntregaLine = `PROGRAMACIÓN ENTREGA: Sector ${sector.name} — Próxima Ruta (${sector.days.join(', ')})`;
+    }
   }
-  msg += `💳 *Medio de Pago:* ${tx.method}\n`;
-  msg += `------------------------------------------------\n`;
+
+  const platformFee = tx.platformFee !== undefined
+    ? tx.platformFee
+    : Math.round(tx.subtotal * 0.10);
+
+  let msg = `*🛒 NUEVO PEDIDO - ${config.name || 'DONDE EL TURCO'}*\n`;
+  msg += `*Nº Orden:* #${tx.id.replace('tx-', '').replace('TURKO-', '').toUpperCase()}\n`;
+  msg += `*Estado Inicial:* [En Preparación ⏳]\n`;
+  msg += `------------------------------------\n`;
+  msg += `👤 *DATOS DEL CLIENTE:*\n`;
+  msg += `• *Cliente:* ${tx.customerName || 'Cliente General'}\n`;
+  msg += `• *Teléfono:* ${tx.customerPhone || 'Sin teléfono'}\n`;
+  msg += `• *Modalidad de Despacho:* ${shippingLabel}\n`;
+  if (tx.shippingMethod === 'Domicilio') {
+    msg += `• *Dirección:* ${tx.deliveryAddress || 'N/A'}${tx.deliveryComuna ? ` (${tx.deliveryComuna})` : ''}\n`;
+    if (progEntregaLine) {
+      msg += `• *👉 ${progEntregaLine}*\n`;
+    }
+    if (tx.trackingUrl) {
+      msg += `• *Tracking Delivery:* ${tx.trackingUrl}\n`;
+    }
+  }
+  msg += `• *Medio de Pago:* ${tx.method || 'Mercado Pago'}\n`;
+  msg += `------------------------------------\n`;
   msg += `📦 *DETALLE DE PRODUCTOS:*\n`;
 
-  tx.items.forEach((item) => {
+  tx.items.forEach((item, idx) => {
     const qty = item.quantity ?? item.qty ?? 1;
     const itemSubtotal = item.price * qty;
     const unitSuffix = item.unidadMedida ? getUnidadShortSuffix(item.unidadMedida) : '';
-    msg += `• ${qty}x ${item.name}${unitSuffix} ($${item.price.toFixed(0)} c/u) -> *$${itemSubtotal.toFixed(2)}*\n`;
+    msg += `${idx + 1}. *${item.name}* (x${qty}${unitSuffix}) - $${Math.round(itemSubtotal).toLocaleString('es-CL')} CLP\n`;
   });
 
-  msg += `------------------------------------------------\n`;
-  msg += `📊 *RESUMEN DE PAGO:*\n`;
-  msg += `• Subtotal: $${tx.subtotal.toFixed(2)}\n`;
-  msg += `• IVA (${config.ivaPercentage || 15}%): $${tx.tax.toFixed(2)}\n`;
-  if (tx.shippingMethod === 'Domicilio' && tx.deliveryFee) {
-    msg += `• Envío (Delivery): $${tx.deliveryFee.toFixed(2)}\n`;
+  msg += `------------------------------------\n`;
+  msg += `◇ *RESUMEN DE PAGO:*\n`;
+  msg += `• *Subtotal Artículos:* $${Math.round(tx.subtotal).toLocaleString('es-CL')} CLP\n`;
+  if (tx.discountAmount) {
+    msg += `• *Cupón de Descuento:* -$${Math.round(tx.discountAmount).toLocaleString('es-CL')} CLP\n`;
   }
-  msg += `• *Tarifa de Uso de Plataforma (10%):* $${(tx.platformFee || (tx.subtotal * 0.10)).toFixed(2)}\n`;
-  msg += `• *TOTAL COMPLETO A PAGAR: $${tx.total.toFixed(2)}*\n\n`;
-  msg += `¡Gracias por preferir Minimarket El Turko! 🏪✨`;
+  if (tx.shippingMethod === 'Domicilio') {
+    msg += `• *Costo de Envío:* $${Math.round(tx.deliveryFee || 0).toLocaleString('es-CL')} CLP\n`;
+  }
+  msg += `• *Tarifa de Uso de Plataforma (10%):* $${Math.round(platformFee).toLocaleString('es-CL')} CLP\n`;
+  msg += `• *IVA 19% Incluido en precios:* $${Math.round(tx.tax).toLocaleString('es-CL')} CLP\n\n`;
+  msg += `◇ *TOTAL PAGADO:* *$${Math.round(tx.total).toLocaleString('es-CL')} CLP*\n`;
+  msg += `◇ *Ver Documento SII:* https://www.sii.cl/facturacion_electronica/ejemplo_dte_39.pdf\n\n`;
+  if (tx.notes?.trim()) {
+    msg += `*Notas:* ${tx.notes.trim()}\n\n`;
+  }
+  msg += `¡Muchas gracias! Comprobante emitido y venta aprobada. 🏪✨`;
 
-  return encodeURIComponent(msg);
+  return msg;
 }

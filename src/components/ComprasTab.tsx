@@ -5,6 +5,7 @@ import { getCategoryPlaceholder, handleImageError, checkStoreOpenStatus } from '
 import { getUnidadLabel, getUnidadShortSuffix, isClosedVolumeUnit, isLooseWeightUnit } from '../utils/unitHelpers';
 import { jsPDF } from 'jspdf';
 import { TurkoStoreView } from '../modules/turko';
+import { cotizarEnvio, crearOrdenDelivery } from '../services/deliveryService';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
@@ -446,6 +447,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const [customerName, setCustomerName] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [shippingMethod, setShippingMethod] = useState<'Domicilio' | 'Retiro'>('Retiro');
+  const [deliveryType, setDeliveryType] = useState<'expres' | 'camion'>('expres');
   
   // Shipping Form fields
   const [customerPhone, setCustomerPhone] = useState('');
@@ -526,7 +528,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const moduloTiendaActive = isModuleActive('tiendaAbarrotes', config) && !isFruteria;
 
   // Modern Independent Feature Flags (Todo o Nada)
-  const flagRutasCamion = config?.modules?.rutasCamion !== false;
+  const flagRutasCamion = isModuleActive('rutasCamion', config);
   const isTurco = config?.name?.toLowerCase().includes('turco') ||
                   localStorage.getItem('tenant_tienda_id')?.includes('turco') ||
                   localStorage.getItem('id_tienda')?.includes('turco') ||
@@ -662,39 +664,61 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   };
 
   useEffect(() => {
+    let isCancelled = false;
     if (shippingMethod === 'Domicilio') {
       setIsQuotingDelivery(true);
-      const timer = setTimeout(() => {
-        setIsQuotingDelivery(false);
-        
-        const matchedSector = getSectorForComuna(comuna, config?.rutasCamion);
-        const effectiveFee = getEffectiveDeliveryFee(comuna, matchedSector);
+      const timer = setTimeout(async () => {
+        const isRutasActive = isModuleActive('rutasCamion', config);
 
-        // Priority 1: Truck route / sector or frutería module or default comuna fee
-        if (isModuleActive('frutería', config) || matchedSector) {
-          setDeliveryFee(effectiveFee);
+        // Priority 1: Truck route / sector ONLY if Banner de Rutas Camión is enabled AND user explicitly chose 'camion'
+        if (isRutasActive && deliveryType === 'camion') {
+          const matchedSector = getSectorForComuna(comuna, config?.rutasCamion);
+          const effectiveFee = matchedSector ? getEffectiveDeliveryFee(comuna, matchedSector) : null;
+          if (!isCancelled) {
+            setDeliveryFee(effectiveFee || 3200);
+            setIsQuotingDelivery(false);
+          }
           return;
         }
 
-        // Priority 2: Short Distance by GPS ONLY. Must be <= 500m AND checked.
+        // Priority 2: Short Distance by GPS ONLY in Exprés mode. Must be <= 500m AND checked.
         if (gpsDistance !== null && gpsDistance <= 500 && isManualShortDistance) {
-          setDeliveryFee(1000);
+          if (!isCancelled) {
+            setDeliveryFee(1000);
+            setIsQuotingDelivery(false);
+          }
           return;
         }
         
-        // Priority 3: Fallback to Comuna fee calculation
-        if (street.trim() && comuna) {
-          setDeliveryFee(effectiveFee);
-        } else {
-          setDeliveryFee(0);
+        // Priority 3: Invoke Sandbox delivery quotation service (Uber Direct / PedidosYa)
+        try {
+          const res = await cotizarEnvio({
+            destinoDireccion: `${street.trim()} ${number.trim()}`,
+            destinoComuna: comuna,
+            distanciaMetros: gpsDistance,
+            isCortaDistancia: isManualShortDistance,
+            comercioNombre: config?.name || 'Donde el Goyo'
+          });
+          if (!isCancelled) {
+            setDeliveryFee(res?.tarifa || 2500);
+            setIsQuotingDelivery(false);
+          }
+        } catch (e) {
+          if (!isCancelled) {
+            setDeliveryFee(2500);
+            setIsQuotingDelivery(false);
+          }
         }
-      }, 500);
-      return () => clearTimeout(timer);
+      }, 350);
+      return () => {
+        isCancelled = true;
+        clearTimeout(timer);
+      };
     } else {
       setDeliveryFee(0);
       setIsQuotingDelivery(false);
     }
-  }, [shippingMethod, street, comuna, isManualShortDistance, gpsDistance, isModuleActive('frutería', config), config?.rutasCamion]);
+  }, [shippingMethod, deliveryType, street, number, comuna, isManualShortDistance, gpsDistance, config?.modules?.rutasCamion, (config?.modulosPermitidos as any)?.rutasCamion, config?.rutasCamion]);
 
   // 2-Step Checkout states
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'ready'>('form');
@@ -1686,6 +1710,29 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         });
       }
 
+      // Disparo de la Orden de Delivery (Back-end Hook Sandbox)
+      let deliveryResult: any = null;
+      if (shippingMethod === 'Domicilio' && (!flagRutasCamion || deliveryType === 'expres')) {
+        try {
+          deliveryResult = await crearOrdenDelivery({
+            pedidoId: 'tx-simulado-' + Math.floor(Math.random() * 1000000),
+            clienteNombre: customerName.trim() || 'Cliente Final',
+            clienteTelefono: customerPhone.trim() || '+56900000000',
+            destinoDireccion: `${street.trim()} # ${number.trim()}`,
+            destinoComuna: comuna,
+            distanciaMetros: gpsDistance,
+            montoTotal: totalCartCost,
+            costoEnvio: deliveryFee,
+            notas: notes.trim(),
+            items: txItems,
+            comercioNombre: config?.name || 'Donde el Goyo',
+            comercioTelefono: config?.whatsapp || ''
+          });
+        } catch (delErr) {
+          console.warn('[ComprasTab] Error en hook crearOrdenDelivery, aplicando fallback:', delErr);
+        }
+      }
+
       const transactionPayload: Omit<Transaction, 'id'> = {
         type: 'Venta',
         source: 'digital',
@@ -1714,7 +1761,9 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         ...(shippingMethod === 'Domicilio' ? {
           deliveryAddress: `${street.trim()} # ${number.trim()}`,
           deliveryComuna: comuna,
-          deliveryFee: deliveryFee
+          deliveryFee: deliveryFee,
+          deliveryId: deliveryResult?.delivery_id,
+          trackingUrl: deliveryResult?.tracking_url
         } : {})
       };
 
@@ -1806,12 +1855,16 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       const cartMeals = cart.filter(item => item.type === 'meal');
 
       let progEntregaLine = '';
-      if (shippingMethod === 'Domicilio' && isModuleActive('frutería', config)) {
+      if (shippingMethod === 'Domicilio' && flagRutasCamion && deliveryType === 'camion') {
         const sector = getSectorForComuna(comuna, config?.rutasCamion);
         if (sector) {
           progEntregaLine = `👉 PROGRAMACIÓN ENTREGA: Sector ${sector.name} — Próxima Ruta (${sector.days.join(', ')})\n`;
         }
       }
+
+      const shippingLabel = shippingMethod === 'Domicilio'
+        ? (flagRutasCamion && deliveryType === 'camion' ? 'Flete Logístico Programado (Ruta Camión) 🚚' : 'Envío Inmediato / Exprés (Uber/Rappi) 🚀')
+        : 'Retiro en Tienda 🏬';
 
       let msg = '';
       if (paymentStatus === 'APPROVED') {
@@ -1823,12 +1876,15 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         msg += `====================================\n\n`;
         msg += `👤 *Cliente:* ${customerName.trim()}\n`;
         msg += `📞 *Teléfono:* ${customerPhone.trim()}\n`;
-        msg += `🚚 *Método de Entrega:* ${shippingMethod === 'Domicilio' ? 'A Domicilio 🚀' : 'Retiro en Tienda 🏬'}\n`;
+        msg += `🚚 *Método de Entrega:* ${shippingLabel}\n`;
         
         if (shippingMethod === 'Domicilio') {
           msg += `📍 *Dirección de Despacho:* ${street.trim()} # ${number.trim()}, ${comuna}\n`;
           if (progEntregaLine) {
             msg += progEntregaLine;
+          }
+          if (deliveryResult?.tracking_url || deliveryResult?.delivery_id) {
+            msg += `🚚 *Tracking Delivery:* ${deliveryResult.tracking_url || deliveryResult.delivery_id}\n`;
           }
         } else {
           msg += `📍 *Dirección de Retiro:* Retiro en local\n`;
@@ -1886,12 +1942,15 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         msg += `====================================\n\n`;
         msg += `👤 *Cliente:* ${customerName.trim()}\n`;
         msg += `📞 *Teléfono:* ${customerPhone.trim()}\n`;
-        msg += `🚚 *Método de Entrega:* ${shippingMethod === 'Domicilio' ? 'A Domicilio 🚀' : 'Retiro en Tienda 🏬'}\n`;
+        msg += `🚚 *Método de Entrega:* ${shippingLabel}\n`;
         
         if (shippingMethod === 'Domicilio') {
           msg += `📍 *Dirección de Despacho:* ${street.trim()} # ${number.trim()}, ${comuna}\n`;
           if (progEntregaLine) {
             msg += progEntregaLine;
+          }
+          if (deliveryResult?.tracking_url || deliveryResult?.delivery_id) {
+            msg += `🚚 *Tracking Delivery:* ${deliveryResult.tracking_url || deliveryResult.delivery_id}\n`;
           }
         } else {
           msg += `📍 *Dirección de Retiro:* Retiro en local\n`;
@@ -3264,161 +3323,262 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                       {/* Unified form fields */}
                       {shippingMethod === 'Domicilio' ? (
                         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                          {/* GPS Button and Error feedback */}
-                          <div className="space-y-2">
-                            <button
-                              type="button"
-                              onClick={handleUseMyGps}
-                              disabled={isLocating}
-                              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100/80 active:bg-indigo-150 border-2 border-indigo-200 text-indigo-950 text-xs font-extrabold shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                              {isLocating ? (
-                                <>
-                                  <div className="w-3.5 h-3.5 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
-                                  <span>Obteniendo ubicación satelital...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="text-sm">📍</span>
-                                  <span>Usar mi ubicación actual</span>
-                                </>
-                              )}
-                            </button>
-                            {gpsError && (
-                              <p className="text-[11px] font-semibold text-red-650 bg-red-50/50 border border-red-150 rounded-xl px-3 py-2">
-                                ⚠️ {gpsError}
-                              </p>
-                            )}
-                            {gpsDistance !== null && !isManualShortDistance && (
-                              <p className="text-[11px] font-black text-indigo-950 bg-indigo-50/50 border border-indigo-150 rounded-xl px-3 py-2 flex items-center justify-between">
-                                <span>Distancia aproximada al local:</span>
-                                <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-100">
-                                  {gpsDistance < 1000 ? `${gpsDistance.toFixed(0)}m` : `${(gpsDistance / 1000).toFixed(2)} km`}
-                                </span>
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
-                                Calle *
+                          
+                          {/* Selector explícito de Tipo de Despacho (Solo si BANNER DE RUTAS CAMIÓN está activo) */}
+                          {flagRutasCamion && (
+                            <div className="space-y-1.5 pb-1">
+                              <label className="text-[11px] text-slate-700 font-black uppercase tracking-wider block font-sans">
+                                Tipo de Despacho *
                               </label>
-                              <input
-                                type="text"
-                                placeholder="Ej. Av. Vicuña Mackenna"
-                                value={street}
-                                onChange={(e) => setStreet(e.target.value)}
-                                className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
-                                Número *
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="Ej. 1234"
-                                value={number}
-                                onChange={(e) => setNumber(e.target.value)}
-                                className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
-                                Comuna *
-                            </label>
-                            <select
-                              value={comuna}
-                              onChange={(e) => setComuna(e.target.value)}
-                              className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950 cursor-pointer"
-                            >
-                              {activeComunasList.map((c) => (
-                                <option key={c} value={c}>
-                                  {c}
-                                </option>
-                              ))}
-                            </select>
-
-                            {/* Dynamic Delivery sector banner */}
-                            {(() => {
-                              const sector = getSectorForComuna(comuna, config?.rutasCamion);
-                              if (!sector) return null;
-                              const effectiveFee = getEffectiveDeliveryFee(comuna, sector);
-                              return (
-                                <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl space-y-1 animate-in fade-in duration-200 mt-2.5">
-                                  <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-900">
-                                    🚚 Ruta de Camión ({sector.name}) - {comuna}
-                                  </span>
-                                  <p className="text-xs font-bold text-indigo-950 leading-relaxed">
-                                    Despachamos a tu zona los días <span className="text-indigo-600 underline decoration-indigo-300 font-extrabold">{sector.days.join(' y ')}</span>. Costo de envío: <span className="text-indigo-700 font-black font-mono">${effectiveFee.toLocaleString('es-CL')} CLP</span>.
-                                  </p>
-                                </div>
-                              );
-                            })()}
-                          </div>
-
-                          {/* Manual Delivery Corto Selector (Only for other stores / when frutería module is NOT active) */}
-                          {gpsDistance !== null && gpsDistance <= 500 && !isModuleActive('frutería', config) && (
-                            <div className="bg-amber-50/60 border-2 border-amber-200 p-3.5 rounded-2xl flex items-start gap-3 transition-all duration-200 animate-in fade-in duration-200">
-                              <input
-                                id="delivery-corto-checkbox"
-                                type="checkbox"
-                                checked={isManualShortDistance}
-                                onChange={(e) => setIsManualShortDistance(e.target.checked)}
-                                className="w-4.5 h-4.5 mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-                              />
-                              <label htmlFor="delivery-corto-checkbox" className="text-xs font-bold text-amber-950 cursor-pointer leading-normal select-none">
-                                <span className="block font-black text-[11px] uppercase tracking-wide text-amber-900 mb-0.5">🚀 Despacho de Corta Distancia</span>
-                                ¡Verificado por GPS! Distancia al local de {gpsDistance.toFixed(0)} metros. Elegible para tarifa fija preferencial de $1.000 CLP.
-                              </label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setDeliveryType('expres')}
+                                  className={`p-3 rounded-2xl text-[11px] font-black border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 text-center ${
+                                    deliveryType === 'expres'
+                                      ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-emerald-500/30'
+                                      : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-1.5 text-xs">🚀 Envío Inmediato / Exprés</span>
+                                  <span className="text-[10px] font-medium opacity-80">(Uber / Rappi Sandbox)</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeliveryType('camion')}
+                                  className={`p-3 rounded-2xl text-[11px] font-black border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 text-center ${
+                                    deliveryType === 'camion'
+                                      ? 'bg-indigo-950 text-white border-indigo-950 shadow-md ring-2 ring-indigo-500/30'
+                                      : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-1.5 text-xs">🚚 Flete Logístico Programado</span>
+                                  <span className="text-[10px] font-medium opacity-80">(Ruta de Camión)</span>
+                                </button>
+                              </div>
                             </div>
                           )}
 
-                          {/* Delivery Quotation Loader & Result */}
-                          {isQuotingDelivery ? (
-                            <div className="flex items-center gap-2.5 bg-blue-50 border-2 border-blue-200 text-blue-900 p-3.5 rounded-2xl animate-pulse text-xs font-bold font-sans">
-                              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                              <span>Cotizando ruta con repartidores disponibles...</span>
-                            </div>
-                          ) : deliveryFee > 0 ? (
-                            <div className={`p-4 rounded-2xl flex justify-between items-center font-sans animate-in fade-in duration-250 ${
-                              isModuleActive('frutería', config)
-                                ? 'bg-indigo-50 border-2 border-indigo-250 text-indigo-950'
-                                : deliveryFee === 1000 
-                                  ? 'bg-amber-50 border-2 border-amber-250 text-amber-950' 
-                                  : 'bg-emerald-50 border-2 border-emerald-250 text-emerald-950'
-                            }`}>
+                          {/* Rama 1: Delivery Exprés / Inmediato (O cuando BANNER DE RUTAS CAMIÓN está false) */}
+                          {(!flagRutasCamion || deliveryType === 'expres') ? (
+                            <div className="space-y-4">
+                              {/* GPS Button and Error feedback */}
+                              <div className="space-y-2">
+                                <button
+                                  type="button"
+                                  onClick={handleUseMyGps}
+                                  disabled={isLocating}
+                                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100/80 active:bg-indigo-150 border-2 border-indigo-200 text-indigo-950 text-xs font-extrabold shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                  {isLocating ? (
+                                    <>
+                                      <div className="w-3.5 h-3.5 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
+                                      <span>Obteniendo ubicación satelital...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="text-sm">📍</span>
+                                      <span>Usar mi ubicación actual</span>
+                                    </>
+                                  )}
+                                </button>
+                                {gpsError && (
+                                  <p className="text-[11px] font-semibold text-red-650 bg-red-50/50 border border-red-150 rounded-xl px-3 py-2">
+                                    ⚠️ {gpsError}
+                                  </p>
+                                )}
+                                {gpsDistance !== null && !isManualShortDistance && (
+                                  <p className="text-[11px] font-black text-indigo-950 bg-indigo-50/50 border border-indigo-150 rounded-xl px-3 py-2 flex items-center justify-between">
+                                    <span>Distancia aproximada al local:</span>
+                                    <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-100">
+                                      {gpsDistance < 1000 ? `${gpsDistance.toFixed(0)}m` : `${(gpsDistance / 1000).toFixed(2)} km`}
+                                    </span>
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
+                                    Calle *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej. Av. Vicuña Mackenna"
+                                    value={street}
+                                    onChange={(e) => setStreet(e.target.value)}
+                                    className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
+                                    Número *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej. 1234"
+                                    value={number}
+                                    onChange={(e) => setNumber(e.target.value)}
+                                    className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
+                                  />
+                                </div>
+                              </div>
+
                               <div>
-                                <p className={`text-[10px] font-extrabold uppercase tracking-wider ${
-                                  isModuleActive('frutería', config)
-                                    ? 'text-indigo-800'
-                                    : deliveryFee === 1000 ? 'text-amber-800' : 'text-emerald-800'
+                                <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
+                                  Comuna *
+                                </label>
+                                <select
+                                  value={comuna}
+                                  onChange={(e) => setComuna(e.target.value)}
+                                  className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950 cursor-pointer"
+                                >
+                                  {activeComunasList.map((c) => (
+                                    <option key={c} value={c}>
+                                      {c}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Manual Delivery Corto Selector */}
+                              {gpsDistance !== null && gpsDistance <= 500 && (
+                                <div className="bg-amber-50/60 border-2 border-amber-200 p-3.5 rounded-2xl flex items-start gap-3 transition-all duration-200 animate-in fade-in duration-200">
+                                  <input
+                                    id="delivery-corto-checkbox"
+                                    type="checkbox"
+                                    checked={isManualShortDistance}
+                                    onChange={(e) => setIsManualShortDistance(e.target.checked)}
+                                    className="w-4.5 h-4.5 mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                  />
+                                  <label htmlFor="delivery-corto-checkbox" className="text-xs font-bold text-amber-950 cursor-pointer leading-normal select-none">
+                                    <span className="block font-black text-[11px] uppercase tracking-wide text-amber-900 mb-0.5">🚀 Despacho de Corta Distancia</span>
+                                    ¡Verificado por GPS! Distancia al local de {gpsDistance.toFixed(0)} metros. Elegible para tarifa fija preferencial de $1.000 CLP.
+                                  </label>
+                                </div>
+                              )}
+
+                              {/* Delivery Quotation Loader & Result */}
+                              {isQuotingDelivery ? (
+                                <div className="flex items-center gap-2.5 bg-blue-50 border-2 border-blue-200 text-blue-900 p-3.5 rounded-2xl animate-pulse text-xs font-bold font-sans">
+                                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                  <span>Cotizando tarifa dinámica con repartidores...</span>
+                                </div>
+                              ) : deliveryFee > 0 ? (
+                                <div className={`p-4 rounded-2xl flex justify-between items-center font-sans animate-in fade-in duration-250 ${
+                                  deliveryFee === 1000 
+                                    ? 'bg-amber-50 border-2 border-amber-250 text-amber-950' 
+                                    : 'bg-emerald-50 border-2 border-emerald-250 text-emerald-950'
                                 }`}>
-                                  {isModuleActive('frutería', config)
-                                    ? 'Flete Logístico Programado'
-                                    : deliveryFee === 1000 ? 'Tarifa Especial Preferencial' : 'Tarifa de Despacho Cotizada'}
-                                </p>
-                                <p className="text-xs font-black">
-                                  {isModuleActive('frutería', config)
-                                    ? (() => {
+                                  <div>
+                                    <p className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                                      deliveryFee === 1000 ? 'text-amber-800' : 'text-emerald-800'
+                                    }`}>
+                                      {deliveryFee === 1000 ? 'Tarifa Especial Preferencial' : 'Tarifa de Despacho Cotizada (Exprés)'}
+                                    </p>
+                                    <p className="text-xs font-black">
+                                      {deliveryFee === 1000 ? 'DELIVERY VECINAL (CORTA DISTANCIA)' : `Sandbox Uber Direct / PedidosYa (${comuna})`}
+                                    </p>
+                                  </div>
+                                  <span className={`text-xs font-black bg-white border-2 px-3 py-1.5 rounded-xl font-mono ${
+                                    deliveryFee === 1000 ? 'text-amber-950 border-amber-350' : 'text-emerald-950 border-emerald-350'
+                                  }`}>
+                                    ${deliveryFee.toFixed(0)}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            /* Rama 2: Flete Logístico Programado (Rutas de Camión) */
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
+                                    Calle *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej. Av. Vicuña Mackenna"
+                                    value={street}
+                                    onChange={(e) => setStreet(e.target.value)}
+                                    className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
+                                    Número *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej. 1234"
+                                    value={number}
+                                    onChange={(e) => setNumber(e.target.value)}
+                                    className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
+                                  Comuna de Despacho (Ruta Camión) *
+                                </label>
+                                <select
+                                  value={comuna}
+                                  onChange={(e) => setComuna(e.target.value)}
+                                  className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950 cursor-pointer"
+                                >
+                                  {activeComunasList.map((c) => (
+                                    <option key={c} value={c}>
+                                      {c}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {/* Dynamic Delivery sector banner */}
+                                {(() => {
+                                  const sector = getSectorForComuna(comuna, config?.rutasCamion);
+                                  if (!sector) return null;
+                                  const effectiveFee = getEffectiveDeliveryFee(comuna, sector);
+                                  return (
+                                    <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl space-y-1 animate-in fade-in duration-200 mt-2.5">
+                                      <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-900">
+                                        🚚 Ruta de Camión ({sector.name}) - {comuna}
+                                      </span>
+                                      <p className="text-xs font-bold text-indigo-950 leading-relaxed">
+                                        Despachamos a tu zona los días <span className="text-indigo-600 underline decoration-indigo-300 font-extrabold">{sector.days.join(' y ')}</span>. Costo de envío: <span className="text-indigo-700 font-black font-mono">${effectiveFee.toLocaleString('es-CL')} CLP</span>.
+                                      </p>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+
+                              {/* Delivery Fee Card for Camion */}
+                              {isQuotingDelivery ? (
+                                <div className="flex items-center gap-2.5 bg-indigo-50 border-2 border-indigo-200 text-indigo-900 p-3.5 rounded-2xl animate-pulse text-xs font-bold font-sans">
+                                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                  <span>Calculando flete programado de camión...</span>
+                                </div>
+                              ) : deliveryFee > 0 ? (
+                                <div className="p-4 rounded-2xl flex justify-between items-center font-sans animate-in fade-in duration-250 bg-indigo-50 border-2 border-indigo-250 text-indigo-950">
+                                  <div>
+                                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-800">
+                                      Flete Logístico Programado
+                                    </p>
+                                    <p className="text-xs font-black">
+                                      {(() => {
                                         const sec = getSectorForComuna(comuna, config?.rutasCamion);
                                         return sec ? `${sec.name} (${comuna})` : `Despacho Camión (${comuna})`;
-                                      })()
-                                    : deliveryFee === 1000 ? 'DELIVERY VECINAL (CORTA DISTANCIA)' : `Sandbox Uber Direct / PedidosYa (${comuna})`}
-                                </p>
-                              </div>
-                              <span className={`text-xs font-black bg-white border-2 px-3 py-1.5 rounded-xl font-mono ${
-                                isModuleActive('frutería', config)
-                                  ? 'text-indigo-950 border-indigo-350'
-                                  : deliveryFee === 1000 ? 'text-amber-950 border-amber-350' : 'text-emerald-950 border-emerald-350'
-                              }`}>
-                                ${deliveryFee.toFixed(0)}
-                              </span>
+                                      })()}
+                                    </p>
+                                  </div>
+                                  <span className="text-xs font-black bg-white border-2 px-3 py-1.5 rounded-xl font-mono text-indigo-950 border-indigo-350">
+                                    ${deliveryFee.toFixed(0)}
+                                  </span>
+                                </div>
+                              ) : null}
                             </div>
-                          ) : null}
+                          )}
+
                         </div>
                       ) : null}
 

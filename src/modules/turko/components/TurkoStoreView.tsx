@@ -5,13 +5,14 @@ import {
   Sparkles, Calendar, Map, X
 } from 'lucide-react';
 import { TurkoProduct } from '../types';
-import { BusinessConfig } from '../../../types';
+import { BusinessConfig, isModuleActive } from '../../../types';
 import { useTurkoStore } from '../useTurkoStore';
 import { TurkoTicketModal } from './TurkoTicketModal';
 import { UpsellingSection } from './UpsellingSection';
 import { getUnidadLabel, getUnidadShortSuffix } from '../../../utils/unitHelpers';
 import { getSectorForComunaTurko, ALL_COMUNAS_TURKO, DEFAULT_RUTAS_TURKO, SectorConfig, isTurkoProduct } from '../utils';
 import { checkStoreOpenStatus } from '../../../utils';
+import { cotizarEnvio } from '../../../services/deliveryService';
 
 interface TurkoStoreViewProps {
   initialConfig?: BusinessConfig;
@@ -40,6 +41,8 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
     setSearchQuery,
     shippingMethod,
     setShippingMethod,
+    deliveryType,
+    setDeliveryType,
     selectedComuna,
     setSelectedComuna,
     deliveryFee,
@@ -84,15 +87,28 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
     }
   }, []);
 
-  // Sync delivery fee with selected comuna on load or comuna change
+  // Sync delivery fee with selected comuna on load, comuna change, or deliveryType change
   React.useEffect(() => {
-    if (selectedComuna) {
+    const isRutasActive = isModuleActive('rutasCamion', config);
+    if (isRutasActive && deliveryType === 'camion') {
       const sector = getSectorForComunaTurko(selectedComuna, config?.rutasCamion);
       if (sector) {
         setDeliveryFee(sector.fee);
+        return;
       }
     }
-  }, [selectedComuna, config?.rutasCamion, setDeliveryFee]);
+    // Dynamic Delivery (Exprés / Default)
+    cotizarEnvio({
+      destinoDireccion: `${street} ${number}`.trim(),
+      destinoComuna: selectedComuna,
+      distanciaMetros: gpsDistance,
+      comercioNombre: config?.name || 'Donde el Turko'
+    }).then((quote) => {
+      setDeliveryFee(quote.tarifa || 2500);
+    }).catch(() => {
+      setDeliveryFee(2500);
+    });
+  }, [selectedComuna, deliveryType, config?.modules?.rutasCamion, config?.modulosPermitidos?.rutasCamion, config?.rutasCamion, setDeliveryFee, street, number, gpsDistance]);
 
   const handleStreetChange = (val: string) => {
     setStreet(val);
@@ -174,19 +190,30 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
   // Comunas options
   const comunas = ALL_COMUNAS_TURKO;
 
-  const handleComunaChange = (c: string) => {
+  const handleComunaChange = async (c: string) => {
     setSelectedComuna(c);
-    const sector = getSectorForComunaTurko(c, config?.rutasCamion);
-    if (sector) {
-      setDeliveryFee(sector.fee);
-    } else if (c === 'La Pintana') {
-      setDeliveryFee(1500);
-    } else {
+    const isRutasActive = isModuleActive('rutasCamion', config);
+    if (isRutasActive && deliveryType === 'camion') {
+      const sector = getSectorForComunaTurko(c, config?.rutasCamion);
+      if (sector) {
+        setDeliveryFee(sector.fee);
+        return;
+      }
+    }
+    try {
+      const quote = await cotizarEnvio({
+        destinoDireccion: `${street} ${number}`.trim(),
+        destinoComuna: c,
+        distanciaMetros: gpsDistance,
+        comercioNombre: config?.name || 'Donde el Turko'
+      });
+      setDeliveryFee(quote.tarifa || 2500);
+    } catch {
       setDeliveryFee(2500);
     }
   };
 
-  const showTruckRoutesBanner = (config?.modules?.rutasCamion !== false) && (config?.modulosActivos?.rutasCamion !== false);
+  const showTruckRoutesBanner = isModuleActive('rutasCamion', config);
   const currentSector = getSectorForComunaTurko(selectedComuna, config?.rutasCamion);
 
   // Filter products on offer exclusively for "El Turko" catalog
@@ -769,11 +796,14 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
 
       {/* Cart Modal / Slide-over Drawer - "Tu Pedido Integrado" */}
       {isCartOpen && (
-        <div className="fixed inset-0 z-[60] flex justify-end bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-slate-50 w-full max-w-lg h-full flex flex-col justify-between shadow-2xl overflow-y-auto">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setIsCartOpen(false); }}
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-xs animate-fadeIn"
+        >
+          <div className="bg-slate-50 w-full max-w-xl max-h-[92vh] sm:max-h-[88vh] rounded-t-3xl sm:rounded-3xl flex flex-col justify-between shadow-2xl border border-slate-200/80 overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
             
             {/* Header */}
-            <div className="bg-white p-5 border-b border-slate-200 sticky top-0 z-10 flex items-center justify-between shadow-2xs">
+            <div className="bg-white p-5 border-b border-slate-200 sticky top-0 z-10 flex items-center justify-between shadow-2xs shrink-0">
               <div className="flex items-center gap-2.5">
                 <span className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
                   <ShoppingCart className="w-5 h-5 stroke-[2.5]" />
@@ -801,7 +831,7 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
             </div>
 
             {/* Scrollable Content */}
-            <div className="p-5 space-y-6 flex-1">
+            <div className="p-4 sm:p-5 space-y-6 flex-1 overflow-y-auto">
               
               {/* 1. LISTA DE COMPRA */}
               <div className="space-y-3">
@@ -996,102 +1026,213 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
 
                   {/* Delivery details if Domicilio */}
                   {shippingMethod === 'Domicilio' && (
-                    <div className="space-y-3 pt-2 border-t border-slate-100 animate-in fade-in duration-200">
-                      
-                      {/* GPS Button and status */}
-                      <div className="space-y-2">
-                        <button
-                          type="button"
-                          onClick={handleUseMyGps}
-                          disabled={isLocating}
-                          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100/80 border-2 border-indigo-200 text-indigo-950 text-xs font-extrabold shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {isLocating ? (
-                            <>
-                              <div className="w-3.5 h-3.5 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
-                              <span>Obteniendo ubicación satelital...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-sm">📍</span>
-                              <span>Usar mi ubicación actual</span>
-                            </>
-                          )}
-                        </button>
-                        {gpsError && (
-                          <p className="text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-                            ⚠️ {gpsError}
-                          </p>
-                        )}
-                        {gpsDistance !== null && (
-                          <p className="text-[11px] font-black text-indigo-950 bg-indigo-50/50 border border-indigo-150 rounded-xl px-3 py-2 flex items-center justify-between">
-                            <span>Distancia aproximada al local:</span>
-                            <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-indigo-100">
-                              {gpsDistance < 1000 ? `${gpsDistance.toFixed(0)}m` : `${(gpsDistance / 1000).toFixed(2)} km`}
-                            </span>
-                          </p>
-                        )}
-                      </div>
+                    <div className="space-y-4 pt-2 border-t border-slate-100 animate-in fade-in duration-200">
 
-                      {/* Structured Inputs CALLE * & NÚMERO * */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
-                            CALLE *
+                      {/* SELECTOR DUAL DE TIPO DE DESPACHO (SI BANNER DE RUTAS CAMIÓN ESTÁ ACTIVO) */}
+                      {showTruckRoutesBanner && (
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-black text-slate-800 uppercase block tracking-wider">
+                            TIPO DE DESPACHO A DOMICILIO
                           </label>
-                          <input
-                            type="text"
-                            placeholder="Ej. Av. Vicuña Mackenna"
-                            value={street}
-                            onChange={(e) => handleStreetChange(e.target.value)}
-                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-colors"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
-                            NÚMERO *
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ej. 1234"
-                            value={number}
-                            onChange={(e) => handleNumberChange(e.target.value)}
-                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-colors"
-                          />
-                        </div>
-                      </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setDeliveryType('expres')}
+                              className={`p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
+                                deliveryType === 'expres'
+                                  ? 'bg-amber-500/10 border-amber-600 text-slate-900 shadow-xs'
+                                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 font-black text-xs text-amber-950">
+                                <span>🚀</span>
+                                <span>Envío Exprés</span>
+                              </div>
+                              <span className="text-[10px] font-semibold text-slate-600 leading-tight">
+                                Inmediato por Uber/Rappi (Tarifa Dinámica)
+                              </span>
+                            </button>
 
-                      {/* Dropdown COMUNA * */}
-                      <div>
-                        <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
-                          COMUNA *
-                        </label>
-                        <select
-                          value={selectedComuna}
-                          onChange={(e) => handleComunaChange(e.target.value)}
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-black text-slate-900 focus:outline-none focus:border-slate-900 cursor-pointer"
-                        >
-                          {comunas.map((c) => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Dynamic Delivery sector / ring banner */}
-                      {(() => {
-                        const sector = getSectorForComunaTurko(selectedComuna, config?.rutasCamion);
-                        if (!sector) return null;
-                        return (
-                          <div className="bg-indigo-50 border-2 border-indigo-200 p-3.5 rounded-2xl space-y-1 animate-in fade-in duration-200">
-                            <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-900">
-                              🚚 Ruta de Camión ({sector.name}) - {selectedComuna}
-                            </span>
-                            <p className="text-xs font-bold text-indigo-950 leading-relaxed">
-                              Despachamos a tu zona los días <span className="text-indigo-600 underline decoration-indigo-300 font-extrabold">{sector.days.join(' y ')}</span>. Costo de envío: <span className="text-indigo-700 font-black font-mono">${sector.fee.toLocaleString('es-CL')} CLP</span>.
-                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setDeliveryType('camion')}
+                              className={`p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
+                                deliveryType === 'camion'
+                                  ? 'bg-indigo-50 border-indigo-600 text-slate-900 shadow-xs'
+                                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 font-black text-xs text-indigo-950">
+                                <span>🚚</span>
+                                <span>Ruta Camión</span>
+                              </div>
+                              <span className="text-[10px] font-semibold text-slate-600 leading-tight">
+                                Flete Programado (Tarifa Fija por Zona)
+                              </span>
+                            </button>
                           </div>
-                        );
-                      })()}
+                        </div>
+                      )}
+
+                      {/* CASO 1: ENVÍO EXPRÉS (O RUTAS CAMIÓN FALSE) */}
+                      {(!showTruckRoutesBanner || deliveryType === 'expres') && (
+                        <div className="space-y-3 bg-amber-500/5 border-2 border-amber-200/70 p-3.5 rounded-2xl animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                              <span>🚀</span>
+                              <span>Envío Inmediato / Exprés (Uber/Rappi)</span>
+                            </span>
+                            <span className="text-[10px] font-black bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded-full font-mono">
+                              GPS SATELITAL
+                            </span>
+                          </div>
+
+                          {/* GPS Button and status */}
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={handleUseMyGps}
+                              disabled={isLocating}
+                              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {isLocating ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Obteniendo ubicación satelital...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-sm">📍</span>
+                                  <span>Usar mi ubicación GPS actual</span>
+                                </>
+                              )}
+                            </button>
+                            {gpsError && (
+                              <p className="text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                                ⚠️ {gpsError}
+                              </p>
+                            )}
+                            {gpsDistance !== null && (
+                              <p className="text-[11px] font-black text-amber-950 bg-amber-100/60 border border-amber-200 rounded-xl px-3 py-2 flex items-center justify-between">
+                                <span>Distancia satelital al local:</span>
+                                <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-amber-200 font-bold">
+                                  {gpsDistance < 1000 ? `${gpsDistance.toFixed(0)}m` : `${(gpsDistance / 1000).toFixed(2)} km`}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Structured Inputs CALLE * & NÚMERO * */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
+                                CALLE *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ej. Av. Vicuña Mackenna"
+                                value={street}
+                                onChange={(e) => handleStreetChange(e.target.value)}
+                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-600 transition-colors"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
+                                NÚMERO *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ej. 1234"
+                                value={number}
+                                onChange={(e) => handleNumberChange(e.target.value)}
+                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-600 transition-colors"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="bg-white/80 border border-amber-200/80 p-2.5 rounded-xl flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-700">Cotización Estimada Delivery:</span>
+                            <span className="font-black font-mono text-amber-700 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300">
+                              ${deliveryFee.toLocaleString('es-CL')} CLP
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CASO 2: RUTA CAMIÓN PROGRAMADO (SÓLO SI SHOWTRUCKROUTESBANNER ES TRUE Y DELIVERYTYPE ES CAMION) */}
+                      {showTruckRoutesBanner && deliveryType === 'camion' && (
+                        <div className="space-y-3 bg-indigo-50/60 border-2 border-indigo-200 p-3.5 rounded-2xl animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+                              <span>🚚</span>
+                              <span>Flete Logístico Programado (Ruta Camión)</span>
+                            </span>
+                            <span className="text-[10px] font-black bg-indigo-200 text-indigo-950 px-2 py-0.5 rounded-full font-mono">
+                              TARIFA FIJA
+                            </span>
+                          </div>
+
+                          {/* Dropdown COMUNA * */}
+                          <div>
+                            <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
+                              SELECCIONA TU COMUNA / SECTOR *
+                            </label>
+                            <select
+                              value={selectedComuna}
+                              onChange={(e) => handleComunaChange(e.target.value)}
+                              className="w-full bg-white border-2 border-indigo-300 rounded-xl px-3.5 py-2.5 text-xs font-black text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                            >
+                              {comunas.map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Structured Inputs CALLE * & NÚMERO * */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
+                                CALLE *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ej. Av. Santa Rosa"
+                                value={street}
+                                onChange={(e) => handleStreetChange(e.target.value)}
+                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-600 transition-colors"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-black text-slate-800 uppercase block mb-1">
+                                NÚMERO *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ej. 5678"
+                                value={number}
+                                onChange={(e) => handleNumberChange(e.target.value)}
+                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-600 transition-colors"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Dynamic Delivery sector / blue ring banner */}
+                          {(() => {
+                            const sector = getSectorForComunaTurko(selectedComuna, config?.rutasCamion);
+                            if (!sector) return null;
+                            return (
+                              <div className="bg-indigo-600 text-white p-3 rounded-xl space-y-1 shadow-xs animate-in fade-in duration-200">
+                                <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-100">
+                                  🚚 RUTA PROGRAMADA ({sector.name.toUpperCase()}) - {selectedComuna.toUpperCase()}
+                                </span>
+                                <p className="text-xs font-medium text-white leading-relaxed">
+                                  Despachamos a tu zona los días <span className="font-black underline decoration-white/60 text-amber-300">{sector.days.join(' y ')}</span>. Tarifa fija: <span className="font-mono font-black text-white bg-indigo-800/80 px-2 py-0.5 rounded-md">${sector.fee.toLocaleString('es-CL')} CLP</span>.
+                                </p>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
 
                     </div>
                   )}
@@ -1242,53 +1383,56 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
               <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-2.5 text-xs font-sans shadow-lg border border-slate-800">
                 <div className="flex justify-between text-slate-300 font-medium">
                   <span>Subtotal Artículos:</span>
-                  <span className="font-mono font-bold">${totals.subtotal.toLocaleString('es-CL')}</span>
+                  <span className="font-mono font-bold">${totals.subtotal.toLocaleString('es-CL')} CLP</span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded-xl border border-emerald-800/50">
                     <span>Cupón Aplicado ({appliedCoupon.code}):</span>
                     <span className="font-mono font-black">
-                      {appliedCoupon.isFreeShipping ? 'Envío Gratis ($0)' : `-$${totals.discountAmount.toLocaleString('es-CL')}`}
+                      {appliedCoupon.isFreeShipping ? 'Envío Gratis ($0)' : `-$${totals.discountAmount.toLocaleString('es-CL')} CLP`}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-slate-300 font-medium">
-                  <span>IVA ({config.ivaPercentage || 19}%):</span>
-                  <span className="font-mono font-bold">${totals.tax.toLocaleString('es-CL')}</span>
-                </div>
                 {shippingMethod === 'Domicilio' && (
                   <div className="flex justify-between text-slate-300 font-medium">
-                    <span>Envío (Delivery):</span>
+                    <span>Costo de Envío:</span>
                     <span className="font-mono font-bold">
                       {appliedCoupon?.isFreeShipping ? (
                         <span className="text-emerald-400 line-through mr-1">${deliveryFee.toLocaleString('es-CL')}</span>
                       ) : null}
-                      ${totals.deliveryFee.toLocaleString('es-CL')}
+                      ${totals.deliveryFee.toLocaleString('es-CL')} CLP
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between items-center text-amber-300 bg-amber-500/15 p-2.5 rounded-xl border border-amber-500/30 font-extrabold">
                   <span className="text-[11px]">TARIFA DE USO DE PLATAFORMA (10%):</span>
-                  <span className="font-mono font-black text-sm">${totals.platformFee.toLocaleString('es-CL')}</span>
+                  <span className="font-mono font-black text-sm">${totals.platformFee.toLocaleString('es-CL')} CLP</span>
+                </div>
+                <div className="flex justify-between text-slate-400 text-[11px] font-medium pt-0.5">
+                  <span>IVA 19% Incluido en precios:</span>
+                  <span className="font-mono font-bold text-slate-300">${totals.tax.toLocaleString('es-CL')} CLP</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-2 border-t border-slate-800 text-sm font-black">
                   <span className="uppercase text-white font-black">TOTAL A PAGAR:</span>
-                  <span className="text-2xl font-mono text-emerald-400 font-black">${totals.total.toLocaleString('es-CL')}</span>
+                  <span className="text-2xl font-mono text-emerald-400 font-black">${totals.total.toLocaleString('es-CL')} CLP</span>
                 </div>
               </div>
 
             </div>
 
             {/* Footer with Action Button */}
-            <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 z-10 space-y-2">
+            <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 z-10 space-y-2 shrink-0">
               <button
-                onClick={executeCheckout}
+                onClick={async () => {
+                  await executeCheckout();
+                  setIsCartOpen(false);
+                }}
                 disabled={isProcessingCheckout || cart.length === 0}
                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black rounded-2xl text-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer border border-emerald-500"
               >
                 {paymentMethod === 'MercadoPago' ? (
                   <>
-                    <span>💳 💳 Pagar con Mercado Pago Sandbox</span>
+                    <span>💳 Pagar con Mercado Pago Sandbox</span>
                   </>
                 ) : paymentMethod === 'Webpay' ? (
                   <>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TurkoProduct, TurkoCartItem, TurkoTransaction } from './types';
-import { BusinessConfig } from '../../types';
+import { BusinessConfig, isModuleActive } from '../../types';
 import { safeLocalStorageSetItem } from '../../utils';
 import {
   TURKO_STORE_DATA_KEY,
@@ -14,8 +14,9 @@ import {
   saveTurkoInventory,
   getTurkoFormattedChileDate
 } from './config';
-import { calculateTurkoTotals, generateTurkoWhatsAppMessage, isTurkoProduct } from './utils';
+import { calculateTurkoTotals, generateTurkoWhatsAppMessage, isTurkoProduct, getSectorForComunaTurko } from './utils';
 import { validateTurkoCoupon, CouponValidationResult } from './coupons';
+import { crearOrdenDelivery } from '../../services/deliveryService';
 
 export function useTurkoStore(
   initialConfig?: BusinessConfig,
@@ -59,6 +60,7 @@ export function useTurkoStore(
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [shippingMethod, setShippingMethod] = useState<'Retiro' | 'Domicilio'>('Domicilio');
+  const [deliveryType, setDeliveryType] = useState<'expres' | 'camion'>('expres');
   const [selectedComuna, setSelectedComuna] = useState<string>('La Pintana');
   const [deliveryFee, setDeliveryFee] = useState<number>(2500);
 
@@ -116,24 +118,25 @@ export function useTurkoStore(
     const rawSubtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const discountAmount = appliedCoupon?.discountAmount || 0;
     const discountedSubtotal = Math.max(0, rawSubtotal - (appliedCoupon?.isFreeShipping ? 0 : discountAmount));
-    const ivaRate = (config.ivaPercentage || 19) / 100;
-    const tax = discountedSubtotal * ivaRate;
-    const platformFee = discountedSubtotal * 0.10;
+    // Regla Matemática: Los precios ya incluyen IVA 19%. IVA Informativo = Subtotal con descuento / 1.19 * 0.19
+    const tax = Math.round((discountedSubtotal / 1.19) * 0.19);
+    const platformFee = Math.round(discountedSubtotal * 0.10);
     const effectiveDeliveryFee = appliedCoupon?.isFreeShipping
       ? 0
       : (shippingMethod === 'Domicilio' ? deliveryFee : 0);
-    const total = discountedSubtotal + tax + effectiveDeliveryFee + platformFee;
+    // Total a Pagar = Subtotal con descuento + Costo de Envío + Tarifa de Uso de Plataforma 10%
+    const total = discountedSubtotal + effectiveDeliveryFee + platformFee;
 
     return {
-      subtotal: rawSubtotal,
-      discountAmount,
-      discountedSubtotal,
-      tax,
-      platformFee,
-      deliveryFee: effectiveDeliveryFee,
+      subtotal: Math.round(rawSubtotal),
+      discountAmount: Math.round(discountAmount),
+      discountedSubtotal: Math.round(discountedSubtotal),
+      tax: Math.round(tax),
+      platformFee: Math.round(platformFee),
+      deliveryFee: Math.round(effectiveDeliveryFee),
       total: Math.round(total)
     };
-  }, [cart, shippingMethod, deliveryFee, config.ivaPercentage, appliedCoupon]);
+  }, [cart, shippingMethod, deliveryFee, appliedCoupon]);
 
   // Cart operations
   const addToCart = useCallback((product: TurkoProduct, qty: number = 1) => {
@@ -230,7 +233,39 @@ export function useTurkoStore(
         }
       }
 
-      const fullTx: TurkoTransaction = { ...newTx, id: txId };
+      let deliveryRes: any = null;
+      const isRutasActive = isModuleActive('rutasCamion', config);
+      const isExpresDelivery = shippingMethod === 'Domicilio' && (!isRutasActive || deliveryType === 'expres');
+
+      if (isExpresDelivery) {
+        try {
+          deliveryRes = await crearOrdenDelivery({
+            pedidoId: txId,
+            clienteNombre: customerName.trim() || 'Cliente General',
+            clienteTelefono: customerPhone.trim() || '+56900000000',
+            destinoDireccion: deliveryAddress.trim(),
+            destinoComuna: selectedComuna,
+            montoTotal: calculated.total,
+            costoEnvio: calculated.deliveryFee,
+            notas: notes.trim(),
+            items: cart.map(c => ({ name: c.product.name, qty: c.quantity, price: c.price })),
+            comercioNombre: config.name || 'DONDE EL TURCO',
+            comercioTelefono: config.whatsapp || ''
+          });
+        } catch (err) {
+          console.warn('Error creating delivery in TurkoStore:', err);
+        }
+      }
+
+      // Generate fallback tracking url for instant sandbox tracking if needed
+      const trackingUrl = deliveryRes?.tracking_url || (isExpresDelivery ? `https://delivery-sandbox.pedidos.cl/track/${txId}` : undefined);
+
+      const fullTx: TurkoTransaction = {
+        ...newTx,
+        id: txId,
+        deliveryId: deliveryRes?.delivery_id || (isExpresDelivery ? `DLV-${Date.now().toString().slice(-6)}` : undefined),
+        trackingUrl
+      };
 
       // Save locally under turko namespace
       try {
@@ -239,44 +274,20 @@ export function useTurkoStore(
         safeLocalStorageSetItem(TURKO_TRANSACTIONS_KEY, JSON.stringify(storedTxs.slice(0, 50)));
       } catch {}
 
-      // Open WhatsApp with detailed order notification
-      let message = `*🛒 NUEVO PEDIDO - ${config.name || 'DONDE EL TURCO'}*\n`;
-      message += `*Nº Orden:* #${fullTx.id.replace('tx-', '').toUpperCase()}\n`;
-      message += `*Cliente:* ${fullTx.customerName}\n`;
-      message += `*Teléfono:* ${fullTx.customerPhone}\n`;
-      message += `*Estado Inicial:* [En Preparación ⏳]\n`;
-      message += `------------------------------------\n`;
-      message += `*DETALLE DE PRODUCTOS:*\n`;
+      // Delivery type labelling & route programming
+      const shippingLabel = shippingMethod === 'Domicilio'
+        ? (isRutasActive && deliveryType === 'camion' ? 'Flete Logístico Programado (Ruta Camión) 🚚' : 'Envío Inmediato / Exprés (Uber/Rappi) 🚀')
+        : 'Retiro en Local ($0) 🏬';
 
-      fullTx.items.forEach((it, idx) => {
-        message += `${idx + 1}. *${it.name}* (x${it.qty || it.quantity}) - $${(it.price * (it.qty || it.quantity)).toLocaleString('es-CL')}\n`;
-      });
-
-      message += `------------------------------------\n`;
-      message += `*Subtotal:* $${calculated.subtotal.toLocaleString('es-CL')} CLP\n`;
-      if (appliedCoupon) {
-        message += `*Cupón Aplicado (${appliedCoupon.code}):* -$${appliedCoupon.discountAmount.toLocaleString('es-CL')} CLP\n`;
-      }
-      message += `*IVA (${config.ivaPercentage || 19}%):* $${calculated.tax.toLocaleString('es-CL')} CLP\n`;
-      message += `*Tarifa Plataforma (10%):* $${calculated.platformFee.toLocaleString('es-CL')} CLP\n`;
-
-      if (shippingMethod === 'Domicilio') {
-        message += `*Despacho a Domicilio:* $${calculated.deliveryFee.toLocaleString('es-CL')} CLP\n`;
-        message += `*Dirección:* ${fullTx.deliveryAddress || 'N/A'} (${fullTx.deliveryComuna || 'La Pintana'})\n`;
-      } else {
-        message += `*Modalidad:* Retiro en Local ($0)\n`;
+      let progEntregaLine = '';
+      if (shippingMethod === 'Domicilio' && isRutasActive && deliveryType === 'camion') {
+        const sector = getSectorForComunaTurko(selectedComuna, config?.rutasCamion);
+        if (sector) {
+          progEntregaLine = `👉 PROGRAMACIÓN ENTREGA: Sector ${sector.name} — Próxima Ruta (${sector.days.join(', ')})\n`;
+        }
       }
 
-      message += `*TOTAL FINAL:* *$${calculated.total.toLocaleString('es-CL')} CLP*\n`;
-      message += `*Método de Pago:* ${paymentMethod}\n`;
-      if (notes.trim()) message += `*Notas:* ${notes.trim()}\n`;
-      message += `\nFavor confirmar recepción y preparación del pedido. ¡Muchas gracias!`;
-
-      const cleanPhone = (config.whatsapp || '+56912345678').replace(/[^0-9]/g, '');
-      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
-
-      // Set Active Ticket Modal & Clear Cart
+      // Set Active Ticket Modal & Clear Cart directly
       setActiveTicket(fullTx);
       clearCart();
     } catch (err) {
@@ -284,7 +295,7 @@ export function useTurkoStore(
     } finally {
       setIsProcessingCheckout(false);
     }
-  }, [cart, shippingMethod, deliveryFee, config, paymentMethod, customerName, customerPhone, deliveryAddress, notes, selectedComuna, onSaveTransactionExternal, clearCart, totals, appliedCoupon]);
+  }, [cart, shippingMethod, deliveryType, deliveryFee, config, paymentMethod, customerName, customerPhone, deliveryAddress, notes, selectedComuna, onSaveTransactionExternal, clearCart, totals, appliedCoupon]);
 
   return {
     config,
@@ -302,6 +313,8 @@ export function useTurkoStore(
     setSearchQuery,
     shippingMethod,
     setShippingMethod,
+    deliveryType,
+    setDeliveryType,
     selectedComuna,
     setSelectedComuna,
     deliveryFee,

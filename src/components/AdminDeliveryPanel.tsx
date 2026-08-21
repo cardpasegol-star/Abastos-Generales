@@ -67,6 +67,10 @@ export default function AdminDeliveryPanel({
       msg += `⏳ Estamos preparando tus productos frescos con el mayor cuidado.\n`;
     }
 
+    if (order.trackingUrl || order.deliveryId) {
+      msg += `🚚 *Tracking Delivery:* ${order.trackingUrl || order.deliveryId}\n`;
+    }
+
     msg += `\n*Total a pagar:* $${(order.total || 0).toLocaleString('es-CL')} CLP\n`;
     msg += `Cualquier consulta estamos a tu completa disposición.`;
 
@@ -206,6 +210,12 @@ export default function AdminDeliveryPanel({
                     <span className="text-slate-500 uppercase text-[10px] font-black">Costo de Envío:</span>
                     <span className="text-slate-900 font-mono">${order.deliveryFee?.toFixed(0)}</span>
                   </div>
+                  {(order.deliveryId || order.trackingUrl) && (
+                    <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/60 mt-1 text-[10px]">
+                      <span className="text-slate-500 uppercase font-black">Tracking Sandbox:</span>
+                      <span className="text-indigo-600 font-mono font-black">{order.deliveryId || 'Ver seguimiento'}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Items */}
