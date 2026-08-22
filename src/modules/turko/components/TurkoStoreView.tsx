@@ -65,6 +65,8 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
     applyCouponCode,
     removeCoupon,
     totals,
+    totalWeightKg,
+    isOverweightForExpress,
     activeTicket,
     setActiveTicket,
     pendingApprovalTx,
@@ -665,107 +667,110 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                 return (
                   <div
                     key={product.id}
-                    className="bg-white rounded-3xl border-2 border-slate-200 p-4 sm:p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition-all relative w-full space-y-4"
+                    className="bg-white rounded-2xl sm:rounded-3xl border-2 border-slate-200 p-3 sm:p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-all relative w-full space-y-2.5 sm:space-y-3"
                   >
                     {/* Top Internal Header: Category Badge Left & Offer Badge Right */}
                     <div className="flex items-center justify-between gap-2 w-full">
-                      <span className="bg-amber-500 text-white text-xs font-black px-3.5 py-1.5 rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                        <span>🧃</span>
+                      <span className="bg-amber-500 text-white text-[11px] sm:text-xs font-black px-2.5 py-1 sm:px-3 sm:py-1 rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                        <span>{getCategoryEmoji(product.category)}</span>
                         <span>{product.category || 'BEBIDAS'}</span>
                       </span>
 
                       {product.enOferta ? (
-                        <span className="bg-rose-500 text-white text-xs font-black px-3.5 py-1.5 rounded-xl uppercase tracking-wider flex items-center gap-1 shadow-2xs animate-pulse">
+                        <span className="bg-rose-500 text-white text-[11px] sm:text-xs font-black px-2.5 py-1 sm:px-3 sm:py-1 rounded-xl uppercase tracking-wider flex items-center gap-1 shadow-2xs animate-pulse">
                           <span>🔥</span>
                           <span>¡OFERTA! {discountPct > 0 ? `(-${discountPct}%)` : ''}</span>
                         </span>
                       ) : (
                         product.stock !== undefined && product.stock <= 5 && (
-                          <span className="bg-amber-600 text-white text-xs font-black px-3.5 py-1.5 rounded-xl shadow-2xs uppercase">
+                          <span className="bg-amber-600 text-white text-[11px] sm:text-xs font-black px-2.5 py-1 rounded-xl shadow-2xs uppercase">
                             🔥 ¡Solo {product.stock}!
                           </span>
                         )
                       )}
                     </div>
 
-                    {/* Central Zone: Large Protagonist Image */}
-                    <div className="w-full flex items-center justify-center bg-slate-50/70 rounded-2xl p-4 border border-slate-100 my-1">
+                    {/* Central Zone: Uber Eats Style Compact Rectangular Image Container */}
+                    <div className="w-full h-36 sm:h-44 flex items-center justify-center bg-slate-50/80 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-slate-100 overflow-hidden">
                       <img
                         src={product.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400'}
                         alt={product.name}
-                        className="h-44 sm:h-52 max-w-full object-contain hover:scale-105 transition-transform duration-300 drop-shadow-xs"
+                        className="w-full h-full max-h-32 sm:max-h-40 object-contain hover:scale-105 transition-transform duration-300 drop-shadow-2xs"
                       />
                     </div>
 
                     {/* Details & Prices Row */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 pt-1">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-2 sm:gap-4 pt-0.5">
                       {/* Left: Title, SKU, Unit, Store Tag */}
-                      <div className="space-y-1 max-w-xl">
-                        <h3 className="font-black text-slate-900 text-base sm:text-lg leading-snug">
+                      <div className="space-y-0.5 max-w-xl">
+                        <h3 className="font-black text-slate-900 text-sm sm:text-base leading-snug">
                           {product.name}
                         </h3>
-                        <p className="text-xs text-slate-400 font-bold font-mono">
+                        <p className="text-[10px] sm:text-xs text-slate-400 font-bold font-mono">
                           SKU: {product.sku || product.id.slice(-10)}
                         </p>
                         {product.unidadMedida && (
-                          <span className="text-xs text-amber-800 font-extrabold block">
+                          <span className="text-[11px] sm:text-xs text-amber-800 font-extrabold block">
                             {getUnidadLabel(product.unidadMedida)}
                           </span>
                         )}
-                        <div className="pt-2 flex items-center gap-1.5 text-xs text-slate-700 font-black">
+                        <div className="pt-1 flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-600 font-bold">
                           <span>Tienda</span>
                           <span>📦</span>
                         </div>
                       </div>
 
                       {/* Right: Stock Badge & Prices */}
-                      <div className="flex flex-col items-start sm:items-end gap-1 w-full sm:w-auto shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                      <div className="flex flex-col items-start sm:items-end gap-0.5 w-full sm:w-auto shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                         {product.enOferta && product.stock !== undefined && product.stock <= 5 && (
-                          <span className="bg-amber-600 text-white text-xs font-black px-3 py-1 rounded-xl shadow-2xs uppercase">
+                          <span className="bg-amber-600 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-2xs uppercase">
                             🔥 ¡Solo {product.stock}!
                           </span>
                         )}
 
                         <div className="text-left sm:text-right">
-                          <span className="text-[10px] text-slate-400 font-black tracking-widest block uppercase">
+                          <span className="text-[9px] sm:text-[10px] text-slate-400 font-black tracking-widest block uppercase">
                             PRECIO
                           </span>
                           {product.enOferta && product.precioOferta && (
                             <span className="text-xs text-slate-400 line-through font-mono font-bold block">
-                              ${product.price.toFixed(2)}
+                              ${Math.round(product.price).toLocaleString('es-CL')}
                             </span>
                           )}
-                          <span className="text-2xl sm:text-3xl font-black text-rose-600 font-mono leading-none block pt-0.5">
-                            ${displayPrice.toFixed(2)}
+                          <span className="text-xl sm:text-2xl font-black text-rose-600 font-mono leading-tight block">
+                            ${Math.round(displayPrice).toLocaleString('es-CL')}
                           </span>
                         </div>
                       </div>
                     </div>
 
                     {/* Bottom Right: Broad Green Button */}
-                    <div className="flex justify-end w-full pt-2 border-t border-slate-100">
+                    <div className="flex justify-end w-full pt-1.5 border-t border-slate-100">
                       {inCart ? (
-                        <div className="flex items-center gap-2 bg-emerald-50 border-2 border-emerald-500 rounded-2xl px-3 py-1.5 shadow-2xs">
+                        <div className="flex items-center gap-2 bg-emerald-50 border-2 border-emerald-500 rounded-xl px-2.5 py-1 shadow-2xs">
                           <button
+                            type="button"
                             onClick={() => updateCartQuantity(product.id, inCart.quantity - 1)}
-                            className="w-8 h-8 bg-white text-emerald-800 rounded-xl flex items-center justify-center font-black shadow-2xs hover:bg-emerald-100 transition-colors"
+                            className="w-7 h-7 bg-white text-emerald-800 rounded-lg flex items-center justify-center font-black shadow-2xs hover:bg-emerald-100 transition-colors cursor-pointer"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="font-mono font-black text-sm text-emerald-950 px-2">
+                          <span className="font-mono font-black text-xs sm:text-sm text-emerald-950 px-1.5">
                             {inCart.quantity} en carrito
                           </span>
                           <button
+                            type="button"
                             onClick={() => updateCartQuantity(product.id, inCart.quantity + 1)}
-                            className="w-8 h-8 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-black shadow-2xs hover:bg-emerald-700 transition-colors"
+                            className="w-7 h-7 bg-emerald-600 text-white rounded-lg flex items-center justify-center font-black shadow-2xs hover:bg-emerald-700 transition-colors cursor-pointer"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => addToCart(product, 1)}
-                          className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-sm shadow-md hover:shadow-lg flex items-center gap-2 transition-all active:scale-98 cursor-pointer border border-emerald-500"
+                          className="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs sm:text-sm shadow-xs flex items-center gap-1.5 transition-all active:scale-98 cursor-pointer border border-emerald-500"
                         >
                           <Plus className="w-4 h-4 stroke-[3]" />
                           <span>Agregar</span>
@@ -987,28 +992,61 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                   {shippingMethod === 'Domicilio' && (
                     <div className="space-y-4 pt-2 border-t border-slate-100 animate-in fade-in duration-200">
 
-                      {/* SELECTOR DUAL DE TIPO DE DESPACHO (SI BANNER DE RUTAS CAMIÓN ESTÁ ACTIVO) */}
-                      {showTruckRoutesBanner && (
+                      {/* ALERTA PERSISTENTE POR LÍMITE DE PESO LOGÍSTICO (> 15 KG) */}
+                      {isOverweightForExpress && (
+                        <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-3.5 space-y-1.5 text-slate-900 shadow-2xs animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2 text-amber-950 font-black text-xs">
+                            <span className="text-base">⚠️</span>
+                            <span>CONTROL DE PESO LOGÍSTICO (MÁX. 15 KG PARA EXPRÉS)</span>
+                          </div>
+                          <p className="text-xs text-amber-950 font-semibold leading-relaxed">
+                            Tu pedido supera los 15 kg (Total: <span className="font-mono font-black text-rose-700 bg-white px-1.5 py-0.5 rounded border border-amber-300 shadow-2xs">{totalWeightKg} kg</span>). Por volumen y seguridad en el transporte, este pedido solo puede ser despachado mediante <span className="font-black underline decoration-amber-600">Flete Logístico Programado (Ruta Camión)</span>.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* SELECTOR DUAL DE TIPO DE DESPACHO */}
+                      {(showTruckRoutesBanner || isOverweightForExpress) && (
                         <div className="space-y-2">
-                          <label className="text-[11px] font-black text-slate-800 uppercase block tracking-wider">
-                            TIPO DE DESPACHO A DOMICILIO
-                          </label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-black text-slate-800 uppercase block tracking-wider">
+                              TIPO DE DESPACHO A DOMICILIO
+                            </label>
+                            {totalWeightKg > 0 && (
+                              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                Peso Acumulado: <strong className="font-mono text-slate-900">{totalWeightKg} kg</strong>
+                              </span>
+                            )}
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
-                              onClick={() => setDeliveryType('expres')}
-                              className={`p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
-                                deliveryType === 'expres'
-                                  ? 'bg-amber-500/10 border-amber-600 text-slate-900 shadow-xs'
-                                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'
+                              disabled={isOverweightForExpress}
+                              onClick={() => !isOverweightForExpress && setDeliveryType('expres')}
+                              className={`p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                                isOverweightForExpress
+                                  ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed text-slate-400'
+                                  : deliveryType === 'expres'
+                                  ? 'bg-amber-500/10 border-amber-600 text-slate-900 shadow-xs cursor-pointer'
+                                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600 cursor-pointer'
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 font-black text-xs text-amber-950">
-                                <span>🚀</span>
-                                <span>Envío Exprés</span>
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="flex items-center gap-1.5 font-black text-xs text-amber-950">
+                                  <span>🚀</span>
+                                  <span>Envío Exprés</span>
+                                </div>
+                                {isOverweightForExpress && (
+                                  <span className="text-[9px] font-black bg-rose-100 text-rose-700 px-1 py-0.2 rounded border border-rose-200 uppercase">
+                                    +15kg
+                                  </span>
+                                )}
                               </div>
                               <span className="text-[10px] font-semibold text-slate-600 leading-tight">
-                                Inmediato por Uber/Rappi (Tarifa Dinámica)
+                                {isOverweightForExpress
+                                  ? 'No disponible (> 15 kg)'
+                                  : 'Inmediato por Uber/Rappi (Tarifa Dinámica)'}
                               </span>
                             </button>
 
@@ -1021,9 +1059,16 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                                   : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 font-black text-xs text-indigo-950">
-                                <span>🚚</span>
-                                <span>Ruta Camión</span>
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="flex items-center gap-1.5 font-black text-xs text-indigo-950">
+                                  <span>🚚</span>
+                                  <span>Ruta Camión</span>
+                                </div>
+                                {isOverweightForExpress && (
+                                  <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded border border-emerald-200 uppercase">
+                                    Requerido
+                                  </span>
+                                )}
                               </div>
                               <span className="text-[10px] font-semibold text-slate-600 leading-tight">
                                 Flete Programado (Tarifa Fija por Zona)
@@ -1033,8 +1078,8 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                         </div>
                       )}
 
-                      {/* CASO 1: ENVÍO EXPRÉS (O RUTAS CAMIÓN FALSE) */}
-                      {(!showTruckRoutesBanner || deliveryType === 'expres') && (
+                      {/* CASO 1: ENVÍO EXPRÉS (SÓLO SI NO SUPERA EL PESO Y NO ES CAMION) */}
+                      {(!isOverweightForExpress && (!showTruckRoutesBanner || deliveryType === 'expres')) && (
                         <div className="space-y-3 bg-amber-500/5 border-2 border-amber-200/70 p-3.5 rounded-2xl animate-in fade-in duration-200">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
@@ -1118,8 +1163,8 @@ export const TurkoStoreView: React.FC<TurkoStoreViewProps> = ({
                         </div>
                       )}
 
-                      {/* CASO 2: RUTA CAMIÓN PROGRAMADO (SÓLO SI SHOWTRUCKROUTESBANNER ES TRUE Y DELIVERYTYPE ES CAMION) */}
-                      {showTruckRoutesBanner && deliveryType === 'camion' && (
+                      {/* CASO 2: RUTA CAMIÓN PROGRAMADO (CUANDO DELIVERYTYPE ES CAMION O FORZADO POR PESO) */}
+                      {(showTruckRoutesBanner || isOverweightForExpress) && deliveryType === 'camion' && (
                         <div className="space-y-3 bg-indigo-50/60 border-2 border-indigo-200 p-3.5 rounded-2xl animate-in fade-in duration-200">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-black uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">

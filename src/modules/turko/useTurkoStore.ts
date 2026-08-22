@@ -14,7 +14,7 @@ import {
   saveTurkoInventory,
   getTurkoFormattedChileDate
 } from './config';
-import { calculateTurkoTotals, generateTurkoWhatsAppMessage, isTurkoProduct, getSectorForComunaTurko } from './utils';
+import { calculateTurkoTotals, generateTurkoWhatsAppMessage, isTurkoProduct, getSectorForComunaTurko, calculateCartTotalWeightKg, TURKO_MAX_EXPRESS_WEIGHT_KG } from './utils';
 import { validateTurkoCoupon, CouponValidationResult } from './coupons';
 import { crearOrdenDelivery } from '../../services/deliveryService';
 
@@ -63,6 +63,16 @@ export function useTurkoStore(
   const [deliveryType, setDeliveryType] = useState<'expres' | 'camion'>('expres');
   const [selectedComuna, setSelectedComuna] = useState<string>('La Pintana');
   const [deliveryFee, setDeliveryFee] = useState<number>(2500);
+
+  // Cart Weight Calculation & Express Limit Enforcement
+  const totalWeightKg = useMemo(() => calculateCartTotalWeightKg(cart), [cart]);
+  const isOverweightForExpress = totalWeightKg > TURKO_MAX_EXPRESS_WEIGHT_KG;
+
+  useEffect(() => {
+    if (isOverweightForExpress && deliveryType !== 'camion') {
+      setDeliveryType('camion');
+    }
+  }, [isOverweightForExpress, deliveryType]);
 
   // Coupon State
   const [couponInput, setCouponInput] = useState<string>('');
@@ -216,6 +226,7 @@ export function useTurkoStore(
         deliveryFee: shippingMethod === 'Domicilio' ? calculated.deliveryFee : 0,
         deliveryAddress: shippingMethod === 'Domicilio' ? deliveryAddress.trim() : undefined,
         deliveryComuna: shippingMethod === 'Domicilio' ? selectedComuna : undefined,
+        deliveryType: shippingMethod === 'Domicilio' ? (isOverweightForExpress ? 'camion' : deliveryType) : undefined,
         paymentStatus: paymentMethod === 'Efectivo' || paymentMethod === 'Fiado / Cuenta Corriente' ? 'Pendiente' : 'Aprobado',
         source: 'digital',
         origen: 'digital',
@@ -341,6 +352,8 @@ export function useTurkoStore(
     applyCouponCode,
     removeCoupon,
     totals,
+    totalWeightKg,
+    isOverweightForExpress,
     activeTicket,
     setActiveTicket,
     pendingApprovalTx,

@@ -12,6 +12,55 @@ export interface TurkoCalculatedTotals {
   total: number;
 }
 
+export const TURKO_MAX_EXPRESS_WEIGHT_KG = 15;
+
+export function getProductWeightKg(product: any): number {
+  if (!product) return 1;
+
+  if (typeof product.peso_kg === 'number' && product.peso_kg > 0) {
+    return product.peso_kg;
+  }
+  if (typeof product.pesoKg === 'number' && product.pesoKg > 0) {
+    return product.pesoKg;
+  }
+  if (typeof product.weight === 'number' && product.weight > 0) {
+    return product.weight;
+  }
+
+  // Parse from unidadMedida
+  const u = (product.unidadMedida || '').toLowerCase();
+  if (u.includes('25kg')) return 25;
+  if (u.includes('10kg')) return 10;
+  if (u.includes('5kg')) return 5;
+  if (u === 'kg' || u === 'kilo') return 1;
+  if (u.includes('malla')) return 2;
+
+  // Try parsing from product name
+  const name = (product.name || '').toLowerCase();
+  const kgMatch = name.match(/(\d+(?:[.,]\d+)?)\s*(?:kg|kilos|kilo)/i);
+  if (kgMatch) {
+    return parseFloat(kgMatch[1].replace(',', '.'));
+  }
+  const lMatch = name.match(/(\d+(?:[.,]\d+)?)\s*(?:l|lt|litro|litros)/i);
+  if (lMatch) {
+    return parseFloat(lMatch[1].replace(',', '.'));
+  }
+  const gMatch = name.match(/(\d+)\s*(?:g|gr|gramos)/i);
+  if (gMatch) {
+    return parseFloat(gMatch[1]) / 1000;
+  }
+
+  return 1; // Default 1 kg per unit
+}
+
+export function calculateCartTotalWeightKg(cart: TurkoCartItem[]): number {
+  const total = cart.reduce((sum, item) => {
+    const itemWeight = getProductWeightKg(item.product);
+    return sum + (itemWeight * item.quantity);
+  }, 0);
+  return Math.round(total * 10) / 10;
+}
+
 export function calculateTurkoTotals(
   cart: TurkoCartItem[],
   shippingMethod: 'Retiro' | 'Domicilio',

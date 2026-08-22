@@ -5,7 +5,9 @@ import { getCategoryPlaceholder, handleImageError, checkStoreOpenStatus } from '
 import { getUnidadLabel, getUnidadShortSuffix, isClosedVolumeUnit, isLooseWeightUnit } from '../utils/unitHelpers';
 import { jsPDF } from 'jspdf';
 import { TurkoStoreView } from '../modules/turko';
+import { FRUTERIA_MAX_EXPRESS_WEIGHT_KG, calculateFruteriaCartTotalWeightKg } from '../modules/fruteria';
 import { cotizarEnvio, crearOrdenDelivery } from '../services/deliveryService';
+import { INITIAL_PIZZA_PRODUCTS } from '../initDb';
 
 const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
   'Todos': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/main/Emojis/Objects/Shopping%20Cart.png',
@@ -1320,6 +1322,19 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
   // Aggregated mathematics
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Dynamic Total Weight (Kg) of the Cart & Heavy Load Logistics
+  const totalCartWeightKg = useMemo(() => {
+    return calculateFruteriaCartTotalWeightKg(cart, productosComprar);
+  }, [cart, productosComprar]);
+
+  const isOverWeightLimit = totalCartWeightKg > FRUTERIA_MAX_EXPRESS_WEIGHT_KG;
+
+  useEffect(() => {
+    if (isOverWeightLimit && deliveryType === 'expres') {
+      setDeliveryType('camion');
+    }
+  }, [isOverWeightLimit, deliveryType]);
   
   const ivaPercentage = 19;
   const subtotalVal = cart.reduce((sum, item) => {
@@ -1331,6 +1346,92 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
   const taxVal = subtotalVal - montoNetoInformativo;
   const platformFeeVal = subtotalVal * 0.10; // 10% platform service fee
   const totalCartCost = subtotalVal + (shippingMethod === 'Domicilio' ? deliveryFee : 0) + platformFeeVal;
+
+  // Cross-Selling / Venta Sugerida Logic ("¿TE FALTÓ AGREGAR ALGO? 🛒")
+  const suggestedCrossSellItems = useMemo(() => {
+    const complementaryCategories = [
+      'bebidas', 'acompañamientos', 'postres', 'salsas', 'extras', 'aderezos', 'snacks', 'promociones 2x', 'promos', 'combos'
+    ];
+
+    const pool: Array<{ product: Product; badge: string; categoryLabel: string }> = [];
+    const seenIds = new Set<string>();
+
+    // 1. Scan live products for complementary items
+    productosComprar.forEach(p => {
+      const catLower = (p.category || '').toLowerCase();
+      const nameLower = (p.name || '').toLowerCase();
+      const isComplementary = complementaryCategories.some(c => catLower.includes(c)) ||
+        nameLower.includes('coca') || nameLower.includes('sprite') || nameLower.includes('bebida') ||
+        nameLower.includes('palitos') || nameLower.includes('mozzarella') || nameLower.includes('tiramis') ||
+        nameLower.includes('nutella') || nameLower.includes('calzone') || nameLower.includes('salsa') ||
+        nameLower.includes('papas') || nameLower.includes('postre');
+      
+      const isFullPizzaOnly = catLower === 'pizzas' && !nameLower.includes('palito') && !nameLower.includes('promo') && !nameLower.includes('calzone dulce');
+
+      if (isComplementary && !isFullPizzaOnly && !seenIds.has(p.id) && (p.stock === undefined || p.stock > 0)) {
+        seenIds.add(p.id);
+        let badge = 'COMPLEMENTO';
+        if (p.enOferta || catLower.includes('promo') || nameLower.includes('promo') || nameLower.includes('combo')) {
+          badge = 'OFERTA';
+        } else if (catLower.includes('bebida') || nameLower.includes('coca') || nameLower.includes('sprite') || nameLower.includes('1.5l')) {
+          badge = 'BEBIDA';
+        } else if (catLower.includes('postre') || nameLower.includes('tiramis') || nameLower.includes('nutella')) {
+          badge = 'POSTRE';
+        } else if (catLower.includes('salsa') || nameLower.includes('salsa') || nameLower.includes('dip')) {
+          badge = 'EXTRA';
+        }
+
+        pool.push({
+          product: p,
+          badge,
+          categoryLabel: p.category || (badge === 'BEBIDA' ? 'Bebidas' : badge === 'POSTRE' ? 'Postres' : 'Acompañamientos')
+        });
+      }
+    });
+
+    // 2. In Pizzería or general catalog, if pool has few items, add from INITIAL_PIZZA_PRODUCTS complementary items
+    if ((isPizzeria || pool.length < 3) && Array.isArray(INITIAL_PIZZA_PRODUCTS)) {
+      INITIAL_PIZZA_PRODUCTS.forEach(p => {
+        const catLower = (p.category || '').toLowerCase();
+        const nameLower = (p.name || '').toLowerCase();
+        const isComplementary = complementaryCategories.some(c => catLower.includes(c)) ||
+          nameLower.includes('coca') || nameLower.includes('sprite') || nameLower.includes('bebida') ||
+          nameLower.includes('palitos') || nameLower.includes('mozzarella') || nameLower.includes('tiramis') ||
+          nameLower.includes('nutella') || nameLower.includes('calzone') || nameLower.includes('salsa');
+        
+        const isFullPizzaOnly = catLower === 'pizzas' && !nameLower.includes('palito') && !nameLower.includes('promo') && !nameLower.includes('calzone dulce');
+
+        if (isComplementary && !isFullPizzaOnly && !seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          let badge = 'COMPLEMENTO';
+          if (p.enOferta || catLower.includes('promo') || nameLower.includes('promo') || nameLower.includes('combo')) {
+            badge = 'OFERTA';
+          } else if (catLower.includes('bebida') || nameLower.includes('coca') || nameLower.includes('sprite') || nameLower.includes('1.5l')) {
+            badge = 'BEBIDA';
+          } else if (catLower.includes('postre') || nameLower.includes('tiramis') || nameLower.includes('nutella')) {
+            badge = 'POSTRE';
+          } else if (catLower.includes('salsa') || nameLower.includes('salsa') || nameLower.includes('dip')) {
+            badge = 'EXTRA';
+          }
+
+          pool.push({
+            product: p,
+            badge,
+            categoryLabel: p.category || (badge === 'BEBIDA' ? 'Bebidas' : badge === 'POSTRE' ? 'Postres' : 'Acompañamientos')
+          });
+        }
+      });
+    }
+
+    return pool;
+  }, [productosComprar, isPizzeria]);
+
+  // Intelligent filter: Hide products that are already in the cart
+  const availableSuggestedItems = useMemo(() => {
+    return suggestedCrossSellItems.filter(item => {
+      return !cart.some(c => c.id === item.product.id);
+    });
+  }, [suggestedCrossSellItems, cart]);
 
   // PDF Ticket Downloader for Clients
   const downloadReceiptPDF = (tx: Transaction) => {
@@ -1758,6 +1859,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
         } : {}),
         siiPdfUrl: simulatedPdfUrl || undefined,
         shippingMethod,
+        deliveryType: shippingMethod === 'Domicilio' ? deliveryType : undefined,
         ...(shippingMethod === 'Domicilio' ? {
           deliveryAddress: `${street.trim()} # ${number.trim()}`,
           deliveryComuna: comuna,
@@ -1855,15 +1957,18 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
       const cartMeals = cart.filter(item => item.type === 'meal');
 
       let progEntregaLine = '';
-      if (shippingMethod === 'Domicilio' && flagRutasCamion && deliveryType === 'camion') {
+      if (shippingMethod === 'Domicilio' && deliveryType === 'camion') {
         const sector = getSectorForComuna(comuna, config?.rutasCamion);
         if (sector) {
           progEntregaLine = `👉 PROGRAMACIÓN ENTREGA: Sector ${sector.name} — Próxima Ruta (${sector.days.join(', ')})\n`;
         }
       }
 
+      const isFruteriaActive = isFruteria || (config?.name || '').toLowerCase().includes('frut') || (config?.name || '').toLowerCase().includes('gales');
+      const camionLabel = isFruteriaActive ? 'Furgón Frutería / Ruta Programada 🚚' : 'Flete Logístico Programado (Ruta Camión) 🚚';
+
       const shippingLabel = shippingMethod === 'Domicilio'
-        ? (flagRutasCamion && deliveryType === 'camion' ? 'Flete Logístico Programado (Ruta Camión) 🚚' : 'Envío Inmediato / Exprés (Uber/Rappi) 🚀')
+        ? (deliveryType === 'camion' ? camionLabel : 'Envío Inmediato / Exprés (Uber/Rappi) 🚀')
         : 'Retiro en Tienda 🏬';
 
       let msg = '';
@@ -3270,6 +3375,88 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                     </div>
                   </div>
 
+                  {/* Módulo de Venta Sugerida Cross-Selling */}
+                  {availableSuggestedItems.length > 0 && (
+                    <div className="bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-amber-50/30 border-2 border-amber-250 p-3.5 sm:p-4 rounded-2xl space-y-2.5 shadow-xs animate-in fade-in slide-in-from-top-1 duration-200">
+                      {/* Encabezado destacado */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1 font-sans">
+                            <span className="text-base leading-none">✨</span>
+                            <span className="tracking-wide">¿TE FALTÓ AGREGAR ALGO? 🛒</span>
+                          </span>
+                        </div>
+                        <span className="bg-amber-500 text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider shrink-0 shadow-2xs">
+                          VENTA SUGERIDA
+                        </span>
+                      </div>
+
+                      {/* Carrusel horizontal de ofertas y complementos */}
+                      <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar sm:custom-scrollbar scroll-smooth snap-x">
+                        {availableSuggestedItems.map(({ product, badge, categoryLabel }) => {
+                          const priceVal = product.enOferta && product.precioOferta !== null && product.precioOferta !== undefined
+                            ? Number(product.precioOferta)
+                            : product.price;
+
+                          return (
+                            <div
+                              key={product.id}
+                              className="snap-start shrink-0 w-44 sm:w-48 bg-white border-2 border-amber-200 hover:border-amber-400 rounded-2xl p-2.5 flex flex-col justify-between shadow-xs transition-all duration-150 relative group"
+                            >
+                              {/* Etiqueta destacada y categoría */}
+                              <div className="flex items-center justify-between gap-1 mb-1.5">
+                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md tracking-wider ${
+                                  badge === 'OFERTA'
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : badge === 'BEBIDA'
+                                      ? 'bg-sky-100 text-sky-800'
+                                      : badge === 'POSTRE'
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : badge === 'EXTRA' || badge === 'SALSA'
+                                          ? 'bg-emerald-100 text-emerald-800'
+                                          : 'bg-amber-100 text-amber-900'
+                                }`}>
+                                  {badge}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400 truncate max-w-[75px]" title={categoryLabel}>
+                                  {categoryLabel}
+                                </span>
+                              </div>
+
+                              {/* Imagen miniaturizada y Nombre corto */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <img
+                                  src={product.imageUrl || 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&q=80&w=200'}
+                                  alt={product.name}
+                                  referrerPolicy="no-referrer"
+                                  className="w-11 h-11 object-contain rounded-xl border border-slate-200 bg-slate-50 p-0.5 shrink-0 group-hover:scale-105 transition-transform"
+                                />
+                                <p className="text-[11px] font-extrabold text-slate-900 leading-snug line-clamp-2 select-none" title={product.name}>
+                                  {product.name}
+                                </p>
+                              </div>
+
+                              {/* Precio y Botón + Sumar */}
+                              <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-slate-100 mt-auto">
+                                <span className="text-xs font-black text-slate-900 font-mono">
+                                  ${Math.round(priceVal).toLocaleString('es-CL')}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddProduct(product, 1)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[10.5px] px-2.5 py-1.5 rounded-xl flex items-center gap-1 shadow-2xs transition-all cursor-pointer shrink-0"
+                                >
+                                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                                  <span>+ Sumar</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Delivery info form fields */}
                   <div className="space-y-4 bg-white border-2 border-slate-200 p-4 rounded-2xl">
                     <span className="text-xs font-black text-slate-600 uppercase tracking-widest block font-sans">
@@ -3324,24 +3511,49 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                       {shippingMethod === 'Domicilio' ? (
                         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                           
-                          {/* Selector explícito de Tipo de Despacho (Solo si BANNER DE RUTAS CAMIÓN está activo) */}
-                          {flagRutasCamion && (
+                          {/* Banner Persistente de Alerta de Peso Límite (15 kg) */}
+                          {isOverWeightLimit && (
+                            <div className="bg-amber-50 border-2 border-amber-400 p-3.5 rounded-2xl flex items-start gap-3 animate-in fade-in duration-200 shadow-xs">
+                              <span className="text-xl shrink-0 mt-0.5">⚠️</span>
+                              <div className="space-y-0.5 text-xs text-amber-950">
+                                <p className="font-black uppercase tracking-wider text-[11px] text-amber-900">
+                                  Control Logístico de Carga Pesada (Límite 15 kg)
+                                </p>
+                                <p className="font-semibold leading-relaxed">
+                                  Tu pedido supera los 15 kg (Total: <span className="font-black font-mono">{totalCartWeightKg} kg</span>). Por volumen y resguardo del producto, esta carga solo puede ser despachada mediante el <span className="font-black">{isFruteria ? 'Furgón de Reparto / Ruta Programada' : 'Flete Logístico Programado / Ruta Camión'}</span>.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Selector explícito de Tipo de Despacho */}
+                          {(flagRutasCamion || isFruteria || isTurco || isOverWeightLimit) && (
                             <div className="space-y-1.5 pb-1">
-                              <label className="text-[11px] text-slate-700 font-black uppercase tracking-wider block font-sans">
-                                Tipo de Despacho *
-                              </label>
+                              <div className="flex items-center justify-between">
+                                <label className="text-[11px] text-slate-700 font-black uppercase tracking-wider block font-sans">
+                                  Tipo de Despacho *
+                                </label>
+                                <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-mono">
+                                  Peso: {totalCartWeightKg} kg
+                                </span>
+                              </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => setDeliveryType('expres')}
+                                  disabled={isOverWeightLimit}
+                                  onClick={() => !isOverWeightLimit && setDeliveryType('expres')}
                                   className={`p-3 rounded-2xl text-[11px] font-black border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 text-center ${
-                                    deliveryType === 'expres'
-                                      ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-emerald-500/30'
-                                      : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                                    isOverWeightLimit
+                                      ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 shadow-none'
+                                      : deliveryType === 'expres'
+                                        ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-emerald-500/30'
+                                        : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
                                   }`}
                                 >
                                   <span className="flex items-center gap-1.5 text-xs">🚀 Envío Inmediato / Exprés</span>
-                                  <span className="text-[10px] font-medium opacity-80">(Uber / Rappi Sandbox)</span>
+                                  <span className="text-[10px] font-medium opacity-80">
+                                    {isOverWeightLimit ? '(Bloqueado > 15 kg)' : '(Uber / Rappi Sandbox)'}
+                                  </span>
                                 </button>
                                 <button
                                   type="button"
@@ -3352,15 +3564,19 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                       : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
                                   }`}
                                 >
-                                  <span className="flex items-center gap-1.5 text-xs">🚚 Flete Logístico Programado</span>
-                                  <span className="text-[10px] font-medium opacity-80">(Ruta de Camión)</span>
+                                  <span className="flex items-center gap-1.5 text-xs">
+                                    {isFruteria ? '🚚 Furgón Frutería' : '🚚 Flete Programado'}
+                                  </span>
+                                  <span className="text-[10px] font-medium opacity-80">
+                                    {isFruteria ? '(Ruta Programada)' : '(Ruta de Camión)'}
+                                  </span>
                                 </button>
                               </div>
                             </div>
                           )}
 
-                          {/* Rama 1: Delivery Exprés / Inmediato (O cuando BANNER DE RUTAS CAMIÓN está false) */}
-                          {(!flagRutasCamion || deliveryType === 'expres') ? (
+                          {/* Rama 1: Delivery Exprés / Inmediato (O cuando BANNER DE RUTAS CAMIÓN está false y peso <= 15kg) */}
+                          {(!isOverWeightLimit && ((!flagRutasCamion && !isFruteria) || deliveryType === 'expres')) ? (
                             <div className="space-y-4">
                               {/* GPS Button and Error feedback */}
                               <div className="space-y-2">
@@ -3498,7 +3714,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                   </label>
                                   <input
                                     type="text"
-                                    placeholder="Ej. Av. Vicuña Mackenna"
+                                    placeholder={isFruteria ? "Ej. Av. Príncipe de Gales" : "Ej. Av. Vicuña Mackenna"}
                                     value={street}
                                     onChange={(e) => setStreet(e.target.value)}
                                     className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
@@ -3510,7 +3726,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                   </label>
                                   <input
                                     type="text"
-                                    placeholder="Ej. 1234"
+                                    placeholder={isFruteria ? "Ej. 5800" : "Ej. 1234"}
                                     value={number}
                                     onChange={(e) => setNumber(e.target.value)}
                                     className="w-full bg-slate-50 border-2 border-slate-350 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-emerald-500/15 focus:border-emerald-600 outline-none font-bold text-slate-950"
@@ -3520,7 +3736,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
 
                               <div>
                                 <label className="text-xs text-slate-750 font-black uppercase block mb-1.5 font-sans">
-                                  Comuna de Despacho (Ruta Camión) *
+                                  {isFruteria ? 'Comuna de Despacho (Furgón Frutería) *' : 'Comuna de Despacho (Ruta Camión) *'}
                                 </label>
                                 <select
                                   value={comuna}
@@ -3542,7 +3758,7 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                                   return (
                                     <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl space-y-1 animate-in fade-in duration-200 mt-2.5">
                                       <span className="block font-black text-[10px] uppercase tracking-wider text-indigo-900">
-                                        🚚 Ruta de Camión ({sector.name}) - {comuna}
+                                        {isFruteria ? `🚚 Furgón Frutería (${sector.name}) - ${comuna}` : `🚚 Ruta de Camión (${sector.name}) - ${comuna}`}
                                       </span>
                                       <p className="text-xs font-bold text-indigo-950 leading-relaxed">
                                         Despachamos a tu zona los días <span className="text-indigo-600 underline decoration-indigo-300 font-extrabold">{sector.days.join(' y ')}</span>. Costo de envío: <span className="text-indigo-700 font-black font-mono">${effectiveFee.toLocaleString('es-CL')} CLP</span>.
@@ -3556,18 +3772,18 @@ export default function ComprasTab({ products, productos = [], foodItems = [], c
                               {isQuotingDelivery ? (
                                 <div className="flex items-center gap-2.5 bg-indigo-50 border-2 border-indigo-200 text-indigo-900 p-3.5 rounded-2xl animate-pulse text-xs font-bold font-sans">
                                   <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                                  <span>Calculando flete programado de camión...</span>
+                                  <span>{isFruteria ? 'Calculando flete programado de furgón...' : 'Calculando flete programado de camión...'}</span>
                                 </div>
                               ) : deliveryFee > 0 ? (
                                 <div className="p-4 rounded-2xl flex justify-between items-center font-sans animate-in fade-in duration-250 bg-indigo-50 border-2 border-indigo-250 text-indigo-950">
                                   <div>
                                     <p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-800">
-                                      Flete Logístico Programado
+                                      {isFruteria ? 'Flete Programado / Furgón Frutería' : 'Flete Logístico Programado'}
                                     </p>
                                     <p className="text-xs font-black">
                                       {(() => {
                                         const sec = getSectorForComuna(comuna, config?.rutasCamion);
-                                        return sec ? `${sec.name} (${comuna})` : `Despacho Camión (${comuna})`;
+                                        return sec ? `${sec.name} (${comuna})` : (isFruteria ? `Despacho Furgón (${comuna})` : `Despacho Camión (${comuna})`);
                                       })()}
                                     </p>
                                   </div>

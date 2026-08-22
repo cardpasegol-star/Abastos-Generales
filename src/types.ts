@@ -16,6 +16,7 @@ export interface Product {
   descuento?: number;
   precioOferta?: number | null;
   unidadMedida?: 'unidad' | 'kg' | 'g' | 'saco_5kg' | 'saco_10kg' | 'saco_25kg' | 'malla_3u' | 'malla_4u' | 'malla_5u' | 'malla_6u' | string;
+  peso_kg?: number;
   store?: string;
   comunas?: string[]; // Allowed delivery zones/communes for this product (empty or undefined = available in all zones)
   supplierId?: string;
@@ -119,6 +120,7 @@ export interface Transaction {
   direccionTributaria?: string;
   siiPdfUrl?: string;
   shippingMethod?: 'Domicilio' | 'Retiro';
+  deliveryType?: 'expres' | 'camion';
   deliveryAddress?: string;
   deliveryComuna?: string;
   deliveryFee?: number;

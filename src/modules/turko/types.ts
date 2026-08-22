@@ -5,6 +5,7 @@ export interface TurkoProduct extends Product {
   unidadMedida?: 'unidad' | 'kg' | 'g' | 'saco_5kg' | 'saco_10kg' | 'saco_25kg' | 'malla_3u' | 'malla_4u' | 'malla_5u' | 'malla_6u' | string;
   enOferta?: boolean;
   precioOferta?: number;
+  peso_kg?: number;
 }
 
 export interface TurkoCartItem {
@@ -27,6 +28,7 @@ export interface TurkoTransaction extends Transaction {
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+  deliveryType?: 'expres' | 'camion';
   items: TurkoTransactionItem[];
 }
 
